@@ -7,6 +7,7 @@
   - [[#visual-script][visual script]]
   - [[#export-to-excel][export to excel]]
   - [[#set-to-default-editor][set to default editor]]
+  - [[#emacs-eselect-editor][emacs eselect editor]]
 - [[#basics][Basics]]
 - [[#better-defaults][Better defaults]]
 - [[#font-config][Font config]]
@@ -30,10 +31,12 @@
   - [[#org-id][org id]]
   - [[#org-roam][org roam]]
 - [[#novel][Nov.el]]
-- [[#pyim][pyim]]
 - [[#dired][Dired]]
   - [[#dired-open-in-xdg-open][Dired open in xdg-open]]
-- [[#rainbow-delimiters-mode][Rainbow-Delimiters mode]]
+- [[#pdf-tools][PDF Tools]]
+- [[#word-count][Word count]]
+- [[#librime][Librime]]
+- [[#pdf-view-restore][Pdf view restore]]
 
 * Packages needs to install
 :PROPERTIES:
@@ -383,6 +386,13 @@ xdg-mime default org.mozilla.zen.desktop x-scheme-handler/https
 xdg-mime default org.mozilla.zen.desktop text/html
 #+end_src
 
+#+RESULTS:
+** emacs eselect editor
+
+#+begin_src shell :tangle emacsclient_editor :shebang #!/bin/sh
+emacsclient --socket-name=/tmp/emacs$(id -u)/server -a -c "" "$@"
+#+end_src
+
 * Basics
 :PROPERTIES:
 :ID:       L20251017.160037_basics
@@ -436,8 +446,9 @@ change `org-directory'. It must be set before org loads!
     org-roam-directory "~/projects/org/roam"
     deft-directory "~/projects/")
 
-(setq doom-font (font-spec :family "JetBrainsMono Nerd Font Propo" :size 16 :weight 'semi-light)
-    doom-variable-pitch-font (font-spec :family "Fira Sans" :size 17))
+(setq doom-font (font-spec :family "Monaspace Neon Medium" :size 17)
+      doom-unicode-font (font-spec :family "Sarasa Gothic SC" :size 17)
+      doom-variable-pitch-font (font-spec :family "Sarasa Gothic SC" :size 17))
 #+end_src
 
 Here are some additional functions/macros that will help you configure Doom.
@@ -489,6 +500,48 @@ Here are some additional functions/macros that will help you configure Doom.
       "C-<down>"       #'+evil/window-move-down
       "C-<up>"         #'+evil/window-move-up
       "C-<right>"      #'+evil/window-move-right)
+#+end_src
+
+#+begin_src emacs-lisp
+;; Sensible editing defaults
+(setq-default indent-tabs-mode nil
+              tab-width 4
+              fill-column 100
+              sentence-end-double-space nil)
+
+(setq ring-bell-function #'ignore
+      use-short-answers t
+      scroll-conservatively 101
+      mouse-wheel-scroll-amount '(1 ((shift) . 1))
+      mouse-wheel-progressive-speed nil)
+
+;; File safety: backups & autosave into cache, keep the cwd clean
+(setq backup-directory-alist `(("." . ,(expand-file-name "backup/" doom-cache-dir)))
+      backup-by-copying t
+      delete-old-versions t
+      version-control t
+      kept-new-versions 10
+      kept-old-versions 2
+      create-lockfiles nil
+      auto-save-default t
+      auto-save-include-big-deletions t
+      auto-save-no-message t)
+
+;; Persist history & state
+(setq save-place-file (expand-file-name "saveplace" doom-cache-dir)
+      savehist-file (expand-file-name "savehist" doom-cache-dir)
+      recentf-save-file (expand-file-name "recentf" doom-cache-dir))
+(save-place-mode 1)
+(savehist-mode 1)
+(recentf-mode 1)
+(global-auto-revert-mode 1)
+
+;; Convenience helpers
+(delete-selection-mode 1)
+(electric-pair-mode 1)
+(add-hook 'text-mode-hook #'visual-line-mode)
+(when (fboundp 'pixel-scroll-precision-mode)
+  (pixel-scroll-precision-mode 1))
 #+end_src
 * Font config
 #+begin_src emacs-lisp
@@ -1063,6 +1116,47 @@ For prettier lookup
 :PROPERTIES:
 :ID:       L20251026.055458_org
 :END:
+** COMMENT Org mode 中文标记
+#+begin_src emacs-lisp :tangle yes
+;; 配置 prettify
+(setq prettify-symbols-unprettify-at-point t)
+(defun org-prettify-set ()
+  (interactive)
+  (setq prettify-symbols-alist
+        (mapcan (lambda (x) (list x (cons (upcase (car x)) (cdr x)))) '(
+                                        ; 这里还能再加更多 pretty symbol
+                                                                        ("\u200b" . ?▾) ; 零宽空格
+                                                                        ))) (prettify-symbols-mode 1))
+(add-hook 'org-mode-hook 'org-prettify-set)
+
+;; 快速插入零宽空格
+(define-key org-mode-map (kbd "M-SPC M-SPC")
+            (lambda () (interactive) (insert "\u200b")))
+
+;; 导出时（导出为 org 时除外），去除零宽空格
+(defun +org-export-remove-zero-width-space (text _backend _info)
+  "Remove zero width spaces from TEXT."
+  (unless (org-export-derived-backend-p 'org)
+    (replace-regexp-in-string "\u200b" "" text)))
+(with-eval-after-load 'ox    ; 没有这一行的话，会因变量未定义而报错。
+  (add-to-list 'org-export-filter-final-output-functions #'+org-export-remove-zero-width-space t))
+(setq wl-copy-process nil)
+(defun wl-copy (text)
+  (setq wl-copy-process (make-process :name "wl-copy"
+                                      :buffer nil
+                                      :command '("wl-copy" "-f" "-n")
+                                      :connection-type 'pipe
+                                      :noquery t))
+  (setq cleaned-text (replace-regexp-in-string "\u200b" "" text))
+  (process-send-string wl-copy-process cleaned-text)
+  (process-send-eof wl-copy-process))
+(defun wl-paste ()
+  (if (and wl-copy-process (process-live-p wl-copy-process))
+      nil ; should return nil if we're the current paste owner
+    (shell-command-to-string "wl-paste -n | tr -d \r")))
+(setq interprogram-cut-function 'wl-copy)
+(setq interprogram-paste-function 'wl-paste)
+#+end_src
 ** Org mode itself
 #+begin_src emacs-lisp
 (after! org
@@ -1070,7 +1164,7 @@ For prettier lookup
   ;;(add-hook 'org-mode-hook 'org-num-mode)
   ;;(setq org-startup-numerated 't)
   (add-hook 'org-mode-hook 'org-display-inline-images)
-;;  (require 'ox-extra)
+  ;;  (require 'ox-extra)
   ;;(ox-extras-activate '(ignore-headlines))
   (setq-default org-startup-folded 'content)
   (setq-default org-log-done 'note)
@@ -1085,6 +1179,25 @@ For prettier lookup
           :timestamp nil         ; 默认不导出时间戳 (timestamp:nil)
           :with-sub-superscript "{}")) ; 启用 a^{b} 和 a_{b} 语法 (^:{})
   )
+;; 或者使用更灵活的方法
+(defun my/org-latex-in-custom-block ()
+  "在特定自定义块中启用LaTeX模式。"
+  (when (and (org-in-block-p '("theorem" "proof" "lemma" "proposition"))
+             (not (org-in-src-block-p)))
+    (let ((lang "latex"))
+      (org-src--get-lang-mode lang))))
+
+;; 为特定块启用语法高亮
+(add-hook 'org-mode-hook
+          (lambda ()
+            (font-lock-add-keywords
+             nil
+             '(("^#\\+begin_\\(theorem\\|proof\\|lemma\\)"
+                0 'org-block-begin-line)
+               ("^#\\+end_\\(theorem\\|proof\\|lemma\\)"
+                0 'org-block-end-line))))
+          (setq org-latex-preview-auto-generate t)
+          (setq org-latex-preview-auto-ignored-environments '("theorem" "proof")))
 #+end_src
 #+begin_src emacs-lisp
 (use-package! org-contrib :config
@@ -1134,7 +1247,7 @@ want to edit them afterwards though, so let's make that happen by default.
   (setq org-latex-src-block-backend 'minted)
   (add-to-list 'org-latex-classes
                '("article"
-                 "\\documentclass[12pt,a4paper]{report}
+                 "\\documentclass[12pt,a4paper]{book}
 \\usepackage{graphicx}
 \\usepackage{xcolor}
 \\usepackage{xeCJK}
@@ -1156,72 +1269,69 @@ want to edit them afterwards though, so let's make that happen by default.
 \\usepackage{textcomp}
 \\usepackage{listings}
 \\usepackage{geometry}
-\\usepackage{algorithm}
-\\usepackage[noend]{algpseudocode}
 \\usepackage{marvosym}
 \\usepackage{wasysym}
 \\usepackage{latexsym}
 \\usepackage{natbib}
 \\usepackage{fancyhdr}
 \\usepackage{cancel}
-\\usepackage{mathtools}
 \\usepackage{microtype}
 \\usepackage[xetex,colorlinks=true,CJKbookmarks=true, linkcolor=blue, urlcolor=blue, menucolor=blue]{hyperref}
 \\usepackage{fontspec,xunicode,xltxtra}
-\\newfontinstance\\MONO{\\fontnamemono}
-\\newcommand{\\mono}[1]{{\\MONO #1}}
+\\newfontfamily\\MONO{DejaVu Sans Mono}  % 更清晰的等宽字体定义
+\\newcommand{\\mono}[1]{{\\ttfamily #1}}  % 简化mono命令
 \\setmainfont{TeX Gyre Pagella}
-\\setCJKmainfont{SimSun}
-\\setCJKsansfont{WenQuanYi Micro Hei}
-\\setCJKmonofont{Sarasa Gothic SC}
+\\setCJKmainfont{Noto Serif CJK SC}
+\\setCJKsansfont{Noto Sans CJK SC}
+\\setCJKmonofont{Noto Sans Mono CJK SC}
 \\hypersetup{unicode=true}
-\\geometry{a4paper, textwidth=6.5in, textheight=10in,marginparsep=7pt, marginparwidth=.6in}
+\\geometry{a4paper, textwidth=6.5in, textheight=10in, marginparsep=7pt, marginparwidth=.6in}
 \\punctstyle{kaiming}
 
-\\title{}
 % 定义代码高亮风格
 % \\usemintedstyle{manni} % 可以选择你喜欢的风格
 
-% 设置代码背景色
-\\setminted{bgcolor=white} % 对应于 listings 的 backgroundcolor
-
-% 设置字体大小和样式，minted 没有直接的选项，但可以通过其他 LaTeX 命令来设置
-\\setminted{fontsize=\\small, baselinestretch=1}
-
-% 设置行号
+% 设置minted代码环境
+\\setminted{bgcolor=white, fontsize=\\small, baselinestretch=1}
 \\setminted{linenos, numbersep=5pt, frame=lines, framesep=2mm}
 
 % 设置页眉页脚的分隔线
-\\renewcommand{\\headrulewidth}{0.4pt} % 页眉分隔线宽度
-\\renewcommand{\\footrulewidth}{0pt} % 页脚分隔线宽度（0pt表示没有分隔线）
+\\renewcommand{\\headrulewidth}{0.4pt}
+\\renewcommand{\\footrulewidth}{0pt}
+
+% 定理环境定义
 \\newtheorem{lemma}{Lemma}[chapter]
 \\newtheorem{corollary}{Corollary}[chapter]
 \\newtheorem{proposition}{Proposition}[chapter]
+\\newtheorem{theorem}{Theorem}[chapter]
+\\newtheorem{definition}{Definition}[chapter]
 
-% 定义其他环境
+% 其他环境定义
 \\newtheorem{ex}{Exercise}[chapter]
 \\newtheorem{notation}{Notation}[chapter]
 \\newtheorem{remark}{Remark}[chapter]
-
-\\newtheorem{theorem}{Theorem}[chapter]
-\\newtheorem{definition}{Definition}[chapter]
 \\newtheorem{exm}{Example}[chapter]
+
+% 设置页眉页脚
 \\pagestyle{fancy}
 \\fancyhf{}
-\\renewcommand{\\chaptermark}[1]{\\markboth{#1}{}} % 修改页眉的chaptermark
+\\renewcommand{\\chaptermark}[1]{\\markboth{#1}{}}
 \\fancyfoot[R]{\\thepage}
-\\fancyhead{} % 页眉清空
+\\fancyhead{}
 \\fancyhead[R]{%
-   % The chapter number only if it's greater than 0
-   \\ifnum\\value{chapter}>0 \\chaptername\ \\thechapter: \\fi
-   % The chapter title
+   \\ifnum\\value{chapter}>0 \\chaptername\\ \\thechapter: \\fi
    \\leftmark}
 \\fancypagestyle{plain}{
-\\fancyhead{} % 页眉清空
-\\renewcommand{\\headrulewidth}{0pt} % 去页眉线
-\\fancyfoot{}
-\\fancyfoot[R]{\\thepage}
+   \\fancyhead{}
+   \\renewcommand{\\headrulewidth}{0pt}
+   \\fancyfoot{}
+   \\fancyfoot[R]{\\thepage}
 }
+
+% 设置行距和段落
+\\linespread{1.2}  % 设置行距
+\\setlength{\\parindent}{2em}  % 段落首行缩进
+\\setlength{\\parskip}{0.5em}  % 段落间距
 \\tolerance=1000
 
 [NO-DEFAULT-PACKAGES]
@@ -1234,16 +1344,16 @@ want to edit them afterwards though, so let's make that happen by default.
                  ("\\paragraph{%s}" . "\\paragraph*{%s}")
                  ("\\subparagraph{%s}" . "\\subparagraph*{%s}")))
 
-;; 使用Listings宏包格式化源代码(只是把代码框用listing环境框起来，还需要额外的设置)
-(setq org-export-latex-listings t)
-;; Options for \lset command（reference to listing Manual)
-;; 导出Beamer的设置
-;; allow for export=>beamer by placing #+LaTeX_CLASS: beamer in org files
-;;-----------------------------------------------------------------------------
-(add-to-list 'org-latex-classes
-             ;; beamer class, for presentations
-             '("beamer"
-               "\\documentclass[11pt,professionalfonts]{beamer}
+  ;; 使用Listings宏包格式化源代码(只是把代码框用listing环境框起来，还需要额外的设置)
+  (setq org-export-latex-listings t)
+  ;; Options for \lset command（reference to listing Manual)
+  ;; 导出Beamer的设置
+  ;; allow for export=>beamer by placing #+LaTeX_CLASS: beamer in org files
+  ;;-----------------------------------------------------------------------------
+  (add-to-list 'org-latex-classes
+               ;; beamer class, for presentations
+               '("beamer"
+                 "\\documentclass[11pt,professionalfonts]{beamer}
 \\mode
 
 \\setbeamertemplate{footline}[frame number]{}
@@ -1277,12 +1387,12 @@ want to edit them afterwards though, so let's make that happen by default.
 \\usepackage{listings}
 % \\institute{{{{beamerinstitute}}}}
 \\subject{{{{beamersubject}}}}"
-               ("\\section{%s}" . "\\section*{%s}")
-               ("\\begin{frame}[fragile]\\frametitle{%s}"
-                "\\end{frame}"
-                "\\begin{frame}[fragile]\\frametitle{%s}"
-                "\\end{frame}")))
-)
+                 ("\\section{%s}" . "\\section*{%s}")
+                 ("\\begin{frame}[fragile]\\frametitle{%s}"
+                  "\\end{frame}"
+                  "\\begin{frame}[fragile]\\frametitle{%s}"
+                  "\\end{frame}")))
+  )
 #+end_src
 ** org noter deft
 #+begin_src emacs-lisp
@@ -1307,7 +1417,7 @@ want to edit them afterwards though, so let's make that happen by default.
 #+begin_src emacs-lisp
 (after! ox-pandoc
   (setq org-pandoc-options-for-latex-pdf '((pdf-engine . "xelatex")
-                                           (template . "eppdev-doc")
+                                           (template . "/home/peng/Documents/templates/template.latex")
                                            ))
   (setq org-pandoc-options-for-docx '((reference-doc . "/home/peng/Documents/templates/template.docx")))
   )
@@ -1465,7 +1575,7 @@ want to edit them afterwards though, so let's make that happen by default.
 ** org columns
 *** basics
 #+begin_src emacs-lisp
-(use-package! org-ql :ensure t)
+(use-package! org-ql)
 
 (setq org-columns-default-format
       "%25ITEM(Task) %10ID(ID) %10POV(POV) %20Goal(Goal) %15Status(Status) %6Words(Words) %TAGS")
@@ -1671,6 +1781,72 @@ want to edit them afterwards though, so let's make that happen by default.
       (unless (file-exists-p my/novel-excel-converter-script)
         (warn "Excel converter script not found at: %s" my/novel-excel-converter-script)))))
 #+end_src
+*** novel writing workflow
+#+begin_src emacs-lisp
+;; 针对小说写作的轻量级专注模式与便捷入口
+(defvar my/novel--saved-cursor-type nil
+  "记录切换写作模式前的光标样式。")
+(defvar-local my/novel--saved-display-line-numbers nil
+  "记录切换写作模式前的行号显示状态。")
+
+(define-minor-mode my/novel-writing-mode
+  "为小说写作提供的轻量专注模式。
+关闭行号、调整行距，自动打开 wc-mode/draft-mode 与拼写检查，方便长篇写作。"
+  :init-value nil
+  :lighter " ✎Novel"
+  (if my/novel-writing-mode
+      (progn
+        (setq my/novel--saved-cursor-type cursor-type)
+        (setq-local cursor-type 'bar)
+        (setq-local my/novel--saved-display-line-numbers display-line-numbers)
+        (setq-local display-line-numbers nil)
+        (setq-local line-spacing 0.25)
+        (visual-line-mode 1)
+        (when (fboundp 'wc-mode) (wc-mode 1))
+        (when (fboundp 'draft-mode) (draft-mode 1))
+        (when (fboundp 'flyspell-mode) (flyspell-mode 1)))
+    (visual-line-mode -1)
+    (when (fboundp 'wc-mode) (wc-mode -1))
+    (when (fboundp 'draft-mode) (draft-mode -1))
+    (when (fboundp 'flyspell-mode) (flyspell-mode -1))
+    (when (local-variable-p 'my/novel--saved-display-line-numbers)
+      (setq-local display-line-numbers my/novel--saved-display-line-numbers))
+    (kill-local-variable 'line-spacing)
+    (setq cursor-type (or my/novel--saved-cursor-type t))))
+
+(defun my/novel--buffer-in-project-p ()
+  "判断当前 buffer 是否位于小说工程目录下。"
+  (when buffer-file-name
+    (string-prefix-p (file-name-as-directory (expand-file-name my/novel-org-path))
+                     (file-name-directory (expand-file-name buffer-file-name)))))
+
+(defun my/novel-auto-enable-writing-mode ()
+  "若当前 Org 文件属于小说工程，则自动开启写作模式。"
+  (when (and (derived-mode-p 'org-mode)
+             (my/novel--buffer-in-project-p))
+    (my/novel-writing-mode 1)))
+(add-hook 'org-mode-hook #'my/novel-auto-enable-writing-mode)
+
+(defun my/novel-open-file ()
+  "从预设清单中快速选择并打开小说相关文件。"
+  (interactive)
+  (let* ((choices (mapcar #'car my/novel-files))
+         (picked (completing-read "打开小说文件: " choices nil t)))
+    (find-file (my/novel-file picked))))
+
+(defun my/novel-capture-dispatch ()
+  "直接跳转到小说写作的 capture 入口（模板前缀 w）。"
+  (interactive)
+  (org-capture nil "w"))
+
+(map! :leader
+      (:prefix ("n w" . "Novel")
+       :desc "切换小说写作模式" "t" #'my/novel-writing-mode
+       :desc "打开小说文件" "o" #'my/novel-open-file
+       :desc "小说快速捕捉" "c" #'my/novel-capture-dispatch
+       :desc "导出场景 CSV" "e" #'my/novel-export-scenes-to-csv
+       :desc "可视化小说数据" "v" #'my/novel-visualize-data-with-python))
+#+end_src
 ** org id
 #+begin_src emacs-lisp
 (require 'org-id)
@@ -1720,9 +1896,6 @@ want to edit them afterwards though, so let's make that happen by default.
 (add-hook 'yas-after-exit-snippet-hook #'novel-auto-generate-id-after-snippet)
 
 #+end_src
-
-#+RESULTS:
-| novel-auto-generate-id-after-snippet |
 ** org roam
 #+begin_src emacs-lisp :tangle yes
 (use-package! websocket
@@ -1742,9 +1915,139 @@ want to edit them afterwards though, so let's make that happen by default.
 #+end_src
 
 * Nov.el
-* pyim
+#+begin_src emacs-lisp :tangle "~/.config/doom/packages.el"
+(package! nov.el
+  :recipe (:host github :repo "emacs-pe/nov.el"))
+(package! justify-kp
+  :recipe (:host github :repo "Fuco1/justify-kp")
+  )
+#+end_src
+
+#+begin_src emacs-lisp :tangle yes
+(use-package! nov
+  :config
+  (with-eval-after-load 'nov
+    ;; 1. DEFINITION: The Toggle Variable
+    (defvar nov-enable-link-peeking t
+      "When non-nil, preview internal links in the minibuffer instead of jumping.
+This is automatically disabled when viewing the Table of Contents.")
+
+    ;; 2. COMMAND: Toggle Function
+    (defun nov-toggle-link-peeking ()
+      "Toggle the peeking behavior for internal links."
+      (interactive)
+      (setq nov-enable-link-peeking (not nov-enable-link-peeking))
+      (message "Link peeking %s" (if nov-enable-link-peeking "enabled" "disabled")))
+
+    ;; 3. HELPER: The Smart Content Fetcher
+    (defun nov-content-at-target (filename target)
+      "Retrieve text content from FILENAME at anchor TARGET.
+Smartly handles duplicates by ignoring self-referencing links (source anchors)
+while accepting back-links (target anchors)."
+      (let* ((current-path (cdr (aref nov-documents nov-documents-index)))
+             (directory (file-name-directory current-path))
+             (full-path (if (or (null filename) (string= filename ""))
+                            current-path
+                          (if (file-name-absolute-p filename)
+                              filename
+                            (file-truename (nov-make-path directory filename))))))
+        (when (file-exists-p full-path)
+          (with-temp-buffer
+            (insert-file-contents full-path)
+            (let* ((dom (libxml-parse-html-region (point-min) (point-max)))
+                   ;; A "real" target has the ID but is NOT a link to that same ID
+                   (is-real-target-p
+                    (lambda (node)
+                      (and (equal (dom-attr node 'id) target)
+                           (let ((href (dom-attr node 'href)))
+                             (or (null href)
+                                 (not (string-suffix-p (concat "#" target) href)))))))
+                   (node (seq-find is-real-target-p (dom-search dom is-real-target-p))))
+
+              (when node
+                ;; If the node is inline, find its block-level parent
+                (when (memq (dom-tag node) '(a span sup sub em strong i b font small))
+                  (setq node
+                        (or (seq-find (lambda (block)
+                                        (dom-search block is-real-target-p))
+                                      (append (dom-by-tag dom 'li)
+                                              (dom-by-tag dom 'aside)
+                                              (dom-by-tag dom 'p)
+                                              (dom-by-tag dom 'div)
+                                              (dom-by-tag dom 'dd)))
+                            node)))
+                (replace-regexp-in-string "[ \t\n]+" " " (dom-texts node " "))))))))
+
+    ;; 4. OVERRIDE: The Logic to Check TOC and Toggle State
+    (defun nov-browse-url (&optional mouse-event)
+      "Follow external links, or preview internal footnotes if enabled and valid."
+      (interactive (list last-nonmenu-event))
+      (mouse-set-point mouse-event)
+      (let ((url (get-text-property (point) 'shr-url)))
+        (when (not url)
+          (user-error "No link under point"))
+
+        ;; LOGIC CHECK:
+        ;; 1. Is peeking enabled?
+        ;; 2. Are we currently OUTSIDE the Table of Contents?
+        ;; 3. Is it an internal link?
+        (let* ((curr-doc (aref nov-documents nov-documents-index))
+               (curr-id (car curr-doc))
+               (is-toc (eq curr-id nov-toc-id)) ;; nov.el specific check
+               (should-peek (and nov-enable-link-peeking
+                                 (not is-toc)
+                                 (not (nov-external-url-p url)))))
+
+          (if (not should-peek)
+              ;; STANDARD BEHAVIOR (Jump)
+              (if (nov-external-url-p url)
+                  (browse-url url)
+                (apply 'nov-visit-relative-file (nov-url-filename-and-target url)))
+
+            ;; PEEK BEHAVIOR
+            (seq-let (filename target) (nov-url-filename-and-target url)
+              (let ((preview-text (and target (nov-content-at-target filename target))))
+                (if preview-text
+                    (message "%s" preview-text)
+                  ;; Fallback to jump if peek fails
+                  (apply 'nov-visit-relative-file (list filename target))))))))))
+  (add-to-list 'auto-mode-alist '("\\.epub\\'" . nov-mode))
+  (setq nov-text-width t)
+  (setq visual-fill-column-center-text t)
+  (add-hook 'nov-mode-hook 'visual-line-mode)
+  (add-hook 'nov-mode-hook 'visual-fill-column-mode)
+  (require 'justify-kp)
+  (setq nov-text-width t)
+
+  (defun my-nov-window-configuration-change-hook ()
+    (my-nov-post-html-render-hook)
+    (remove-hook 'window-configuration-change-hook
+                 'my-nov-window-configuration-change-hook
+                 t))
+
+  (defun my-nov-post-html-render-hook ()
+    (if (get-buffer-window)
+        (let ((max-width (pj-line-width))
+              buffer-read-only)
+          (save-excursion
+            (goto-char (point-min))
+            (while (not (eobp))
+              (when (not (looking-at "^[[:space:]]*$"))
+                (goto-char (line-end-position))
+                (when (> (shr-pixel-column) max-width)
+                  (goto-char (line-beginning-position))
+                  (pj-justify)))
+              (forward-line 1))))
+      (add-hook 'window-configuration-change-hook
+                'my-nov-window-configuration-change-hook
+                nil t)))
+
+  (add-hook 'nov-post-html-render-hook 'my-nov-post-html-render-hook)
+  )
+#+end_src
+* COMMENT pyim
 #+begin_src emacs-lisp
-(set-language-environment "UTF-8")
+;; (set-language-environment "UTF-8")
 
 (after! pyim
   (require 'pyim-cregexp-utils)
@@ -1787,7 +2090,6 @@ want to edit them afterwards though, so let's make that happen by default.
   ;; 3. 使用 M-j 快捷键，强制将光标前的拼音字符串转换为中文。
   (setq-default pyim-english-input-switch-functions
                 '(pyim-probe-org-structure-template))
-
   (setq-default pyim-punctuation-half-width-functions
                 '(pyim-probe-punctuation-line-beginning
                   pyim-probe-punctuation-after-punctuation))
@@ -1795,10 +2097,13 @@ want to edit them afterwards though, so let's make that happen by default.
   ;; 开启代码搜索中文功能（比如拼音，五笔码等）
   (pyim-isearch-mode 1)
   )
-
 (use-package! pyim-basedict
   :after pyim)
 #+end_src
+
+#+RESULTS:
+: pyim-basedict
+
 * Dired
 ** Dired open in xdg-open
 #+begin_src emacs-lisp
@@ -1815,7 +2120,190 @@ want to edit them afterwards though, so let's make that happen by default.
   (define-key dired-mode-map (kbd "M-o") 'my/dired-xdg-open)
   )
 #+end_src
-* Rainbow-Delimiters mode
-#+begin_src emacs-lisp
-(rainbow-delimiters-mode)
+* PDF Tools
+#+begin_src emacs-lisp :tangle "~/.config/doom/packages.el"
+(package! pdf-view-pagemark)
+#+end_src
+
+#+begin_src emacs-lisp :tangle yes
+(use-package! pdf-view-pagemark
+  :custom (pdf-view-pagemark-timeout 2)
+  :hook (pdf-view-mode . pdf-view-pagemark-mode))
+
+#+end_src
+* Word count
+#+begin_src emacs-lisp :tangle yes
+(defvar words-count-rule-chinese "\\cc"
+  "A regexp string to match Chinese characters.")
+
+(defvar words-count-rule-nonespace "[^[:space:]]"
+  "A regexp string to match none pace characters.")
+
+(defvar words-count-rule-ansci "[A-Za-z0-9][A-Za-z0-9[:punct:]]*"
+  "A regexp string to match none pace characters.")
+
+(defvar words-count-regexp-list
+  (list words-count-rule-chinese
+        words-count-rule-nonespace
+        words-count-rule-ansci)
+  "A list for the regexp used in `advance-words-count'.")
+
+(defvar words-count-message-func 'message--words-count
+  "The function used to format message in `advance-words-count'.")
+
+(defun special--words-count (start end regexp)
+  "Count the word from START to END with REGEXP."
+  (let ((count 0))
+    (save-excursion
+      (save-restriction
+        (goto-char start)
+        (while (and (< (point) end) (re-search-forward regexp end t))
+          (setq count (1+ count)))))
+    count))
+
+(defun calculate-reading-time (word-count)
+  "Calculate estimated reading time based on WORD-COUNT.
+Assume average reading speed of 200 words per minute."
+  (let ((minutes (/ word-count 200.0)))
+    (cond
+     ((< minutes 1) "不到1分钟")
+     ((< minutes 2) "约1分钟")
+     ((< minutes 5) (format "约%.0f分钟" (ceiling minutes)))
+     (t (format "约%.0f分钟" (round minutes))))))
+
+(defun calculate-density-stats (start end)
+  "Calculate character density statistics from START to END."
+  (let ((content (buffer-substring-no-properties start end))
+        (total-chars (- end start))
+        (space-count 0)
+        (line-count 0)
+        (paragraph-count 0))
+
+    ;; Count spaces and newlines
+    (save-excursion
+      (goto-char start)
+      (while (re-search-forward "[[:space:]]" end t)
+        (if (equal (match-string 0) "\n")
+            (setq line-count (1+ line-count))
+          (setq space-count (1+ space-count))))
+
+      ;; Count paragraphs
+      (goto-char start)
+      (setq paragraph-count 1)
+      (while (re-search-forward "\n[[:space:]]*\n" end t)
+        (setq paragraph-count (1+ paragraph-count))))
+
+    (list total-chars space-count line-count paragraph-count)))
+
+(defun message--words-count (list start end &optional arg)
+  "Display enhanced word count message.
+Using the LIST passed form `advance-words-count'. START & END are
+required to call extra functions. When ARG is specified, display more details."
+  (let* ((chinese-chars (car list))
+         (non-space-chars (cadr list))
+         (english-words (car (last list)))
+         (total-words (+ chinese-chars english-words))
+         (density-stats (calculate-density-stats start end))
+         (total-chars (nth 0 density-stats))
+         (space-chars (nth 1 density-stats))
+         (line-count (nth 2 density-stats))
+         (paragraph-count (nth 3 density-stats))
+         (char-density (if (> line-count 0) (/ total-chars (* 1.0 line-count)) 0))
+         (reading-time (calculate-reading-time total-words)))
+
+    (if arg
+        ;; 详细模式 - 显示更多统计信息
+        (message
+         "📊 统计: %d字(%d中+%d英) | %d字符(%d非空+%d空格) | %d行(%d段) | 密度:%.1f字/行 | 阅读:%s"
+         total-words chinese-chars english-words
+         total-chars non-space-chars space-chars
+         line-count paragraph-count
+         char-density reading-time)
+
+      ;; 简洁模式 - 只显示关键信息
+      (message
+       "📊 %d字(%d中/%d英) | %d字符 | %d行 | %s"
+       total-words chinese-chars english-words
+       total-chars line-count reading-time))))
+
+;;;###autoload
+(defun advance-words-count (beg end &optional arg)
+  "Enhanced Chinese user preferred word count.
+If BEG = END, count the whole buffer. If called interactively,
+use minibuffer to display the messages. The optional ARG will be
+passed to `message--words-count'.
+
+Features:
+- Chinese and English word counting
+- Character statistics (with/without spaces)
+- Line and paragraph counting
+- Reading time estimation
+- Character density analysis
+
+See also `special-words-count'."
+  (interactive (if (use-region-p)
+                   (list (region-beginning)
+                         (region-end)
+                         (or current-prefix-arg nil))
+                 (list nil nil (or current-prefix-arg nil))))
+  (let ((min (or beg (point-min)))
+        (max (or end (point-max)))
+        list)
+    (setq list
+          (mapcar
+           (lambda (r) (special--words-count min max r))
+           words-count-regexp-list))
+    (if (called-interactively-p 'any)
+        (message--words-count list min max arg)
+      list)))
+#+end_src
+
+#+RESULTS:
+: advance-words-count
+
+Default:
+
+#+begin_src emacs-lisp :tangle yes
+;; 替换原生的 M-= 绑定，这是最自然的方式
+(global-set-key (kbd "M-=") 'advance-words-count)
+
+;; 可选：添加一个前缀参数来调用原生的简单统计
+(defun advance-words-count-original (&optional beg end)
+  "Call original count-words or advance-words-count based on prefix."
+  (interactive)
+  (if current-prefix-arg
+      (call-interactively 'count-words)  ; 调用原生命令
+    (call-interactively 'advance-words-count))) ; 调用增强命令
+
+;; 绑定到另一个快捷键，让你可以随时切回简单统计
+(global-set-key (kbd "C-c M-=") 'advance-words-count-original)
+#+end_src
+
+#+RESULTS:
+: advance-words-count-original
+* Librime
+#+begin_src emacs-lisp :tangle "~/.config/doom/packages.el"
+(package! rime
+  :recipe (:host github :repo "DogLooksGood/emacs-rime"))
+#+end_src
+
+#+begin_src emacs-lisp :tangle yes
+(use-package! rime
+  :custom
+  (default-input-method "rime")
+  (setq rime-share-data-dir "~/.local/share/fcitx5/rime")
+  )
+#+end_src
+* Pdf view restore
+
+#+begin_src emacs-lisp :tangle "~/.config/doom/packages.el"
+(package! pdf-view-restore
+  :recipe (:host github :repo "007kevin/pdf-view-restore"))
+#+end_src
+
+#+begin_src emacs-lisp :tangle yes
+(use-package! pdf-view-restore
+  :after pdf-tools
+  :config
+  (add-hook 'pdf-view-mode-hook 'pdf-view-restore-mode))
 #+end_src

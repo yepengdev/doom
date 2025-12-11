@@ -68,3 +68,17 @@
 (package! org-roam-ui)
 
 (package! websocket)
+
+(package! nov.el
+  :recipe (:host github :repo "emacs-pe/nov.el"))
+(package! justify-kp
+  :recipe (:host github :repo "Fuco1/justify-kp")
+  )
+
+(package! pdf-view-pagemark)
+
+(package! rime
+  :recipe (:host github :repo "DogLooksGood/emacs-rime"))
+
+(package! pdf-view-restore
+  :recipe (:host github :repo "007kevin/pdf-view-restore"))

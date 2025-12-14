@@ -1,0 +1,277 @@
+#+title: Doom Emacs 配置详解
+#+author: Peng Ye
+#+email: yepeng230@gmail.com
+#+date: 2025-05-01
+#+language: zh-CN
+#+toc: headlines
+
+* Table of Contents :toc:noexport:
+- [[#项目概述][项目概述]]
+- [[#主要特性][主要特性]]
+- [[#系统要求][系统要求]]
+- [[#安装指南][安装指南]]
+- [[#配置详解][配置详解]]
+- [[#使用指南][使用指南]]
+- [[#脚本工具][脚本工具]]
+- [[#快捷键参考][快捷键参考]]
+- [[#依赖管理][依赖管理]]
+
+* 项目概述
+
+这是一个针对中文用户深度定制的 Doom Emacs 配置文件，专门优化用于 *学术写作* 和 *创意写作* 场景。
+配置集成了完整的小说创作工作流、数据可视化工具、中文输入法支持和丰富的 Org 模式扩展，为作者和研究人员提供高效的写作环境。
+
+* 主要特性
+
+- 📚 完整小说写作系统：场景管理、角色追踪、世界构建
+- 📊 数据可视化：张力曲线、字数统计、角色分析
+- 🎨 精美界面：定制化 Dashboard、启动画面、主题
+- 📖 学术支持：LaTeX、Beamer、数学公式渲染
+- 🌏 中文优化：中文字体、零宽空格、输入法支持
+- 🔧 工具集成：PDF 阅读、epub 支持、文件管理
+- 💾 智能保存：自动保存、版本管理
+- 📈 统计分析：字数统计、阅读时间估算
+
+* 系统要求
+
+- 操作系统: Linux (推荐)、macOS、Windows (WSL)
+- Emacs 版本: 27.1+
+- Doom Emacs: 3.0+
+- Python: 3.7+ (用于脚本工具)
+- 字体: Monaspace Neon、Sarasa Gothic SC
+
+* 安装指南
+
+1. 安装 Doom Emacs
+
+
+#+begin_src shell
+git clone https://github.com/doomemacs/doomemacs ~/.config/emacs
+~/.config/emacs/bin/doom install
+#+end_src
+
+2. 复制配置文件
+
+将配置文件放入 =~/.config/doom/= 目录：
+
+#+begin_src shell
+# 配置文件
+cp config.org ~/.config/doom/config.org
+
+# 包管理
+cp packages.el ~/.config/doom/packages.el
+
+# 可选：复制 scripts 目录
+mkdir -p ~/.config/doom/scripts
+cp -r scripts/* ~/.config/doom/scripts/
+#+end_src
+
+3. 安装依赖
+
+Python 依赖：
+#+begin_src shell
+pip install pandas matplotlib graphviz networkx
+#+end_src
+
+系统字体：
+- [[https://github.com/tonsky/FiraCode][Fira Code]] (等宽字体)
+- [[https://github.com/be5invis/Sarasa-Gothic][Sarasa Gothic SC]] (中文等宽字体)
+- [[https://github.com/github/monaspace][Monaspace]] (现代编程字体)
+
+4. 重新配置
+
+#+begin_src shell
+~/.config/emacs/bin/doom sync
+#+end_src
+
+* 配置详解
+
+基础配置
+
+配置了基本的环境设置：
+
+- 用户信息设置
+- 窗口尺寸优化 (24×80)
+- 文件安全设置（自动保存、备份）
+- 代码编辑增强（括号匹配、自动缩进）
+
+主题和界面
+
+- 支持多种主题（doom-one、catppuccin、nano-theme 等）
+- 自定义启动画面和 Dashboard
+- 响应式字体大小调整
+- 中文字体配置
+
+Org 模式定制
+
+丰富的 Org 模式扩展：
+
+- 基础设置：隐藏标记、启动折叠、LaTeX 集成
+- 扩展功能：transclusion、cdlatex、pandoc 导入
+- 导出支持：Beamer、Reveal.js、PDF/Word
+- 数据处理：ID 管理、链接、列视图
+
+小说写作系统
+
+完整的小说创作环境：
+
+- 场景管理系统：包含目标、冲突、张力评分
+- 角色档案系统：背景、关系、动机追踪
+- 世界构建工具：地点、历史、规则管理
+- 对话写作模块
+- 数据导出和可视化
+
+中文支持
+
+全面的中文环境支持：
+
+- 中文输入法：pyim（自然双拼）、rime（中州韵）
+- 中文字体优化：等宽字体、行距调整
+- 零宽空格处理：美化显示、导出清理
+- 标点符号处理
+
+工具集成
+
+各种实用工具集成：
+
+- PDF 阅读：高亮、书签、自动恢复
+- 文件管理：Dired 增强、快速打开
+- 字数统计：中英文混合、阅读时间估算
+- 自动保存：智能保存、版本管理
+
+* 使用指南
+
+启动配置
+
+#+begin_src shell
+emacs
+# 或直接启动特定文件
+emacs ~/projects/novel/org/scenes.org
+
+#+end_src
+
+主要工作流程
+
+1. 小说写作：
+   - =SPC n w= → 访问小说写作菜单
+   =SPC n w t= → 切换写作模式
+   =SPC n w c= → 快速捕捉
+   =SPC n w v= → 可视化数据
+
+2. 数据导出：
+   =SPC n w e= → 导出 CSV
+   =SPC n w v= → 生成可视化图表
+
+3. 文件管理：
+   =SPC f= → 打开文件
+   =SPC o d= → 打开 Dashboard
+
+Org 模式使用
+- =C-c ,= → 快速捕捉
+- =M-SPC M-SPC= → 插入零宽空格
+- =C-c }= → LaTeX 环境插入
+- =F12= → 启用 transclusion 模式
+
+* 脚本工具
+
+数据可视化脚本
+
+位置: =scripts/visualize_novel.py=
+
+功能：
+- 生成场景张力曲线
+- 字数统计图表
+- 角色出场频率分析
+- 场景关系图
+
+使用方法：
+#+begin_src shell
+python scripts/visualize_novel.py /path/to/scenes_data.csv
+#+end_src
+
+Excel 导出脚本
+
+位置: =scripts/csv_to_styled_xlsx.py=
+
+功能：
+- 将 CSV 转换为格式化 Excel
+- 自动调整列宽
+- 添加筛选功能
+- 美化样式
+
+使用方法：
+#+begin_src shell
+python scripts/csv_to_styled_xlsx.py /path/to/scenes_data.csv
+
+#+end_src
+
+* 快捷键参考
+
+全局快捷键
+
+| 快捷键 | 功能 |
+|--------|------|
+| =M-= | 智能字数统计 |
+| =C-c M-= | 原生字数统计 |
+| =SPC o d | 打开 Dashboard |
+
+小说写作
+
+| 快捷键 | 功能 |
+|--------|------|
+| =SPC n w t= | 切换写作模式 |
+| =SPC n w c= | 小说捕捉 |
+| =SPC n w v= | 可视化数据 |
+| =SPC n w e= | 导出 CSV |
+
+Org 模式
+
+| 快捷键 | 功能 |
+|--------|------|
+| =C-c ,= | 快速捕捉 |
+| =M-SPC M-SPC= | 插入零宽空格 |
+| =F12= | Transclusion 模式 |
+| =C-c }= | LaTeX 环境 |
+
+文件管理
+
+| 快捷键 | 功能 |
+|--------|------|
+| =SPC f= | 打开文件 |
+| =M-o= | 在 Dired 中打开文件 |
+| =SPC o d= | Dashboard |
+
+窗口管理
+
+| 快捷键     | 功能       |
+|-----------+------------|
+| =C-<方向键>= | 移动窗口    |
+| =SPC=       | 旋转窗口布局 |
+| =C-w=       | 分割窗口    |
+
+* 依赖管理
+
+Python 依赖
+
+#+begin_src shell
+pip install pandas matplotlib graphviz networkx xlsxwriter
+#+end_src
+
+Emacs 包
+
+主要包列表（从 packages.el）：
+- =org-transclusion= - 文档嵌入
+- =org-pandoc-import= - Pandoc 导入
+- =calctex= - 数学公式预览
+- =novel-mode= - 小说写作
+- =pdf-tools= - PDF 阅读
+- =rime= - 中文输入
+- =org-roam= - 知识管理
+
+系统字体
+
+必需字体：
+- =Monaspace Neon= - 主要编程字体
+- =Sarasa Gothic SC= - 中文等宽字体
+- =Noto Sans CJK SC= - 中文字体补充
+

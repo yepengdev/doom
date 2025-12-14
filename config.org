@@ -540,7 +540,7 @@ Here are some additional functions/macros that will help you configure Doom.
 
 ;; Convenience helpers
 (delete-selection-mode 1)
-(electric-pair-mode 1)
+;;(electric-pair-mode 0)
 (add-hook 'text-mode-hook #'visual-line-mode)
 (when (fboundp 'pixel-scroll-precision-mode)
   (pixel-scroll-precision-mode 1))

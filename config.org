@@ -30,6 +30,7 @@
   - [[#org-columns][org columns]]
   - [[#org-id][org id]]
   - [[#org-roam][org roam]]
+  - [[#novel-mode][Novel mode]]
 - [[#novel][Nov.el]]
 - [[#dired][Dired]]
   - [[#dired-open-in-xdg-open][Dired open in xdg-open]]
@@ -37,6 +38,10 @@
 - [[#word-count][Word count]]
 - [[#librime][Librime]]
 - [[#pdf-view-restore][Pdf view restore]]
+<<<<<<< HEAD
+- [[#auto-save][auto save]]
+=======
+>>>>>>> c05b88e (emacs eselect editor)
 
 * Packages needs to install
 :PROPERTIES:
@@ -1914,6 +1919,41 @@ want to edit them afterwards though, so let's make that happen by default.
           org-roam-ui-open-on-start t))
 #+end_src
 
+** Novel mode
+org novelist
+#+begin_src emacs-lisp :tangle "./packages.el"
+(package! novelist
+  :recipe (:host github :repo "sympodius/org-novelist" :branch "development" :files ("*.el")))
+#+end_src
+
+#+begin_src emacs-lisp :tangle yes
+(use-package! novelist
+  :config
+  (setq org-novelist-author "叶蓬")  ; The default author name to use when exporting a story. Each story can also override this setting
+  (setq org-novelist-author-email "esszp@foxmail.com")  ; The default author contact email to use when exporting a story. Each story can also override this setting
+  (setq org-novelist-automatic-referencing-p nil)  ; Set this variable to 't' if you want Org Novelist to always keep note links up to date. This may slow down some systems when operating on complex stories. It defaults to 'nil' when not set
+  :bind (("C-c n n s" . org-novelist-new-story)
+         :map org-novelist-mode-map
+         ("C-c n n c" . org-novelist-new-chapter)
+         ("C-c n d c" . org-novelist-destroy-chapter)
+         ("C-c n r c" . org-novelist-rename-chapter)
+         ("C-c n n a" . org-novelist-new-character)
+         ("C-c n d a" . org-novelist-destroy-character)
+         ("C-c n r a" . org-novelist-rename-character)
+         ("C-c n n p" . org-novelist-new-prop)
+         ("C-c n d p" . org-novelist-destroy-prop)
+         ("C-c n r p" . org-novelist-rename-prop)
+         ("C-c n n l" . org-novelist-new-place)
+         ("C-c n d l" . org-novelist-destroy-place)
+         ("C-c n r l" . org-novelist-rename-place)
+         ("C-c n u"   . org-novelist-update-references)
+         ("C-c n r s" . org-novelist-rename-story)
+         ("C-c n e"   . org-novelist-export-story)
+         ("C-c n l l" . org-novelist-link-to-story)
+         ("C-c n l u" . org-novelist-unlink-from-story)
+         ("C-c n t"   . org-novelist-toggle-automatic-referencing))
+  )
+#+end_src
 * Nov.el
 #+begin_src emacs-lisp :tangle "~/.config/doom/packages.el"
 (package! nov.el
@@ -2306,4 +2346,23 @@ Default:
   :after pdf-tools
   :config
   (add-hook 'pdf-view-mode-hook 'pdf-view-restore-mode))
+<<<<<<< HEAD
+#+end_src
+* auto save
+#+begin_src emacs-lisp :tangle "packages.el"
+(package! super-save)
+#+end_src
+
+#+begin_src emacs-lisp :tangle yes
+(use-package! super-save
+  :config
+  (super-save-mode +1)
+  (setq super-save-auto-save-when-idle t)
+  (setq auto-save-timeout 10)   ; Every 10 seconds idle
+  (setq auto-save-interval 100) ; Every 100 keystrokes
+  (setq auto-save-default t)
+  (add-hook 'org-mode-hook (lambda () (setq-local auto-save-default nil)))
+ )
+=======
+>>>>>>> c05b88e (emacs eselect editor)
 #+end_src

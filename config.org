@@ -38,10 +38,7 @@
 - [[#word-count][Word count]]
 - [[#librime][Librime]]
 - [[#pdf-view-restore][Pdf view restore]]
-<<<<<<< HEAD
 - [[#auto-save][auto save]]
-=======
->>>>>>> c05b88e (emacs eselect editor)
 
 * Packages needs to install
 :PROPERTIES:
@@ -2346,7 +2343,6 @@ Default:
   :after pdf-tools
   :config
   (add-hook 'pdf-view-mode-hook 'pdf-view-restore-mode))
-<<<<<<< HEAD
 #+end_src
 * auto save
 #+begin_src emacs-lisp :tangle "packages.el"
@@ -2363,6 +2359,4 @@ Default:
   (setq auto-save-default t)
   (add-hook 'org-mode-hook (lambda () (setq-local auto-save-default nil)))
  )
-=======
->>>>>>> c05b88e (emacs eselect editor)
 #+end_src

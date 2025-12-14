@@ -69,12 +69,9 @@
 
 (package! websocket)
 
-<<<<<<< HEAD
 (package! novelist
   :recipe (:host github :repo "sympodius/org-novelist" :branch "development" :files ("*.el")))
 
-=======
->>>>>>> c05b88e (emacs eselect editor)
 (package! nov.el
   :recipe (:host github :repo "emacs-pe/nov.el"))
 (package! justify-kp
@@ -88,8 +85,5 @@
 
 (package! pdf-view-restore
   :recipe (:host github :repo "007kevin/pdf-view-restore"))
-<<<<<<< HEAD
 
 (package! super-save)
-=======
->>>>>>> c05b88e (emacs eselect editor)

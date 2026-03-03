@@ -17,6 +17,7 @@
   - [[#defaults][Defaults]]
 - [[#plaintext][Plaintext]]
 - [[#org][Org]]
+  - [[#pangu-spacing][Pangu-spacing]]
   - [[#org-mode-itself][Org mode itself]]
   - [[#transclusion][Transclusion]]
   - [[#import-other-files-with-pandoc][Import other files with pandoc]]
@@ -25,12 +26,13 @@
   - [[#beamer][Beamer]]
   - [[#org-latex][Org latex]]
   - [[#org-noter-deft][org noter deft]]
+  - [[#deft][Deft]]
   - [[#pandoc][Pandoc]]
   - [[#org-capture][org capture]]
   - [[#org-columns][org columns]]
   - [[#org-id][org id]]
   - [[#org-roam][org roam]]
-  - [[#novel-mode][Novel mode]]
+  - [[#org-wc][org wc]]
 - [[#novel][Nov.el]]
 - [[#dired][Dired]]
   - [[#dired-open-in-xdg-open][Dired open in xdg-open]]
@@ -39,6 +41,7 @@
 - [[#librime][Librime]]
 - [[#pdf-view-restore][Pdf view restore]]
 - [[#auto-save][auto save]]
+- [[#input----sis][input -- sis]]
 
 * Packages needs to install
 :PROPERTIES:
@@ -433,24 +436,42 @@ available. You can either set `doom-theme' or manually load a theme with the
 `load-theme' function. This is the default:
 #+begin_src emacs-lisp
 (setq doom-theme 'doom-one)
+;; (load-theme 'ef-winter t)           ;
 #+end_src
 
 This determines the style of line numbers in effect. If set to `nil', line
 numbers are disabled. For relative line numbers, set this to `relative'.
 #+begin_src emacs-lisp
-(setq display-line-numbers-type 't)
+(setq display-line-numbers-type 'relative)
 #+end_src
 
 If you use `org' and don't want your org files in the default location below,
 change `org-directory'. It must be set before org loads!
 #+begin_src emacs-lisp
-(setq org-directory "~/projects/org/"
-    org-roam-directory "~/projects/org/roam"
-    deft-directory "~/projects/")
+(setq org-directory "~/org/"
+    org-roam-directory "~/org/roam"
+   ;; deft-directory "~/projects/"
+    )
 
-(setq doom-font (font-spec :family "Monaspace Neon Medium" :size 17)
-      doom-unicode-font (font-spec :family "Sarasa Gothic SC" :size 17)
-      doom-variable-pitch-font (font-spec :family "Sarasa Gothic SC" :size 17))
+;; (setq doom-font (font-spec :family "Monaspace Neon" :size 17 :weight 'medium)
+;; ;; (setq doom-font (font-spec :family "LXGW WenKai" :size 17 :weight 'medium)
+;;       ;; 必杀技：设置中文字体，解决 Org 表格对齐问题
+;;       ;; Sarasa Gothic (更纱黑体) 是目前对齐效果最好的等宽字体
+;;       doom-unicode-font (font-spec :family "LXGW WenKai" :size 18)
+;;       doom-variable-pitch-font (font-spec :family "LXGW WenKai" :size 18)
+;;       )
+(defun my-setup-chinese-font ()
+  (set-fontset-font t 'han (font-spec :family "LXGW WenKai" :size 18)))
+
+(add-hook 'after-setting-font-hook #'my-setup-chinese-font)
+;; 强制表格对齐
+(setq org-table-auto-blank-field nil)
+(setq org-table-use-standard-references t)
+
+;; 使用中文友好的表格对齐方式
+(defadvice org-table-align (before org-table-align-fix activate)
+  (when (and (org-at-table-p) (boundp 'char-width-table))
+    (setq char-width-table (make-char-table 'char-width-table))))
 #+end_src
 
 Here are some additional functions/macros that will help you configure Doom.
@@ -467,6 +488,14 @@ Here are some additional functions/macros that will help you configure Doom.
 :PROPERTIES:
 :ID:       L20251017.162201_better defaults
 :END:
+garbage collect
+#+begin_src emacs-lisp :tangle yes
+;; 平时设为 100MB，启动或大量运算时可以更高
+(setq gc-cons-threshold (* 100 1024 1024))
+;; 增加从 OS 读取数据的块大小
+(setq read-process-output-max (* 1024 1024))
+#+end_src
+
 #+begin_src emacs-lisp
 (add-to-list 'default-frame-alist '(height . 24))
 (add-to-list 'default-frame-alist '(width . 80))
@@ -484,9 +513,10 @@ Here are some additional functions/macros that will help you configure Doom.
 #+end_src
 
 #+begin_src emacs-lisp
-(defadvice! prompt-for-buffer (&rest _)
+(defadvice! prompt-for-buffer-interactive-only (&rest _)
   :after '(evil-window-split evil-window-vsplit)
-  (consult-buffer))
+  (when (called-interactively-p 'any)
+    (consult-buffer)))
 #+end_src
 
 #+begin_src emacs-lisp
@@ -530,11 +560,11 @@ Here are some additional functions/macros that will help you configure Doom.
       auto-save-no-message t)
 
 ;; Persist history & state
-(setq save-place-file (expand-file-name "saveplace" doom-cache-dir)
-      savehist-file (expand-file-name "savehist" doom-cache-dir)
-      recentf-save-file (expand-file-name "recentf" doom-cache-dir))
-(save-place-mode 1)
-(savehist-mode 1)
+;; (setq save-place-file (expand-file-name "saveplace" doom-cache-dir)
+;;       ;;savehist-file (expand-file-name "savehist" doom-cache-dir)
+;;       recentf-save-file (expand-file-name "recentf" doom-cache-dir))
+;; (save-place-mode 1)
+;;(savehist-mode 1)
 (recentf-mode 1)
 (global-auto-revert-mode 1)
 
@@ -549,10 +579,37 @@ Here are some additional functions/macros that will help you configure Doom.
 #+begin_src emacs-lisp
 ;; (defun my-cjk-font-setup ()
 ;;   (dolist (charset '(kana han cjk-misc bopomofo))
-;;     (set-fontset-font t charset (font-spec :family "Noto Sans CJK SC"))))
+;;     (set-fontset-font t charset (font-spec :family "Sarasa Mono SC"))))
 
 ;; (add-hook 'after-setting-font-hook #'my-cjk-font-setup)
-;;(setq face-font-rescale-alist '(("Noto Sans CJK SC" . 1.2)))
+;; (setq face-font-rescale-alist '(("Sarasa Mono SC" . 1.2)))
+
+
+(defun my/set-fonts ()
+  "Configure default and fallback fonts."
+  (interactive)
+  (when (display-graphic-p)
+    ;; 默认字体（英文字形 + 图标）
+    (set-face-attribute 'default nil
+                        :family "MonaspiceNe Nerd Font Mono"
+                        :height 120
+                        :weight 'normal)
+
+    ;; 为中文显式设置字体族（确保覆盖）
+    (dolist (charset '(kana han symbol cjk-misc bopomofo))
+      (set-fontset-font t charset
+                        (font-spec :family "Sarasa Term SC Nerd")))
+
+    ;; 设置可变宽度字体（用于 org-mode 等）
+    (set-face-attribute 'variable-pitch nil
+                        :family "Noto Sans"
+                        :height 1.2)   ; 相对于 default 的比例
+    ))
+
+;; 在图形界面启动时调用
+(if (daemonp)
+    (add-hook 'server-after-make-frame-hook #'my/set-fonts)
+  (my/set-fonts))
 #+end_src
 
 * Dashboard setup
@@ -1159,47 +1216,89 @@ For prettier lookup
 (setq interprogram-cut-function 'wl-copy)
 (setq interprogram-paste-function 'wl-paste)
 #+end_src
+** Pangu-spacing
+#+begin_src emacs-lisp :tangle "packages.el"
+(package! pangu-spacing)
+#+end_src
 ** Org mode itself
 #+begin_src emacs-lisp
-(after! org
-  ;;(org-num-mode t)
-  ;;(add-hook 'org-mode-hook 'org-num-mode)
-  ;;(setq org-startup-numerated 't)
-  (add-hook 'org-mode-hook 'org-display-inline-images)
-  ;;  (require 'ox-extra)
-  ;;(ox-extras-activate '(ignore-headlines))
-  (setq-default org-startup-folded 'content)
-  (setq-default org-log-done 'note)
-  ;; 在你的 init.el 文件中添加
-  (setq org-hide-emphasis-markers t)
-  (setq org-export-default-options
-        '(;;:section-numbers nil     ; 标题编号 (num:t)
-          :with-toc 3            ; 生成3级目录 (toc:3)
-          :H 3                   ; 标题级别 (H:3)
-          :author nil            ; 默认不导出作者 (author:nil)
-          :creator nil           ; 默认不导出创建者 (creator:nil)
-          :timestamp nil         ; 默认不导出时间戳 (timestamp:nil)
-          :with-sub-superscript "{}")) ; 启用 a^{b} 和 a_{b} 语法 (^:{})
-  )
-;; 或者使用更灵活的方法
-(defun my/org-latex-in-custom-block ()
-  "在特定自定义块中启用LaTeX模式。"
-  (when (and (org-in-block-p '("theorem" "proof" "lemma" "proposition"))
-             (not (org-in-src-block-p)))
-    (let ((lang "latex"))
-      (org-src--get-lang-mode lang))))
+;;; ~/.doom.d/config.el
 
-;; 为特定块启用语法高亮
-(add-hook 'org-mode-hook
-          (lambda ()
-            (font-lock-add-keywords
-             nil
-             '(("^#\\+begin_\\(theorem\\|proof\\|lemma\\)"
-                0 'org-block-begin-line)
-               ("^#\\+end_\\(theorem\\|proof\\|lemma\\)"
-                0 'org-block-end-line))))
-          (setq org-latex-preview-auto-generate t)
-          (setq org-latex-preview-auto-ignored-environments '("theorem" "proof")))
+(after! org
+  ;; ----------------------------------------------------------------
+  ;; 1. 基础视觉与启动设置 (Basic Visual & Startup Settings)
+  ;; ----------------------------------------------------------------
+  ;; 使用一个 setq 统一设置，更整洁
+  (setq org-directory "~/org/"
+        org-startup-folded 'overview             ; 打开时折叠，只显示顶级标题
+        org-hide-emphasis-markers t              ; 隐藏 *bold*, /italic/ 等标记
+        ;;org-auto-align-tags t                    ; 自动对齐右侧的标签
+        ;;org-tags-column -80                      ; 标签从右边第80个字符开始对齐
+        org-startup-with-inline-images t         ; 打开文件时自动显示图片
+        org-image-actual-width 600               ; 限制内联图片的最大宽度
+        org-M-RET-may-split-line nil             ; M-RET 总是在当前标题下创建新标题
+        org-catch-invisible-edits 'show-and-error) ; 防止误编辑隐藏内容
+
+  (add-hook 'org-mode-hook #'visual-line-mode) ; 为 Org 文件启用自动换行
+  ;;(setq-default line-spacing 0.3)             ; 全局增加行间距
+  (setq-default org-log-done 'note)
+  ;; ----------------------------------------------------------------
+  ;; 2. 强大的任务管理 (Powerful TODO Keywords & Logging)
+  ;; ----------------------------------------------------------------
+  ;;(setq org-log-done 'time) ; 完成任务时仅记录一个时间戳
+  (font-lock-add-keywords 'org-mode
+                          '(("^ *\\([-]\\) "
+                             (0 (prog1 () (compose-region (match-beginning 1) (match-end 1) "•"))))))
+
+  ;; Use mixed-pitch-mode in Org files automatically
+  ;; This renders code blocks in Monospace and Story text in WenKai
+  ;;(add-hook 'org-mode-hook #'mixed-pitch-mode)
+
+
+  ;; Make headings bigger
+  (custom-set-faces!
+    '(org-level-1 :inherit outline-1 :height 1.3 :weight extra-bold)
+    '(org-level-2 :inherit outline-2 :height 1.25 :weight bold)
+    '(org-level-3 :inherit outline-3 :height 1.1 :weight bold)
+    '(org-document-title :height 1.6 :weight bold))
+
+
+;; Auto-add space between English and Chinese
+(add-hook 'org-mode-hook #'pangu-spacing-mode)
+;; ----------------------------------------------------------------
+;; 3. 导出设置 (Modern Export Settings)
+;; ----------------------------------------------------------------
+(setq org-export-with-drawers nil) ; 导出时不包含 :PROPERTIES: 和 :LOGBOOK: 等抽屉
+(setq org-export-options-alist    ; 使用 alist 统一管理默认导出选项
+      '((:section-numbers nil      ; 禁用标题自动编号 (num)
+         :with-toc 3               ; 生成3级目录 (toc)
+         :H 4                      ; HTML 导出的顶级标题为 <h4> (可改为3)
+         :author nil               ; 不导出作者 (author)
+         :creator nil              ; 不导出创建者 (creator)
+         :timestamp nil            ; 不导出时间戳 (timestamp)
+         :with-sub-superscript "{}"))) ; 启用 a^{b} 和 a_{b} 语法 (^)
+
+;; ----------------------------------------------------------------
+;; 4. 自定义块与LaTeX环境高亮 (Custom Blocks & LaTeX Highlighting)
+;;    这是实现自定义块高亮的现代化、唯一推荐的方法。
+;; ----------------------------------------------------------------
+;; 步骤 1: 启用 Org 原生的代码块高亮功能
+(setq org-src-fontify-natively t)
+
+;; 步骤 2: 告诉 Org，这些自定义块应该被当作 'latex' 语言来高亮
+(setq org-latex-compiler "xelatex")
+
+;; Default LaTeX preamble for Chinese support
+(add-to-list 'org-src-lang-modes '("theorem" . latex))
+(add-to-list 'org-src-lang-modes '("proof" . latex))
+(add-to-list 'org-src-lang-modes '("lemma" . latex))
+(add-to-list 'org-src-lang-modes '("proposition" . latex))
+
+;; 步骤 3: 设置 LaTeX 片段预览
+(setq org-latex-preview-auto-generate t)
+;; 如果不希望这些自定义块在 `C-c C-x C-l` 时自动预览，可以取消下面这行的注释
+;; (setq org-latex-preview-auto-ignored-environments '("theorem" "proof" "lemma" "proposition"))
+)
 #+end_src
 #+begin_src emacs-lisp
 (use-package! org-contrib :config
@@ -1398,9 +1497,34 @@ want to edit them afterwards though, so let's make that happen by default.
 #+end_src
 ** org noter deft
 #+begin_src emacs-lisp
-(setq deft-directory "~/projects/")
+;;(setq deft-directory "~/projects/")
 (setq org-noter-notes-search-path '("~/projects"))
 #+end_src
+** Deft
+#+begin_src emacs-lisp :tangle yes
+(setq deft-directory "~/notes")
+(setq deft-recursive t) ; 确保递归开启
+
+(defun cm/deft-parse-title (file contents)
+  "Parse the given FILE and CONTENTS and determine the title.
+  If `deft-use-filename-as-title' is nil, the title is taken to
+  be the first non-empty line of the FILE.  Else the base name of the FILE is
+  used as title."
+  (let ((begin (string-match "^#\\+[tT][iI][tT][lL][eE]: .*$" contents)))
+    (if begin
+	(string-trim (substring contents begin (match-end 0)) "#\\+[tT][iI][tT][lL][eE]: *" "[\n\t ]+")
+      (deft-base-filename file))))
+
+(advice-add 'deft-parse-title :override #'cm/deft-parse-title)
+
+(setq deft-strip-summary-regexp
+      (concat "\\("
+	      "[\n\t]" ;; blank
+	      "\\|^#\\+[[:alpha:]_]+:.*$" ;; org-mode metadata
+	      "\\|^:PROPERTIES:\n\\(.+\n\\)+:END:\n"
+	      "\\)"))
+#+end_src
+
 ** COMMENT org media note
 #+begin_src emacs-lisp
 (after! org-media-note
@@ -1425,6 +1549,9 @@ want to edit them afterwards though, so let's make that happen by default.
   )
 #+end_src
 ** org capture
+:PROPERTIES:
+:ID:       L20260119.131056_org capture
+:END:
 #+begin_src emacs-lisp
 ;; ============================================================================
 ;; Novel Writing Capture System — Fixed & Stable
@@ -1499,29 +1626,34 @@ want to edit them afterwards though, so let's make that happen by default.
                    "\n")
                  :empty-lines 1))
 
-  (add-to-list 'org-capture-templates
-               `("ws" "Scene / Plot Point" entry
-                 (file+headline ,(my/novel-file "scenes") "Scenes")
-                 ,(string-join
-                   '("* %? :scene:"
-                     ":PROPERTIES:"
-                     ":Created: %U"
-                     ":ID: %(my/uuid)"
-                     ":Location:"
-                     ":Time:"
-                     ":POV:"
-                     ":Characters:"
-                     ":WorldRefs:"
-                     ":Status: idea"
-                     ":END:"
-                     "\n** Logline\nOne-sentence summary of the scene.\n\n"
-                     "** Purpose\n- Function in story:\n- Stakes:\n\n"
-                     "** Outline\n1. Setup\n2. Conflict\n3. Resolution\n\n"
-                     "** Emotional Arc\n- POV emotional change:\n\n"
-                     "** Sensory Details\nSight / Sound / Smell / Touch / Taste:\n\n"
-                     "** Notes\n\n")
-                   "\n")
-                 :empty-lines 1))
+(add-to-list 'org-capture-templates
+             `("ws" "Scene / Plot Point" entry
+               (file+headline ,(my/novel-file "scenes") "Scenes")
+               ;; --- 使用函数动态生成模板 ---
+               (function (lambda ()
+                           (let* ((title (read-from-minibuffer "Scene Title: "))
+                                  (location (read-from-minibuffer "Location: "))
+                                  (time (read-from-minibuffer "Time: "))
+                                  (pov (read-from-minibuffer "POV Character: "))
+                                  (characters (read-from-minibuffer "Other Characters: ")))
+                             (string-join
+                              (list
+                               (format "* %s :scene:" title)
+                               ":PROPERTIES:"
+                               (format ":Created: %s" (format-time-string "[%Y-%m-%d %a %H:%M]"))
+                               (format ":ID: %s" (my/uuid))
+                               (format ":Location: %s" location)
+                               (format ":Time: %s" time)
+                               (format ":POV: %s" pov)
+                               (format ":Characters: %s" characters)
+                               ":Status: idea"
+                               ":END:"
+                               "\n** Logline\nOne-sentence summary of the scene.\n\n"
+                               "** Purpose\n- Function in story:\n- Stakes:\n\n"
+                               "** Outline\n1. Setup\n2. Conflict\n3. Resolution\n\n"
+                               "** Notes\n\n%?") ; 光标最后停在这里
+                              "\n"))))
+               :empty-lines 1))
 
   (add-to-list 'org-capture-templates
                `("ww" "Worldbuilding / Lore" entry
@@ -1578,9 +1710,6 @@ want to edit them afterwards though, so let's make that happen by default.
 *** basics
 #+begin_src emacs-lisp
 (use-package! org-ql)
-
-(setq org-columns-default-format
-      "%25ITEM(Task) %10ID(ID) %10POV(POV) %20Goal(Goal) %15Status(Status) %6Words(Words) %TAGS")
 
 (defun my/novel-collect-scenes-from-current-buffer ()
   "从当前 Org buffer 中收集所有带 :scene: 标签的条目，并返回一个 plists 列表。
@@ -1803,6 +1932,8 @@ want to edit them afterwards though, so let's make that happen by default.
         (setq-local my/novel--saved-display-line-numbers display-line-numbers)
         (setq-local display-line-numbers nil)
         (setq-local line-spacing 0.25)
+        (olivetti-mode 1)
+        (setq olivetti-body-width 80) ; 设置舒适的宽度，例如80个字符
         (visual-line-mode 1)
         (when (fboundp 'wc-mode) (wc-mode 1))
         (when (fboundp 'draft-mode) (draft-mode 1))
@@ -1814,6 +1945,7 @@ want to edit them afterwards though, so let's make that happen by default.
     (when (local-variable-p 'my/novel--saved-display-line-numbers)
       (setq-local display-line-numbers my/novel--saved-display-line-numbers))
     (kill-local-variable 'line-spacing)
+    (olivetti-mode -1)
     (setq cursor-type (or my/novel--saved-cursor-type t))))
 
 (defun my/novel--buffer-in-project-p ()
@@ -1849,6 +1981,10 @@ want to edit them afterwards though, so let's make that happen by default.
        :desc "导出场景 CSV" "e" #'my/novel-export-scenes-to-csv
        :desc "可视化小说数据" "v" #'my/novel-visualize-data-with-python))
 #+end_src
+
+#+RESULTS:
+: my/novel-visualize-data-with-python
+
 ** org id
 #+begin_src emacs-lisp
 (require 'org-id)
@@ -1899,12 +2035,16 @@ want to edit them afterwards though, so let's make that happen by default.
 
 #+end_src
 ** org roam
+#+begin_src emacs-lisp :tangle "packages.el"
+(package! org-roam-ui)
+#+end_src
+
 #+begin_src emacs-lisp :tangle yes
 (use-package! websocket
     :after org-roam)
 
 (use-package! org-roam-ui
-    :after org-roam ;; or :after org
+    :after org ;; or :after org
 ;;         normally we'd recommend hooking orui after org-roam, but since org-roam does not have
 ;;         a hookable mode anymore, you're advised to pick something yourself
 ;;         if you don't care about startup time, use
@@ -1915,40 +2055,296 @@ want to edit them afterwards though, so let's make that happen by default.
           org-roam-ui-update-on-save t
           org-roam-ui-open-on-start t))
 #+end_src
-
-** Novel mode
+** org wc
+#+begin_src emacs-lisp :tangle "packages.el"
+(package! org-wc
+  :recipe (:host github :repo "tesujimath/org-wc"))
+#+end_src
+#+begin_src emacs-lisp :tangle yes
+(use-package! org-wc
+  :defer t)
+#+end_src
+** COMMENT Novel mode
 org novelist
 #+begin_src emacs-lisp :tangle "./packages.el"
 (package! novelist
   :recipe (:host github :repo "sympodius/org-novelist" :branch "development" :files ("*.el")))
 #+end_src
 
+#+begin_src emacs-lisp :tangle "./org-novelist-zh-CN.el"
+;;; org-novelist-zh-CN.el --- Chinese (Simplified) Language Pack for Org Novelist
+
+(require 'org-novelist)
+
+;;;; Simplified Chinese (zh-CN)
+;; User Variable Fallback Strings
+(defconst org-novelist--author-not-set-zh-CN "作者未设置" "Author not specified by user.")
+(defconst org-novelist--author-email-not-set-zh-CN "作者邮箱未设置" "Author email not specified by user.")
+
+;; File Instructions
+(defconst org-novelist--main-file-instructions-zh-CN "在此处简要概述故事内容" "Instructions for the main entry-point file.")
+(defconst org-novelist--notes-file-instructions-zh-CN "在此处撰写故事的通用笔记" "Instructions for the general notes file.")
+(defconst org-novelist--research-file-instructions-zh-CN "在此处撰写故事的研究笔记" "Instructions for the general research file.")
+(defconst org-novelist--characters-file-instructions-zh-CN "这是故事角色的索引文件。请勿手动编辑。仅使用 Org mode 或 Org Novelist 函数。" "Instructions for the character index file.")
+(defconst org-novelist--places-file-instructions-zh-CN "这是故事地点的索引文件。请勿手动编辑。仅使用 Org mode 或 Org Novelist 函数。" "Instructions for the location index file.")
+(defconst org-novelist--props-file-instructions-zh-CN "这是故事道具的索引文件。请勿手动编辑。仅使用 Org mode 或 Org Novelist 函数。" "Instructions for the prop index file.")
+(defconst org-novelist--chapters-file-instructions-zh-CN "这是故事章节的索引文件。请勿手动编辑。仅使用 Org mode 或 Org Novelist 函数。" "Instructions for the chapter index file.")
+(defconst org-novelist--linked-stories-file-instructions-zh-CN "这是关联故事的索引文件。请勿手动编辑。仅使用 Org mode 或 Org Novelist 函数。" "Instructions for the linked stories index file.")
+
+;; Folder Names (建议文件夹名保持英文以避免路径兼容性问题，或者你可以改成中文)
+(defconst org-novelist--notes-folder-zh-CN "Notes" "The folder name for storing note files.")
+(defconst org-novelist--indices-folder-zh-CN "Indices" "The folder name for storing index files.")
+(defconst org-novelist--chapters-folder-zh-CN "Chapters" "The folder name for storing the chapter files.")
+(defconst org-novelist--exports-folder-zh-CN "Exports" "The folder name for storing export files.")
+
+;; File Names
+(defconst org-novelist--main-file-zh-CN "main" "Name for the story's main entry-point file.")
+(defconst org-novelist--notes-file-zh-CN "notes" "Name for the story's general notes file.")
+(defconst org-novelist--research-file-zh-CN "research" "Name for the story's general research file.")
+(defconst org-novelist--characters-file-zh-CN "characters" "Name for the story's character index file.")
+(defconst org-novelist--places-file-zh-CN "places" "Name for the story's location index file.")
+(defconst org-novelist--props-file-zh-CN "props" "Name for the story's prop index file.")
+(defconst org-novelist--chapters-file-zh-CN "chapters" "Name for the story's chapter index file.")
+(defconst org-novelist--linked-stories-file-zh-CN "linked-stories" "Name for the story's linked stories index file.")
+(defconst org-novelist--chapter-file-prefix-zh-CN "chapter-" "Prefix for the story's chapter files.")
+(defconst org-novelist--notes-suffix-zh-CN "-notes" "Suffix for a file's associated notes file.")
+(defconst org-novelist--character-file-prefix-zh-CN "character-" "Prefix for the story's character files.")
+(defconst org-novelist--prop-file-prefix-zh-CN "prop-" "Prefix for the story's prop files.")
+(defconst org-novelist--place-file-prefix-zh-CN "place-" "Prefix for the story's place files.")
+
+;; File Titles
+(defconst org-novelist--notes-title-zh-CN "笔记" "Name for the story's general notes title.")
+(defconst org-novelist--research-title-zh-CN "研究" "Name for the story's general research title.")
+(defconst org-novelist--characters-title-zh-CN "角色" "Name for the story's character index title.")
+(defconst org-novelist--places-title-zh-CN "地点" "Name for the story's location index title.")
+(defconst org-novelist--props-title-zh-CN "道具" "Name for the story's prop index title.")
+(defconst org-novelist--chapters-title-zh-CN "章节" "Name for the story's chapter index title.")
+(defconst org-novelist--config-name-zh-CN "导出设置" "Display name for a link to the story's configuration file.")
+(defconst org-novelist--linked-stories-title-zh-CN "关联故事" "Name for the story's linked stories index title.")
+
+;; File Preambles & Templates
+(defconst org-novelist--story-name-zh-CN "故事名称" "Placeholder for the name of the story.")
+(defconst org-novelist--chapter-name-zh-CN "章节名称" "Placeholder for the name of a chapter.")
+(defconst org-novelist--notes-for-story-name-zh-CN "<<story name>> 的笔记" "Part of the preamble for the general notes file.")
+(defconst org-novelist--notes-for-chapter-name-zh-CN "<<chapter name>> 的笔记" "Part of the preamble for the chapter notes file.")
+(defconst org-novelist--research-for-story-name-zh-CN "<<story name>> 的研究资料" "Part of the preamble for the general research file.")
+(defconst org-novelist--character-index-for-story-name-zh-CN "<<story name>> 的角色索引" "Part of the preamble for the character index file.")
+(defconst org-novelist--place-index-for-story-name-zh-CN "<<story name>> 的地点索引" "Part of the preamble for the location index file.")
+(defconst org-novelist--prop-index-for-story-name-zh-CN "<<story name>> 的道具索引" "Part of the preamble for the prop index file.")
+(defconst org-novelist--chapter-index-for-story-name-zh-CN "<<story name>> 的章节索引" "Part of the preamble for the chapter index file.")
+(defconst org-novelist--linked-stories-index-for-story-name-zh-CN "<<story name>> 的关联故事索引" "Part of the preamble for the linked stories index file.")
+
+(defconst org-novelist--front-matter-heading-zh-CN "前言 (Front Matter)" "Name for the Front Matter.")
+(defconst org-novelist--main-matter-heading-zh-CN "正文 (Main Matter)" "Name for the Main Matter.")
+(defconst org-novelist--back-matter-heading-zh-CN "后记 (Back Matter)" "Name for the Back Matter.")
+
+(defconst org-novelist--notes-zh-CN "笔记" "Part of the preamble for a chapter file.")
+(defconst org-novelist--chapter-zh-CN "章节" "Part of the preamble for a chapter file.")
+(defconst org-novelist--character-zh-CN "角色" "Part of the preamble for a character file.")
+(defconst org-novelist--prop-zh-CN "道具" "Part of the preamble for a prop file.")
+(defconst org-novelist--place-zh-CN "地点" "Part of the preamble for a place file.")
+
+(defconst org-novelist--character-name-zh-CN "角色名称" "Placeholder.")
+(defconst org-novelist--prop-name-zh-CN "道具名称" "Placeholder.")
+(defconst org-novelist--place-name-zh-CN "地点名称" "Placeholder.")
+
+;; Template Sentences
+(defconst org-novelist--notes-are-available-for-this-chapter-from-story-name-zh-CN "本<<chapter>>有相关的<<Notes>>（所属故事：<<story name>>）。" "Sentence describing chapter notes availability.")
+(defconst org-novelist--notes-for-chapter-name-a-chapter-from-story-name-zh-CN "<<chapter name>> 的笔记 (<<story name>> 的<<chapter>>)。" "Sentence header for chapter notes template.")
+(defconst org-novelist--notes-for-character-name-a-character-from-story-name-zh-CN "<<character name>> 的笔记 (<<story name>> 的<<character>>)。" "Sentence header for character notes template.")
+(defconst org-novelist--notes-for-prop-name-a-prop-from-story-name-zh-CN "<<prop name>> 的笔记 (<<story name>> 的<<prop>>)。" "Sentence header for prop notes template.")
+(defconst org-novelist--notes-for-place-name-a-place-from-story-name-zh-CN "<<place name>> 的笔记 (<<story name>> 的<<place>>)。" "Sentence header for place notes template.")
+
+(defconst org-novelist--content-header-zh-CN "内容" "Part of the preamble for a chapter file.")
+(defconst org-novelist--scene-name-here-zh-CN "场景名称" "Part of the preamble for a chapter file.")
+(defconst org-novelist--glossary-header-zh-CN "术语表" "Part of the writing glossary in chapter files.")
+(defconst org-novelist--view-notes-zh-CN "查看笔记" "A link text to let the user view related notes.")
+(defconst org-novelist--new-name-zh-CN "新名称" "Placeholder.")
+(defconst org-novelist--old-name-zh-CN "旧名称" "Placeholder.")
+(defconst org-novelist--new-name-is-an-alias-for-old-name-zh-CN "<<New name>> 是 <<old name>> 的别名。" "Text to let the user know something is an alias.")
+(defconst org-novelist--appearances-in-chapters-header-zh-CN "章节出处" "Part of the references section in notes files.")
+(defconst org-novelist--line-zh-CN "行" "The word for the line of a chapter.")
+(defconst org-novelist--not-yet-referenced-zh-CN "尚未在故事中引用。" "Display that an object has not yet been mentioned.")
+(defconst org-novelist--exports-header-zh-CN "导出" "Heading for configuration file.")
+
+;; File Content Starters
+(defconst org-novelist--chapter-notes-content-zh-CN
+  (concat
+   "本章如何有助于：\n"
+   "** 角色发展\n"
+   "** 推动情节\n"
+   "** 丰富设定\n")
+  "Starter content for the chapter notes files.")
+
+(defconst org-novelist--character-notes-content-zh-CN
+  (concat
+   "** 故事中的角色\n"
+   "** 这个角色想要什么？\n"
+   "** 什么最能激励这个角色采取行动？\n"
+   "** 什么最能阻止这个角色采取行动？\n"
+   "** 可能发生在这个角色身上最坏的事情是什么？\n"
+   "** 可能发生在这个角色身上最好的事情是什么？\n"
+   "** 谁或什么在阻止这个角色得到他们想要的？\n"
+   "** 这个角色需要学习什么才能获得快乐？\n"
+   "** 职业\n"
+   "** 外貌描述\n"
+   "** 性格\n"
+   "** 习惯/怪癖\n"
+   "** 背景\n"
+   "** 内部冲突\n"
+   "** 外部冲突\n"
+   "** 笔记\n")
+  "Starter content for the character notes files.")
+
+(defconst org-novelist--prop-notes-content-zh-CN
+  (concat
+   "** 故事中的作用\n"
+   "** 描述\n"
+   "** 背景\n"
+   "** 笔记\n")
+  "Starter content for the prop notes files.")
+
+(defconst org-novelist--place-notes-content-zh-CN
+  (concat
+   "** 故事中的作用\n"
+   "** 描述\n"
+   "** 背景\n"
+   "** 相关角色\n"
+   "** 季节\n"
+   "** 独特特征\n"
+   "** 视觉\n"
+   "** 听觉\n"
+   "** 嗅觉\n"
+   "** 笔记\n")
+  "Starter content for the place notes files.")
+
+(defconst org-novelist--alias-zh-CN "别名" "Alias section announcement for glossaries.")
+(defconst org-novelist--glossary-default-character-desc-zh-CN "故事中的角色。" "The default description.")
+(defconst org-novelist--glossary-default-place-desc-zh-CN "故事中的地点。" "The default description.")
+(defconst org-novelist--glossary-default-prop-desc-zh-CN "故事中的道具。" "The default description.")
+
+;; User Queries
+(defconst org-novelist--story-name-query-zh-CN "故事名称？" "Query.")
+(defconst org-novelist--story-save-location-query-zh-CN "故事保存位置？" "Query.")
+(defconst org-novelist--chapter-name-query-zh-CN "章节名称？" "Query.")
+(defconst org-novelist--chapter-location-query-zh-CN "为 \"%s\" 选择章节位置 (%s/%s/%s):" "Query.")
+(defconst org-novelist--rebuild-chapter-index-location-query-zh-CN "重建索引：章节应该放在哪里？" "Query.")
+(defconst org-novelist--file-by-file-zh-CN "分别为每个文件选择" "Offer to the user to make selections on a file by file basis.")
+(defconst org-novelist--delete-file-query-zh-CN "删除文件？" "Query.")
+(defconst org-novelist--name-already-in-use-zh-CN "该名称已被使用。请重试。" "Error.")
+(defconst org-novelist--okay-zh-CN "好的" "Positive acknowledgement.")
+(defconst org-novelist--new-chapter-name-query-zh-CN "新章节名称？" "Query.")
+(defconst org-novelist--character-name-query-zh-CN "角色名称？" "Query.")
+(defconst org-novelist--prop-name-query-zh-CN "道具名称？" "Query.")
+(defconst org-novelist--place-name-query-zh-CN "地点名称？" "Query.")
+(defconst org-novelist--new-character-name-query-zh-CN "新角色名称？" "Query.")
+(defconst org-novelist--new-prop-name-query-zh-CN "新道具名称？" "Query.")
+(defconst org-novelist--new-place-name-query-zh-CN "新地点名称？" "Query.")
+(defconst org-novelist--new-story-name-query-zh-CN "新故事名称？" "Query.")
+(defconst org-novelist--rename-story-folder-query-zh-CN "同时重命名故事文件夹？" "Query.")
+(defconst org-novelist--match-lang-tag-to-story-query-zh-CN "创建此故事使用的是什么语言 (例如 'zh-CN')?" "Query.")
+(defconst org-novelist--story-folder-to-link-to-query-zh-CN "要链接到当前故事的故事文件夹？" "Query.")
+(defconst org-novelist--unlink-from-which-story-query-zh-CN "取消与哪个故事的链接？" "Query.")
+(defconst org-novelist--sprint-length-query-zh-CN "冲刺时长 (例如 '5 minutes')?" "Query.")
+
+;; Errors/Messages
+(defconst org-novelist--function-name-zh-CN "函数名称" "Placeholder.")
+(defconst org-novelist--filename-zh-CN "文件名" "Placeholder.")
+(defconst org-novelist--no-localised-function-zh-CN "未找到 <<function name>> 的本地化函数" "Error.")
+(defconst org-novelist--filename-is-not-writable-zh-CN "<<filename>> 不可写" "Error.")
+(defconst org-novelist--story-folder-already-in-use-zh-CN "该故事文件夹已被使用" "Error.")
+(defconst org-novelist--filename-is-not-part-of-a-story-folder-zh-CN "<<filename>> 不是 Org Novelist 故事文件夹的一部分" "Error.")
+(defconst org-novelist--no-story-found-zh-CN "未找到故事" "Error.")
+(defconst org-novelist--filename-is-not-readable-zh-CN "<<filename>> 不可读" "Error.")
+(defconst org-novelist--new-chapter-created-zh-CN "新章节已创建" "Message.")
+(defconst org-novelist--no-more-headings-zh-CN "没有更多标题" "Message.")
+(defconst org-novelist--file-malformed-zh-CN "文件格式错误" "Error.")
+(defconst org-novelist--file-not-found-zh-CN "文件未找到" "Error.")
+(defconst org-novelist--no-chapters-found-zh-CN "未找到章节" "Error.")
+(defconst org-novelist--unsaved-buffer-zh-CN "未保存的缓冲区" "Error.")
+(defconst org-novelist--no-characters-found-zh-CN "未找到角色" "Error.")
+(defconst org-novelist--no-props-found-zh-CN "未找到道具" "Error.")
+(defconst org-novelist--no-places-found-zh-CN "未找到地点" "Error.")
+(defconst org-novelist--filename-is-not-a-recognised-index-zh-CN "<<filename>> 不是可识别的索引" "Error.")
+(defconst org-novelist--auto-ref-now-on-zh-CN "Org Novelist 自动引用已开启" "Message.")
+(defconst org-novelist--auto-ref-now-off-zh-CN "Org Novelist 自动引用已关闭" "Message.")
+
+;; Word Count Strings
+(defconst org-novelist--word-count-region-zh-CN "区域" "Placeholder.")
+(defconst org-novelist--word-count-word-count-zh-CN "字数" "Placeholder.")
+(defconst org-novelist--word-count-sentence-count-zh-CN "句数" "Placeholder.")
+(defconst org-novelist--word-count-paragraph-count-zh-CN "段落数" "Placeholder.")
+(defconst org-novelist--word-count-character-count-zh-CN "字符数" "Placeholder.")
+(defconst org-novelist--word-count-region-story-zh-CN "故事" "Part of message.")
+(defconst org-novelist--word-count-region-chapter-zh-CN "章节" "Part of message.")
+(defconst org-novelist--word-count-region-selection-zh-CN "选区" "Part of message.")
+(defconst org-novelist--word-count-word-zh-CN "词" "Part of message.")
+(defconst org-novelist--word-count-words-zh-CN "词" "Part of message.")
+(defconst org-novelist--word-count-sentence-zh-CN "句" "Part of message.")
+(defconst org-novelist--word-count-sentences-zh-CN "句" "Part of message.")
+(defconst org-novelist--word-count-paragraph-zh-CN "段" "Part of message.")
+(defconst org-novelist--word-count-paragraphs-zh-CN "段" "Part of message.")
+(defconst org-novelist--word-count-character-zh-CN "字符" "Part of message.")
+(defconst org-novelist--word-count-characters-zh-CN "字符" "Part of message.")
+(defconst org-novelist--word-count-message-zh-CN "<<Region>> 包含 <<word count>> <<words>>, <<sentence count>> <<sentences>>, <<paragraph count>> <<paragraphs>>, 以及 <<character count>> <<characters>>" "Message.")
+
+;; Sprint Strings
+(defconst org-novelist--sprint-second-zh-CN "秒" "Message.")
+(defconst org-novelist--sprint-seconds-zh-CN "秒" "Message.")
+(defconst org-novelist--sprint-word-zh-CN "词" "Message.")
+(defconst org-novelist--sprint-words-zh-CN "词" "Message.")
+(defconst org-novelist--sprint-preparing-zh-CN "准备冲刺..." "Message.")
+(defconst org-novelist--sprint-started-zh-CN "冲刺开始！你有 %s <<seconds>>！冲啊！" "Message.")
+(defconst org-novelist--sprint-finished-notify-title-zh-CN "冲刺结束！" "Title.")
+(defconst org-novelist--sprint-you-wrote-words-notify-message-zh-CN "你在 %s <<seconds>> 内写了 %s <<words>>" "Message.")
+(defconst org-novelist--sprint-preparing-results-zh-CN "冲刺结束！正在准备结果..." "Message.")
+(defconst org-novelist--sprint-you-wrote-words-zh-CN "冲刺结束！你在 %s <<seconds>> 内写了 %s <<words>>" "Message.")
+(defconst org-novelist--invalid-time-zh-CN "无效时间" "Error.")
+
+(defconst org-novelist--language-tag-zh-CN "语言标签" "Placeholder.")
+(defconst org-novelist--language-set-to-language-tag-zh-CN "Org Novelist 语言已设置为: <<language tag>>" "Message.")
+(defconst org-novelist--language-not-found-zh-CN "未找到所选语言包。" "Error.")
+(defconst org-novelist--chosen-story-same-as-current-story-zh-CN "所选故事与当前故事相同。" "Error.")
+(defconst org-novelist--folder-already-exists-zh-CN "文件夹已存在" "Error.")
+(defconst org-novelist--no-linked-stories-zh-CN "当前没有关联的故事" "Error.")
+
+;; Regex Patterns (复用通用的)
+(defconst org-novelist--sys-safe-name-zh-CN "[-A-Za-z0-9\u4e00-\u9fa5]*" "Regex including Chinese characters.")
+(defconst org-novelist--aliases-separators-zh-CN "[,\f\t\n\r\v]+" "Regex.")
+(defconst org-novelist--generate-separators-zh-CN org-novelist--aliases-separators-zh-CN "Regex.")
+(defconst org-novelist--notes-name-search-zh-CN "[[:space:][:punct:]]+?%s[[:space:][:punct:]]+?" "Regex.")
+(defconst org-novelist--notes-name-org-link-search-zh-CN "\\[\\[:space:\\]\\[:punct:\\]\\]+?%s\\[\\[:space:\\]\\[:punct:\\]\\]+?" "Regex.")
+
+;;;; Internationalised Functions for zh-CN
+;;; 关键修复：这里的函数允许中文字符作为文件名，解决文件名变空的问题。
+
+(defun org-novelist--system-safe-name-zh-CN (str)
+  "Convert STR to a directory safe name for zh-CN.
+Unlike the en-GB version, this allows Chinese characters but removes unsafe filesystem characters."
+  (let ((str (org-novelist--camelise-zh-CN str)))
+    ;; Replace typical filesystem reserved characters with empty string or safe alternatives
+    (setq str (replace-regexp-in-string "[/\\\\:*?\"<>|]" "" str))
+    str))
+
+(defun org-novelist--camelise-zh-CN (str)
+  "Prepare STR for filename usage in zh-CN.
+Chinese doesn't use CamelCase, so we largely just trim whitespace and forbidden chars."
+  (let ((str (replace-regexp-in-string "[ \t\n\r]+" "-" str))) ; Replace spaces with dashes
+    str))
+
+;; Flag to indicate zh-CN is loaded
+(defvar org-novelist--okay-zh-CN t)
+
+(provide 'org-novelist-zh-CN)
+#+end_src
+
 #+begin_src emacs-lisp :tangle yes
-(use-package! novelist
-  :config
-  (setq org-novelist-author "叶蓬")  ; The default author name to use when exporting a story. Each story can also override this setting
-  (setq org-novelist-author-email "esszp@foxmail.com")  ; The default author contact email to use when exporting a story. Each story can also override this setting
-  (setq org-novelist-automatic-referencing-p nil)  ; Set this variable to 't' if you want Org Novelist to always keep note links up to date. This may slow down some systems when operating on complex stories. It defaults to 'nil' when not set
-  :bind (("C-c n n s" . org-novelist-new-story)
-         :map org-novelist-mode-map
-         ("C-c n n c" . org-novelist-new-chapter)
-         ("C-c n d c" . org-novelist-destroy-chapter)
-         ("C-c n r c" . org-novelist-rename-chapter)
-         ("C-c n n a" . org-novelist-new-character)
-         ("C-c n d a" . org-novelist-destroy-character)
-         ("C-c n r a" . org-novelist-rename-character)
-         ("C-c n n p" . org-novelist-new-prop)
-         ("C-c n d p" . org-novelist-destroy-prop)
-         ("C-c n r p" . org-novelist-rename-prop)
-         ("C-c n n l" . org-novelist-new-place)
-         ("C-c n d l" . org-novelist-destroy-place)
-         ("C-c n r l" . org-novelist-rename-place)
-         ("C-c n u"   . org-novelist-update-references)
-         ("C-c n r s" . org-novelist-rename-story)
-         ("C-c n e"   . org-novelist-export-story)
-         ("C-c n l l" . org-novelist-link-to-story)
-         ("C-c n l u" . org-novelist-unlink-from-story)
-         ("C-c n t"   . org-novelist-toggle-automatic-referencing))
+(add-load-path! "~/.config/doom/org-novelist/")
+(require 'org-novelist-zh-CN)
+(after! novelist
+  (setq org-novelist-language-tag "zh-CN")
+  ;; 定义中文环境下的文件名处理函数：不进行 CamelCase 转换，直接保留汉字，仅替换不安全符号
+  (setq org-novelist-author "测试作者")
   )
 #+end_src
 * Nov.el
@@ -2357,6 +2753,25 @@ Default:
   (setq auto-save-timeout 10)   ; Every 10 seconds idle
   (setq auto-save-interval 100) ; Every 100 keystrokes
   (setq auto-save-default t)
-  (add-hook 'org-mode-hook (lambda () (setq-local auto-save-default nil)))
+  ;;(add-hook 'org-mode-hook (lambda () (setq-local auto-save-default nil)))
  )
+#+end_src
+* input -- sis
+#+begin_src emacs-lisp :tangle "packages.el"
+(package! sis)
+#+end_src
+
+#+begin_src emacs-lisp :tangle yes
+(use-package! sis
+  :defer t
+  :config
+  (sis-ism-lazyman-config "1" "2" 'fcitx5)
+  (sis-global-cursor-color-mode t)
+  ;; 启用 /respect/ 模式
+  (sis-global-respect-mode t)
+  ;; 为所有缓冲区启用 /context/ 模式
+  (sis-global-context-mode t)
+  ;; 为所有缓冲区启用 /inline english/ 模式
+  (sis-global-inline-mode t)
+  )
 #+end_src

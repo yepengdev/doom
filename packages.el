@@ -69,8 +69,12 @@
 
 (package! websocket)
 
-(package! novelist
-  :recipe (:host github :repo "sympodius/org-novelist" :branch "development" :files ("*.el")))
+(package! pangu-spacing)
+
+(package! org-roam-ui)
+
+(package! org-wc
+  :recipe (:host github :repo "tesujimath/org-wc"))
 
 (package! nov.el
   :recipe (:host github :repo "emacs-pe/nov.el"))
@@ -87,3 +91,5 @@
   :recipe (:host github :repo "007kevin/pdf-view-restore"))
 
 (package! super-save)
+
+(package! sis)

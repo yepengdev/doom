@@ -93,3 +93,5 @@
 (package! super-save)
 
 (package! sis)
+
+(package! catppuccin-theme)

@@ -42,6 +42,7 @@
 - [[#pdf-view-restore][Pdf view restore]]
 - [[#auto-save][auto save]]
 - [[#input----sis][input -- sis]]
+- [[#themes][Themes]]
 
 * Packages needs to install
 :PROPERTIES:
@@ -435,35 +436,49 @@ There are two ways to load a theme. Both assume the theme is installed and
 available. You can either set `doom-theme' or manually load a theme with the
 `load-theme' function. This is the default:
 #+begin_src emacs-lisp
-(setq doom-theme 'doom-one)
+;; (setq doom-theme 'ef-deuteranopia-light)
 ;; (load-theme 'ef-winter t)           ;
+(setq catppuccin-flavor 'macchiato) ;; 'frappe, 'latte, 'macchiato, or 'mocha
+(setq doom-theme 'catppuccin)
+;;(load-theme 'catppuccin :no-confirm)
 #+end_src
 
 This determines the style of line numbers in effect. If set to `nil', line
 numbers are disabled. For relative line numbers, set this to `relative'.
 #+begin_src emacs-lisp
 (setq display-line-numbers-type 'relative)
+(setq +zen-text-scale 1.2) ;; slightly enlarge text in zen mode
+(after! writeroom-mode
+  (setq writeroom-width 80 ;; Set the width of the writing column
+        writeroom-bottom-divider-width 0))
 #+end_src
 
 If you use `org' and don't want your org files in the default location below,
 change `org-directory'. It must be set before org loads!
 #+begin_src emacs-lisp
 (setq org-directory "~/org/"
-    org-roam-directory "~/org/roam"
-   ;; deft-directory "~/projects/"
-    )
+      org-roam-directory "~/org/roam"
+      ;; deft-directory "~/projects/"
+      )
 
-;; (setq doom-font (font-spec :family "Monaspace Neon" :size 17 :weight 'medium)
-;; ;; (setq doom-font (font-spec :family "LXGW WenKai" :size 17 :weight 'medium)
-;;       ;; 必杀技：设置中文字体，解决 Org 表格对齐问题
-;;       ;; Sarasa Gothic (更纱黑体) 是目前对齐效果最好的等宽字体
-;;       doom-unicode-font (font-spec :family "LXGW WenKai" :size 18)
-;;       doom-variable-pitch-font (font-spec :family "LXGW WenKai" :size 18)
-;;       )
-(defun my-setup-chinese-font ()
-  (set-fontset-font t 'han (font-spec :family "LXGW WenKai" :size 18)))
+(setq doom-font (font-spec :family "Monaspace Neon" :size 15 :weight 'medium)
+      ;; (setq doom-font (font-spec :family "LXGW WenKai" :size 17 :weight 'medium)
+      ;; 必杀技：设置中文字体，解决 Org 表格对齐问题
+      ;; Sarasa Gothic (更纱黑体) 是目前对齐效果最好的等宽字体
+      ;; doom-unicode-font (font-spec :family "LXGW WenKai" :size 18)
+      ;; doom-variable-pitch-font (font-spec :family "LXGW WenKai" :size 18)
+      )
+;; (defun my-setup-chinese-font ()
+;;   (set-fontset-font t 'han (font-spec :family "LXGW WenKai" :size 18)))
 
-(add-hook 'after-setting-font-hook #'my-setup-chinese-font)
+
+(defun my/setup-cjk-fonts ()
+  (dolist (charset '( kana han symbol cjk-misc bopomofo))
+    (set-fontset-font t charset (font-spec :family "LXGW Wenkai Mono Screen"))))
+
+(add-hook 'doom-init-ui-hook #'my/setup-cjk-fonts)
+
+;;(add-hook 'after-setting-font-hook #'my-setup-chinese-font)
 ;; 强制表格对齐
 (setq org-table-auto-blank-field nil)
 (setq org-table-use-standard-references t)
@@ -473,6 +488,14 @@ change `org-directory'. It must be set before org loads!
   (when (and (org-at-table-p) (boundp 'char-width-table))
     (setq char-width-table (make-char-table 'char-width-table))))
 #+end_src
+
+窗口透明
+#+begin_src emacs-lisp :tangle yes
+(setq default-frame-alist '((width . 90)
+                            (height . 50)
+                            (alpha-background . 80)))
+#+end_src
+
 
 Here are some additional functions/macros that will help you configure Doom.
 
@@ -1342,158 +1365,138 @@ want to edit them afterwards though, so let's make that happen by default.
 (setq org-beamer-theme "[progressbar=foot]metropolis")
 #+end_src
 ** Org latex
-#+begin_src emacs-lisp
+#+begin_src emacs-lisp :tangle yes
 (after! ox-latex
-  (setq org-latex-pdf-process '("latexmk -xelatex -quiet -shell-escape -f %f"))
+  (setq org-latex-pdf-process
+        '("latexmk -xelatex -shell-escape -quiet -f %f"))
+
   (setq org-latex-src-block-backend 'minted)
+
   (add-to-list 'org-latex-classes
-               '("article"
-                 "\\documentclass[12pt,a4paper]{book}
-\\usepackage{graphicx}
-\\usepackage{xcolor}
+               '("elegant-book"
+"\\documentclass[12pt,a4paper,openany]{book}
+
+% ===== 基础 =====
 \\usepackage{xeCJK}
-\\usepackage{enumitem}
-\\usepackage{threeparttable}
-\\usepackage{marginnote}
-\\usepackage{cleveref}
-\\usepackage[framemethod=TikZ]{mdframed}
-\\usepackage{lmodern}
-\\usepackage{verbatim}
-\\usepackage{amsmath, amsthm}
-\\usepackage{minted}
-\\usepackage{fixltx2e}
-\\usepackage{longtable}
-\\usepackage{float}
-\\usepackage{tikz}
-\\usepackage{wrapfig}
-\\usepackage{soul}
-\\usepackage{textcomp}
-\\usepackage{listings}
+\\usepackage{fontspec}
 \\usepackage{geometry}
-\\usepackage{marvosym}
-\\usepackage{wasysym}
-\\usepackage{latexsym}
-\\usepackage{natbib}
-\\usepackage{fancyhdr}
-\\usepackage{cancel}
 \\usepackage{microtype}
-\\usepackage[xetex,colorlinks=true,CJKbookmarks=true, linkcolor=blue, urlcolor=blue, menucolor=blue]{hyperref}
-\\usepackage{fontspec,xunicode,xltxtra}
-\\newfontfamily\\MONO{DejaVu Sans Mono}  % 更清晰的等宽字体定义
-\\newcommand{\\mono}[1]{{\\ttfamily #1}}  % 简化mono命令
-\\setmainfont{TeX Gyre Pagella}
-\\setCJKmainfont{Noto Serif CJK SC}
-\\setCJKsansfont{Noto Sans CJK SC}
-\\setCJKmonofont{Noto Sans Mono CJK SC}
-\\hypersetup{unicode=true}
-\\geometry{a4paper, textwidth=6.5in, textheight=10in, marginparsep=7pt, marginparwidth=.6in}
-\\punctstyle{kaiming}
+\\usepackage{setspace}
 
-% 定义代码高亮风格
-% \\usemintedstyle{manni} % 可以选择你喜欢的风格
-
-% 设置minted代码环境
-\\setminted{bgcolor=white, fontsize=\\small, baselinestretch=1}
-\\setminted{linenos, numbersep=5pt, frame=lines, framesep=2mm}
-
-% 设置页眉页脚的分隔线
-\\renewcommand{\\headrulewidth}{0.4pt}
-\\renewcommand{\\footrulewidth}{0pt}
-
-% 定理环境定义
-\\newtheorem{lemma}{Lemma}[chapter]
-\\newtheorem{corollary}{Corollary}[chapter]
-\\newtheorem{proposition}{Proposition}[chapter]
-\\newtheorem{theorem}{Theorem}[chapter]
-\\newtheorem{definition}{Definition}[chapter]
-
-% 其他环境定义
-\\newtheorem{ex}{Exercise}[chapter]
-\\newtheorem{notation}{Notation}[chapter]
-\\newtheorem{remark}{Remark}[chapter]
-\\newtheorem{exm}{Example}[chapter]
-
-% 设置页眉页脚
-\\pagestyle{fancy}
-\\fancyhf{}
-\\renewcommand{\\chaptermark}[1]{\\markboth{#1}{}}
-\\fancyfoot[R]{\\thepage}
-\\fancyhead{}
-\\fancyhead[R]{%
-   \\ifnum\\value{chapter}>0 \\chaptername\\ \\thechapter: \\fi
-   \\leftmark}
-\\fancypagestyle{plain}{
-   \\fancyhead{}
-   \\renewcommand{\\headrulewidth}{0pt}
-   \\fancyfoot{}
-   \\fancyfoot[R]{\\thepage}
+% ===== 页面设计（更像书）=====
+\\geometry{
+  a4paper,
+  inner=2.8cm,
+  outer=2.2cm,
+  top=2.5cm,
+  bottom=2.8cm
 }
 
-% 设置行距和段落
-\\linespread{1.2}  % 设置行距
-\\setlength{\\parindent}{2em}  % 段落首行缩进
-\\setlength{\\parskip}{0.5em}  % 段落间距
-\\tolerance=1000
+\\setstretch{1.4}
+\\setlength{\\parindent}{2em}
+\\setlength{\\parskip}{0.3em}
+
+% ===== 字体系统（阅读体验核心）=====
+\\setmainfont{TeX Gyre Pagella}
+\\setCJKmainfont{Noto Serif CJK SC}
+\\setmonofont{JetBrains Mono}
+
+% ===== 颜色系统（低对比护眼）=====
+\\usepackage{xcolor}
+\\definecolor{MainColor}{RGB}{40,40,40}
+\\definecolor{AccentColor}{RGB}{60,90,150}
+\\color{MainColor}
+
+% ===== 链接 =====
+\\usepackage{hyperref}
+\\hypersetup{
+  colorlinks=true,
+  linkcolor=AccentColor,
+  urlcolor=AccentColor
+}
+
+% ===== 图片 =====
+\\usepackage{graphicx}
+\\usepackage{float}
+\\usepackage{wrapfig}
+
+% ===== 表格 =====
+\\usepackage{longtable}
+\\usepackage{booktabs}
+
+% ===== 数学 =====
+\\usepackage{amsmath,amsthm}
+
+% ===== 代码高亮（更优雅）=====
+\\usepackage{minted}
+\\setminted{
+  fontsize=\\footnotesize,
+  linenos,
+  breaklines,
+  frame=leftline,
+  framesep=2mm
+}
+
+% ===== 章节设计（重点）=====
+\\usepackage{titlesec}
+
+\\titleformat{\\chapter}[display]
+  {\\Huge\\bfseries\\centering}
+  {\\vspace{-1cm}\\Huge\\thechapter}
+  {1em}
+  {\\Huge}
+
+\\titlespacing*{\\chapter}{0pt}{0pt}{2em}
+
+\\titleformat{\\section}
+  {\\Large\\bfseries\\color{AccentColor}}
+  {\\thesection}{1em}{}
+
+\\titleformat{\\subsection}
+  {\\large\\bfseries}
+  {\\thesubsection}{1em}{}
+
+% ===== 页眉页脚（书籍风格）=====
+\\usepackage{fancyhdr}
+\\pagestyle{fancy}
+\\fancyhf{}
+
+\\fancyhead[LE]{\\small\\itshape\\leftmark}
+\\fancyhead[RO]{\\small\\itshape\\rightmark}
+\\fancyfoot[C]{\\thepage}
+
+\\renewcommand{\\headrulewidth}{0pt}
+
+% ===== 引用/笔记块（很重要！）=====
+\\usepackage[framemethod=tikz]{mdframed}
+
+\\newmdenv[
+  backgroundcolor=black!3,
+  linecolor=AccentColor,
+  linewidth=1pt,
+  roundcorner=5pt,
+  skipabove=1em,
+  skipbelow=1em
+]{notebox}
+
+% Org 导出 block 映射
+\\newenvironment{quoteBlock}{\\begin{notebox}}{\\end{notebox}}
+
+% ===== 首字下沉（小说感）=====
+\\usepackage{lettrine}
+
+\\newcommand{\\dropcap}[1]{\\lettrine[lines=3]{#1}{}}
+
+% ===== 中文标点优化 =====
+\\punctstyle{kaiming}
 
 [NO-DEFAULT-PACKAGES]
 [NO-PACKAGES]
 [EXTRA]"
+
                  ("\\chapter{%s}" . "\\chapter*{%s}")
                  ("\\section{%s}" . "\\section*{%s}")
-                 ("\\subsection{%s}" . "\\subsection*{%s}")
-                 ("\\subsubsection{%s}" . "\\subsubsection*{%s}")
-                 ("\\paragraph{%s}" . "\\paragraph*{%s}")
-                 ("\\subparagraph{%s}" . "\\subparagraph*{%s}")))
-
-  ;; 使用Listings宏包格式化源代码(只是把代码框用listing环境框起来，还需要额外的设置)
-  (setq org-export-latex-listings t)
-  ;; Options for \lset command（reference to listing Manual)
-  ;; 导出Beamer的设置
-  ;; allow for export=>beamer by placing #+LaTeX_CLASS: beamer in org files
-  ;;-----------------------------------------------------------------------------
-  (add-to-list 'org-latex-classes
-               ;; beamer class, for presentations
-               '("beamer"
-                 "\\documentclass[11pt,professionalfonts]{beamer}
-\\mode
-
-\\setbeamertemplate{footline}[frame number]{}
-\\setbeamertemplate{navigation symbols}{}
-
-\\usecolortheme{lily}
-\\setbeamercolor{block title}{bg=blue!20,fg=black}
-\\setbeamercolor{block body}{bg = blue!10, fg = black}
-\\setbeamertemplate{itemize item}[square]
-\\setbeamercolor{itemize item}{fg = cyan}
-\\setbeamercolor{enumerate item}{fg = cyan}
-
-\\usetheme{default}
-\\beamertemplatenavigationsymbolsempty
-\\setbeamercolor{titlelike}{fg=cyan}
-\\beamertemplateballitem
-\\setbeameroption{show notes}
-\\usepackage{graphicx}
-\\usepackage{tikz}
-\\usepackage{xcolor}
-\\usepackage{xeCJK}
-\\usepackage{amsmath}
-\\usepackage{lmodern}
-\\usepackage{fontspec,xunicode,xltxtra}
-\\usepackage{polyglossia}
-\\setmainfont{TeX Gyre Pagella}
-\\setCJKmainfont{Source Han Serif SC}
-\\setCJKsansfont{Source Han Sans SC}
-\\setCJKmonofont{Sarasa Gothic SC}
-\\usepackage{verbatim}
-\\usepackage{listings}
-% \\institute{{{{beamerinstitute}}}}
-\\subject{{{{beamersubject}}}}"
-                 ("\\section{%s}" . "\\section*{%s}")
-                 ("\\begin{frame}[fragile]\\frametitle{%s}"
-                  "\\end{frame}"
-                  "\\begin{frame}[fragile]\\frametitle{%s}"
-                  "\\end{frame}")))
-  )
+                 ("\\subsection{%s}" . "\\subsection*{%s}"))))
 #+end_src
 ** org noter deft
 #+begin_src emacs-lisp
@@ -2724,7 +2727,31 @@ Default:
 (use-package! rime
   :custom
   (default-input-method "rime")
-  (setq rime-share-data-dir "~/.local/share/fcitx5/rime")
+  ;; 核心：指定 Rime 的用户数据目录，必须指向你刚才下载万象拼音的目录
+  (rime-user-data-dir "~/.config/emacs/.local/rime")
+
+  ;; 显示设置
+  (rime-show-candidate 'posframe) ;; 强烈建议使用 posframe (悬浮窗)
+  ;;(rime-posframe-style 'vertical) ;; 垂直列表
+
+  ;; 自动断言：在某些非中文环境自动关闭输入法
+  (rime-disable-predicates
+   '(rime-predicate-after-alphabet-char-p
+     rime-predicate-prog-in-code-p))
+
+  ;; 临时英文模式 (可选)
+  (rime-inline-ascii-trigger 'shift-l)
+
+  :bind
+  ;; 绑定快捷键打开输入法，默认通常是 C-\
+  (:map rime-mode-map
+        ("C-`" . 'rime-send-function-key)) ;; 假如需要切换简繁等 Rime 功能键
+  :config
+  ;; 第一次加载时可能需要一点时间编译 module
+  (setq rime-posframe-properties
+        (list :background-color "#333333"
+              :foreground-color "#dcdccc"
+              :internal-border-width 1))
   )
 #+end_src
 * Pdf view restore
@@ -2774,4 +2801,8 @@ Default:
   ;; 为所有缓冲区启用 /inline english/ 模式
   (sis-global-inline-mode t)
   )
+#+end_src
+* Themes
+#+begin_src emacs-lisp :tangle "./packages.el"
+(package! catppuccin-theme)
 #+end_src

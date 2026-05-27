@@ -54,7 +54,13 @@
 ;;There are two ways to load a theme. Both assume the theme is installed and
 ;; available. You can either set `doom-theme' or manually load a theme with the
 ;; `load-theme' function. This is the default:
-(setq doom-theme 'doom-one)
+;; Theme is loaded after init (set in init.el via doom-theme nil)
+;; This avoids ~35ms theme load blocking startup
+(add-hook 'after-init-hook
+  (lambda ()
+    (setq doom-theme 'doom-one)
+    (load-theme 'doom-one t))
+  t)  ; append — runs after Doom's own after-init hooks
 
 ;; This determines the style of line numbers in effect. If set to `nil', line
 ;; numbers are disabled. For relative line numbers, set this to `relative'.

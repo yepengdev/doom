@@ -232,7 +232,6 @@
   :config
   ;; 如果你希望保留 EWS 的平装本样式，可以加入（改为 xelatex 中文版）
   ;;   (setq org-latex-classes nil)  ;; 清空默认，避免冲突（可选）
-  (setq org-latex-classes nil)  ;; 清空默认，避免冲突（可选）
   (add-to-list 'org-latex-classes
                '("elegantbook"
                  "\\documentclass[fontsize=10pt,paper=a4,twoside=true,lang=cn]{elegantbook}
@@ -282,7 +281,7 @@
 
 (after! org
   ;; TODO 关键字：在 Doom 默认基础上追加 DRAFT → REVIEW
-  (add-to-list 'org-todo-keywords '(sequence "DRAFT(d)" "REVIEW(r)" "|" "CANCELLED(C)") t)
+  (add-to-list 'org-todo-keywords '(sequence "DRAFT(R)" "REVIEW(r)" "|" "CANCELLED(C)") t)
 
   (add-to-list 'org-capture-templates
                '("w" "小说灵感" entry

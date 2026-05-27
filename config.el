@@ -281,6 +281,10 @@
   )
 
 (after! org
+  ;; TODO 关键字：TODO → DRAFT → REVIEW → DONE
+  (setq org-todo-keywords
+        '((sequence "TODO(t)" "DRAFT(d)" "REVIEW(r)" "|" "DONE(D)" "CANCELLED(C)")))
+
   (add-to-list 'org-capture-templates
                '("w" "小说灵感" entry
                  (file+headline "~/org/novel-inbox.org" "灵感收件箱")  ; 改为你自己的文件路径

@@ -273,8 +273,7 @@
 
   ;; 如果你喜欢夜间模式
   ;; (pdf-view-midnight-minor-mode)
-  (add-hook 'pdf-view-mode-hook #'pdf-view-roll-minor-mode)
-  (setq pdf-view-use-scaling nil   ; 关闭每次翻页重新渲染，消除闪烁
+  (setq pdf-view-use-scaling t
         pdf-view-use-imagemagick nil)
 
   )

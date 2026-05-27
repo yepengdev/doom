@@ -3,10 +3,6 @@
 ;; This file controls what Doom modules are enabled and what order they load
 ;; in. Remember to run 'doom sync' after modifying it!
 
-;; Startup profiling — benchmark-init captures per-package load times
-(when (require 'benchmark-init nil t)
-  (benchmark-init/activate))
-
 ;; NOTE: Press 'SPC h d h' (or 'C-h d h' for non-vim users) to access Doom's
 ;;   documentation. There you'll find a link to Doom's Module Index where all of
 ;;   our modules are listed, including what flags they support.
@@ -60,7 +56,7 @@
        :editor
        evil              ; come to the dark side, we have cookies
        ;;file-templates    ; auto-snippets for empty files
-       fold              ; (nigh) universal code folding
+       ;;fold              ; (nigh) universal code folding
        (format)          ; automated prettiness (manual, use SPC m f)
        ;;god               ; run Emacs commands without modifier keys
        ;;lispy             ; vim for lisp, for people who don't like vim
@@ -68,7 +64,7 @@
        ;;objed             ; text object editing for the innocent
        ;;parinfer          ; turn lisp into python, sort of
        ;;rotate-text       ; cycle region at point between text candidates
-       snippets          ; my elves. They type so I don't have to
+       ;;snippets          ; my elves. They type so I don't have to
        (whitespace +guess +trim)  ; a butler for your whitespace
        ;;word-wrap         ; soft wrapping with language-aware indent
 

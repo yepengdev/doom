@@ -212,7 +212,12 @@
   :custom
 
   (org-latex-pdf-process
-   '("latexmk -xelatex -interaction nonstopmode -shell-escape -output-directory=%o %f")
+   '(
+     "xelatex -interaction nonstopmode -output-directory %o %f"
+     "bibtex %b"
+     "xelatex -shell-escape -interaction nonstopmode -output-directory %o %f"
+     "xelatex -shell-escape -interaction nonstopmode -output-directory %o %f"
+     )
    (org-latex-logfiles-extensions
     '("lof" "lot" "tex~" "aux" "idx" "log" "out"
       "toc" "nav" "snm" "vrb" "dvi" "fdb_latexmk"
@@ -225,7 +230,9 @@
   ;; (add-to-list 'org-latex-packages-alist '("" "xeCJK" t))
   ;; 设置默认中文字体（可在文档头部覆盖）
   :config
-  ;; 保留 Doom 默认的 article/report/book 类，只追加 elegantbook
+  ;; 如果你希望保留 EWS 的平装本样式，可以加入（改为 xelatex 中文版）
+  ;;   (setq org-latex-classes nil)  ;; 清空默认，避免冲突（可选）
+  (setq org-latex-classes nil)  ;; 清空默认，避免冲突（可选）
   (add-to-list 'org-latex-classes
                '("elegantbook"
                  "\\documentclass[fontsize=10pt,paper=a4,twoside=true,lang=cn]{elegantbook}

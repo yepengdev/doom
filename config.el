@@ -97,9 +97,6 @@
 ;; they are implemented.
 ;; -*- mode: elisp; -*-
 
-;; Scratch buffer 使用 text-mode（纯文本，适合记临时笔记）
-(setq initial-major-mode 'text-mode)
-
 (setq auto-save-timeout 30)      ; 空闲多少秒后自动保存，默认 30
 (setq auto-save-interval 300)    ; 输入多少个字符后自动保存，默认 300
 

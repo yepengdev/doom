@@ -269,7 +269,8 @@
 
   ;; 如果你喜欢夜间模式
   ;; (pdf-view-midnight-minor-mode)
-  (add-hook 'pdf-view-mode-hook #'pdf-view-roll-minor-mode)
+  (add-hook 'pdf-view-mode-hook #'pdf-view-roll-minor-mode)   ; 连续翻页
+  (add-hook 'pdf-view-mode-hook #'evil-emacs-state)             ; evil j/k 不走 PDF 滚动命令，自动切 Emacs state
   (setq pdf-view-use-scaling t
         pdf-view-use-imagemagick nil)
 

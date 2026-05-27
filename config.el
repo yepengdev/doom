@@ -7,6 +7,9 @@
 (setq gc-cons-threshold (* 100 1024 1024))
 (run-with-idle-timer 5 t #'garbage-collect)
 
+;; Auto-revert buffers when files change externally (e.g. git checkout)
+(global-auto-revert-mode 1)
+
 ;; Some functionality uses this to identify you, e.g. GPG configuration, email
 ;; clients, file templates and snippets. It is optional.
 ;; (setq user-full-name "John Doe"

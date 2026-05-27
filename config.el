@@ -3,10 +3,6 @@
 ;; Place your private configuration here! Remember, you do not need to run 'doom
 ;; sync' after modifying this file!
 
-;; GC tuning — 100MB threshold to reduce editing stutter; GC runs during idle
-(setq gc-cons-threshold (* 100 1024 1024))
-(run-with-idle-timer 5 t #'garbage-collect)
-
 ;; Auto-revert buffers when files change externally (e.g. git checkout)
 (global-auto-revert-mode 1)
 
@@ -273,6 +269,7 @@
 
   ;; 如果你喜欢夜间模式
   ;; (pdf-view-midnight-minor-mode)
+  (add-hook 'pdf-view-mode-hook #'pdf-view-roll-minor-mode)
   (setq pdf-view-use-scaling t
         pdf-view-use-imagemagick nil)
 

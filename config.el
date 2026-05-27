@@ -330,3 +330,6 @@
 (use-package! evil-easymotion
   :defer t
   :commands (evilem-create evilem-default-keybindings))
+
+;; Stop benchmark-init after init is done (report via M-x benchmark-init/show-durations-tabulated)
+(add-hook 'after-init-hook #'benchmark-init/deactivate)

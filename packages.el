@@ -62,7 +62,6 @@
 ;; 可选扩展
 (package! denote-sequence)        ; 序列笔记
 (package! denote-explore)         ; 可视化笔记网络
-(package! denote-menu)
 (package! nov)                    ; 阅读 epub
 
 ;;(package! org-fragtog)

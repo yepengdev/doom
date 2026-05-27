@@ -134,6 +134,22 @@
       (add-hook 'server-after-make-frame-hook #'my/enable-spacious-padding-later)
     (add-hook 'after-init-hook #'my/enable-spacious-padding-later)))
 
+(after! deft
+  (defun cm/deft-parse-title (file contents)
+    (if (string-match "^#\\+[tT][iI][tT][lL][eE]:\\s-*\\(.*\\)" contents)
+        (match-string 1 contents)
+      (deft-base-filename file)))
+
+  (advice-add 'deft-parse-title :override #'cm/deft-parse-title)
+
+  (setq deft-strip-summary-regexp
+        (concat "\\("
+	        "[\n\t]" ;; blank
+	        "\\|^#\\+[[:alpha:]_]+:.*$" ;; org-mode metadata
+	        "\\|^:PROPERTIES:\n\\(.+\n\\)+:END:\n"
+	        "\\)"))
+  )
+
 (use-package! denote
   :defer t
   :commands (denote denote-date denote-find-link denote-link-or-create
@@ -318,22 +334,4 @@
   (setq super-save-delete-trailing-whitespace t)
   ;; 或者，只清理非当前行的行尾空格
   (setq super-save-delete-trailing-whitespace 'except-current-line)
-
   )
-;; 在 ~/.config/doom/config.el 或相应模块中
-(use-package! flycheck-package
-  :defer t
-  :config
-  (flycheck-package-setup))
-
-(use-package! expand-region
-  :defer t
-  :commands (er/expand-region))
-
-(use-package! embrace
-  :defer t
-  :commands (embrace-add-pair embrace-remove-pair embrace-add-pair-for-mode))
-(use-package! evil-easymotion
-  :defer t
-  :commands (evilem-create evilem-default-keybindings))
-

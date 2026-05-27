@@ -7,9 +7,6 @@
 (when (require 'benchmark-init nil t)
   (benchmark-init/activate))
 
-;; Defer theme loading to after init (saves ~35ms on startup)
-(setq doom-theme nil)
-
 ;; NOTE: Press 'SPC h d h' (or 'C-h d h' for non-vim users) to access Doom's
 ;;   documentation. There you'll find a link to Doom's Module Index where all of
 ;;   our modules are listed, including what flags they support.
@@ -180,7 +177,7 @@
        ;;(rust +lsp)       ; Fe2O3.unwrap().unwrap().unwrap().unwrap()
        ;;scala             ; java, but good
        ;;(scheme +guile)   ; a fully conniving family of lisps
-       ;;sh                ; she sells {ba,z,fi}sh shells on the C xor
+       sh                ; she sells {ba,z,fi}sh shells on the C xor
        ;;sml
        ;;solidity          ; do you need a blockchain? No.
        ;;swift             ; who asked for emoji variables?

@@ -281,9 +281,8 @@
   )
 
 (after! org
-  ;; TODO 关键字：TODO → DRAFT → REVIEW → DONE
-  (setq org-todo-keywords
-        '((sequence "TODO(t)" "DRAFT(d)" "REVIEW(r)" "|" "DONE(D)" "CANCELLED(C)")))
+  ;; TODO 关键字：在 Doom 默认基础上追加 DRAFT → REVIEW
+  (add-to-list 'org-todo-keywords '(sequence "DRAFT(d)" "REVIEW(r)" "|" "CANCELLED(C)") t)
 
   (add-to-list 'org-capture-templates
                '("w" "小说灵感" entry

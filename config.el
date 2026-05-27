@@ -111,17 +111,23 @@
 (setq org-noter-notes-search-path '("~/notes/annotations"))  ; 笔记保存位置
 
 ;; 也可以保留原来的 find-file-hook 但加上 idle
-(add-hook 'find-file-hook
-          (lambda ()
-            (run-with-idle-timer 0.5 nil
-                                 (lambda ()
-                                   (when (and (featurep 'evil)
-                                              (setq fcitx-remote-command
-                                                    (or (executable-find "fcitx5-remote")
-                                                        (executable-find "fcitx-remote"))))
-                                     (require 'fcitx)
-                                     (fcitx-evil-turn-on)))))
-          'append)
+(after! evil
+  (run-with-idle-timer 0.5 nil
+                       (lambda ()
+                         (when (setq fcitx-remote-command
+                                     (or (executable-find "fcitx5-remote")
+                                         (executable-find "fcitx-remote")))
+                           (require 'fcitx)
+                           (fcitx-evil-turn-on)))))
+
+;; 放在 config.el 的任意位置即可
+(after! vertico
+  (when (modulep! :editor evil +everywhere)
+    (require 'evil-pinyin)
+    (advice-add #'orderless-regexp
+                :filter-return
+                #'evil-pinyin--build-regexp-string)))
+
 
 (use-package! spacious-padding
   :defer t
@@ -335,3 +341,8 @@
   ;; 或者，只清理非当前行的行尾空格
   (setq super-save-delete-trailing-whitespace 'except-current-line)
   )
+
+(use-package! ace-pinyin
+  :after avy
+  :init (setq ace-pinyin-use-avy t)
+  :config (ace-pinyin-global-mode t))

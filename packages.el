@@ -70,6 +70,8 @@
 
 (package! super-save)
 (package! benchmark-init)
+(package! ace-pinyin)
+(package! evil-pinyin)
 
 ;;; default defer
 ;; (package! flycheck-package :defer t)

@@ -9,6 +9,16 @@
 (add-hook! 'doom-init-ui-hook
   (setq file-name-handler-alist file-name-handler-alist-orig))
 
+;; ─── Runtime GC (gcmh) ─────────────────────────────────────────────────────────
+;; dynamically adjusts gc-cons-threshold: high during busy, low at idle
+
+(use-package! gcmh
+  :hook (after-init . gcmh-mode)
+  :custom
+  (gcmh-high-cons-threshold (* 64 1024 1024))
+  (gcmh-verbose nil)
+  (gcmh-idle-delay 15))
+
 ;; ─── Basics ──────────────────────────────────────────────────────────────────
 
 (global-auto-revert-mode 1)

@@ -17,6 +17,9 @@
 ;; Reading
 (package! nov)
 
+;; GC
+(package! gcmh)
+
 ;; Writing
 (package! super-save)
 

@@ -264,26 +264,26 @@
 
 (defun my/org-maybe-disable-prettification ()
   "Disable prettification for large Org files to improve performance."
-  (when (and (derived-mode-p 'org-mode)
-             buffer-file-name
-             (> (file-attribute-size (file-attributes buffer-file-name))
-                my/org-large-file-size-threshold))
-    (when (bound-and-true-p org-modern-mode) (org-modern-mode -1))
-    (when (bound-and-true-p org-appear-mode) (org-appear-mode -1))
-    (when (bound-and-true-p org-indent-mode) (org-indent-mode -1))
-    (setq-local org-hide-leading-stars nil
-                org-fontify-done-headline nil
-                org-fontify-quote-and-verse-blocks nil
-                org-fontify-whole-heading-line nil
-                org-priority-faces nil
-                org-todo-keyword-faces nil
-                org-pretty-entities nil
-                org-hide-emphasis-markers nil
-                org-ellipsis "...")
-    (when (bound-and-true-p prettify-symbols-mode) (prettify-symbols-mode -1))
-    (setq-local prettify-symbols-alist nil)
-    (when (bound-and-true-p variable-pitch-mode) (variable-pitch-mode -1))
-    (font-lock-flush)))
+  (when-let ((attrs (and (derived-mode-p 'org-mode)
+                         buffer-file-name
+                         (file-attributes buffer-file-name))))
+    (when (> (file-attribute-size attrs) my/org-large-file-size-threshold)
+      (when (bound-and-true-p org-modern-mode) (org-modern-mode -1))
+      (when (bound-and-true-p org-appear-mode) (org-appear-mode -1))
+      (when (bound-and-true-p org-indent-mode) (org-indent-mode -1))
+      (setq-local org-hide-leading-stars nil
+                  org-fontify-done-headline nil
+                  org-fontify-quote-and-verse-blocks nil
+                  org-fontify-whole-heading-line nil
+                  org-priority-faces nil
+                  org-todo-keyword-faces nil
+                  org-pretty-entities nil
+                  org-hide-emphasis-markers nil
+                  org-ellipsis "...")
+      (when (bound-and-true-p prettify-symbols-mode) (prettify-symbols-mode -1))
+      (setq-local prettify-symbols-alist nil)
+      (when (bound-and-true-p variable-pitch-mode) (variable-pitch-mode -1))
+      (font-lock-flush))))
 (add-hook 'find-file-hook #'my/org-maybe-disable-prettification)
 
 ;; Prevent so-long from activating in Org files

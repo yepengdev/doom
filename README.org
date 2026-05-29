@@ -82,7 +82,7 @@ Modules enabled in ~init.el~ (commented-out ones omitted):
 ** Lang
 - ~emacs-lisp~ — Elisp development support
 - ~markdown~ — Markdown editing
-- ~(org +journal +noter +pretty +pandoc +roam)~ — Org mode with journaling, noter, pretty bullets, pandoc export, and org-roam
+- ~(org +journal +noter +pretty +pandoc)~ — Org mode with journaling, noter, pretty bullets, and pandoc export
 
 * Custom packages
 
@@ -171,8 +171,14 @@ Configured for CJK / Chinese publishing:
 - ~pdf-annot-activate-created-annotations~ — auto-activate new annotations
 - Imagemagick scaling disabled
 
+** EPUB (nov.el)
+- Auto-major-mode for ~.epub~ files (~nov-mode~)
+- Variable-pitch font, visual-line-mode, and olivetti-mode auto-enabled
+- hl-line-mode disabled (distracting for prose)
+- Reading progress saved to Doom cache dir
+
 ** Writing (olivetti)
-- Auto-enabled in all Org buffers
+- Auto-enabled in all Org buffers and nov EPUB buffers
 - 100-char width (~olivetti-body-width~)
 - Hides mode-line (~olivetti-hide-mode-line~ t) and line numbers
 - Toggle manually with ~M-x olivetti-mode~
@@ -196,14 +202,18 @@ Configured for CJK / Chinese publishing:
 - Disables ~org-modern~, ~org-appear~, ~org-indent~, prettify symbols, variable-pitch, and all fontification for files exceeding threshold
 - Inactive by default (commented out in config)
 
+** Startup optimisation
+- Defers ~file-name-handler-alist~ until ~doom-init-ui-hook~ to reduce Emacs daemon startup time
+- Restores original handlers after UI initialisation to avoid side effects
+- GC tuning deliberately avoided (caused PDF flicker in previous testing)
+
 * Startup performance
 
-| Condition    | Time   |
-|--------------+--------|
-| Cold (fresh ~elpa~) | ~1.3s~ |
-| Warm (cached)       | ~0.6s~ |
+Measured with Emacs daemon (~emacs --fg-daemon~) on Gentoo Linux, average of 3 runs after warm cache (all packages compiled):
 
-Measured with ~benchmark-init~. GC tuning removed (caused PDF flicker).
+| Condition                  | Time    |
+|----------------------------+---------|
+| Doom daemon (cached, PGTK) | ~0.54s~ |
 
 * Gentoo notes
 

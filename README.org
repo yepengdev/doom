@@ -7,7 +7,11 @@ Personal Doom Emacs configuration optimized for bilingual (Chinese/English)
 writing, note-taking (Denote), and LaTeX publishing (xelatex + CJK).
 
 - Remote: [[https://github.com/yepengdev/doom][yepengdev/doom]] ([[git@github.com:yepengdev/doom.git][SSH]])
-- Platform: Linux (Arch Linux)
+- Platform: Gentoo Linux
+- Emacs: ~app-editors/emacs-30.2-r3~
+  USE="cairo dbus gif gmp gpm gtk gui gzip-el inotify jpeg lcms libxml2 mailutils png sound sqlite ssl svg systemd threads tiff tree-sitter webp wide-int xattr xft xpm zlib"
+  USE="-X -Xaw3d -athena -games -gfile -gsettings -harfbuzz -imagemagick -jit -kerberos -livecd -m17n-lib -motif -source -toolkit-scroll-bars -valgrind"
+- Doom: 2.1.0
 - Fonts: Monaspace Neon + LXGW WenKai Mono Screen
 
 * Quick start
@@ -196,12 +200,18 @@ Configured for CJK / Chinese publishing:
 
 * Startup performance
 
-| Condition    | Time  |
-|--------------+-------|
-| Cold (no caches) | ~1.3s~ |
-| Warm (cached)    | ~0.63s~ |
+| Condition    | Time   |
+|--------------+--------|
+| Cold (fresh ~elpa~) | ~1.3s~ |
+| Warm (cached)       | ~0.6s~ |
 
 Measured with ~benchmark-init~. GC tuning removed (caused PDF flicker).
+
+* Gentoo notes
+
+Emacs and some packages (e.g. ~nov~, ~olivetti~, ~org-mode~) are installed
+from Portage. After emerging a new ~app-emacs/*~, declare it in ~packages.el~
+via ~(package! <name>)~ — Doom picks it up from the site-lisp dir automatically.
 
 * See also
 - [[file:REASONIX.md]] — operational notes and conventions

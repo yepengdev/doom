@@ -33,8 +33,6 @@ writing, note-taking (Denote), and LaTeX publishing (xelatex + CJK).
 | ~packages.el~   | Third-party package declarations (~package!~) | Yes           |
 | ~config.el~     | User customizations                      | No                |
 | ~README.org~    | This file                                | —                 |
-| ~REASONIX.md~   | Operational notes & conventions          | —                 |
-| ~AGENTS.md~     | Instructions for AI coding assistants    | —                 |
 
 * Active modules
 

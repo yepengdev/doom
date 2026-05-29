@@ -1,115 +1,211 @@
 #+TITLE: Doom Emacs Config
-#+AUTHOR: peng
+#+AUTHOR: Peng Yepeng
+#+EMAIL: yepeng@hey.com
 #+STARTUP: indent
 
-Personal Doom Emacs configuration — optimized for Chinese/English bilingual
-writing, note-taking (Denote), and LaTeX publishing.
+Personal Doom Emacs configuration optimized for bilingual (Chinese/English)
+writing, note-taking (Denote), and LaTeX publishing (xelatex + CJK).
+
+- Remote: [[https://github.com/yepengdev/doom][yepengdev/doom]] ([[git@github.com:yepengdev/doom.git][SSH]])
+- Platform: Linux (Arch Linux)
+- Fonts: Monaspace Neon + LXGW WenKai Mono Screen
 
 * Quick start
 
-| Command        | When to run              |
-|----------------+--------------------------|
-| ~doom sync~    | After editing ~init.el~ or ~packages.el~ |
-| ~doom doctor~  | Check for config issues   |
-| ~doom upgrade~ | Update Doom framework     |
-| ~doom clean~   | Remove compiled cache     |
+| Command          | When to run                           |
+|------------------+---------------------------------------|
+| ~doom sync~      | After editing ~init.el~ or ~packages.el~ |
+| ~doom doctor~    | Check for config issues               |
+| ~doom upgrade~   | Update Doom Emacs framework           |
+| ~doom clean~     | Remove compiled / elpa cache          |
+| ~doom env~       | Regenerate env file for GUI Emacs     |
+| ~doom/reload-font~ | Re-apply font settings (M-x)        |
 
-* Active modules (init.el)
+* File structure
+
+| File            | Purpose                                  | Need ~doom sync~? |
+|-----------------+------------------------------------------+-------------------|
+| ~init.el~       | Doom module list (~doom!~ block)         | Yes               |
+| ~packages.el~   | Third-party package declarations (~package!~) | Yes           |
+| ~config.el~     | User customizations                      | No                |
+| ~README.org~    | This file                                | —                 |
+| ~REASONIX.md~   | Operational notes & conventions          | —                 |
+| ~AGENTS.md~     | Instructions for AI coding assistants    | —                 |
+
+* Active modules
+
+Modules enabled in ~init.el~ (commented-out ones omitted):
 
 ** Completion
-- ~(corfu +orderless)~ — inline completion UI with fuzzy matching
-- ~vertico~ — search/find UI (replacement for ivy/helm)
+- ~(corfu +orderless)~ — inline completion UI with fuzzy filtering via Orderless
+- ~vertico~ — vertical search/find UI (modern replacement for ivy/helm)
 
 ** UI
-- ~deft~ — fast note browsing (title extracted from ~#+title~, org metadata stripped from summary)
-- ~doom~ — Doom theme framework
-- ~hl-todo~ — highlight TODO/FIXME/NOTE keywords
-- ~modeline~ — doom-modeline
-- ~ophints~ — visual operation hints
-- ~popup~ — rule-based window popping
-- ~vc-gutter~ — diff indicators in fringe
+- ~deft~ — fast note browsing, title extracted from ~#+title~, org metadata stripped
+- ~doom~ — Doom Emacs theme framework
+- ~hl-todo~ — highlight ~TODO~, ~FIXME~, ~NOTE~, ~HACK~, ~REVIEW~, ~DEPRECATED~
+- ~modeline~ — doom-modeline with detailed info
+- ~ophints~ — visual highlights for operator regions
+- ~(popup +defaults)~ — rule-based window popping for temporary buffers
+- ~(vc-gutter +pretty)~ — diff indicators in fringe with icons
 - ~workspaces~ — persp-mode workspace tabs
 - ~zen~ — writeroom-mode for distraction-free writing
 
 ** Editor
 - ~(evil +everywhere)~ — Vim emulation in all buffers
-- ~fold~ — code folding
-- ~(format +onsave)~ — auto-format on save
-- ~snippets~ — yasnippet
-- ~(whitespace +guess +trim)~ — whitespace management
+- ~file-templates~ — auto-insert snippets for new empty files
+- ~fold~ — universal code folding
+- ~(format +onsave)~ — auto-format buffer on save
+- ~multiple-cursors~ — edit in many places at once
+- ~snippets~ — yasnippet-based snippet expansion
+- ~(whitespace +guess +trim)~ — detect & clean trailing whitespace
+
+** Emacs built-ins
+- ~dired~ — file manager (Doom-styled)
+- ~electric~ — smarter keyword-based electric-indent
+- ~tramp~ — transparent remote file editing
+- ~undo~ — persistent, smarter undo tree
+- ~vc~ — built-in version control integration
+
+** Terminal
+- ~eshell~ — Elisp shell
+- ~vterm~ — terminal emulator with full ANSI support
 
 ** Tools
 - ~(eval +overlay)~ — inline eval results
 - ~lookup~ — documentation / definition lookup
-- ~magit~ — Git UI
-- ~pdf~ — pdf-tools
+- ~magit~ — full Git porcelain
+- ~pdf~ — PDF viewer enhancements (pdf-tools)
 
 ** Lang
-- ~emacs-lisp~, ~markdown~, ~(org +journal +noter +pretty +pandoc +roam)~
+- ~emacs-lisp~ — Elisp development support
+- ~markdown~ — Markdown editing
+- ~(org +journal +noter +pretty +pandoc +roam)~ — Org mode with journaling, noter, pretty bullets, pandoc export, and org-roam
 
-* Custom packages (packages.el)
+* Custom packages
 
-| Package            | Purpose                   |
-|--------------------+---------------------------|
-| ~fcitx~            | Chinese input method integration with Evil |
-| ~spacious-padding~ | More breathing room in UI |
-| ~denote~ family    | File-naming note system with sequences & explore |
-| ~consult-notes~    | Consult integration for notes |
-| ~super-save~       | Auto-save on idle, trim trailing whitespace |
-| ~nov~              | EPUB reader              |
-| ~benchmark-init~   | Profile startup time     |
+Packages declared in ~packages.el~:
 
-* Notable config (config.el)
+| Package              | Purpose                                               |
+|----------------------+-------------------------------------------------------|
+| ~fcitx~              | Chinese input method integration with Evil            |
+| ~ace-pinyin~         | Pinyin-based avy jumps for Chinese text               |
+| ~evil-pinyin~        | Pinyin-based fuzzy file search in Vertico/Orderless   |
+| ~spacious-padding~   | More breathing room in UI (line-spacing, padding)     |
+| ~denote~             | File-naming note system                               |
+| ~denote-org~         | Org-link to heading for Denote                        |
+| ~denote-sequence~    | Sequential note series for Denote                     |
+| ~denote-explore~     | Note network visualization & exploration              |
+| ~consult-notes~      | Consult integration for Denote notes                  |
+| ~super-save~         | Auto-save on idle, trim trailing whitespace           |
+| ~nov~                | EPUB reader                                           |
+| ~benchmark-init~     | Profile Emacs startup time                            |
+
+* Notable configurations
 
 ** Fonts
-~my/apply-fonts~ runs on both ~after-init-hook~ and
-~server-after-make-frame-hook~, sets:
-- Monaspace Neon (English, 15pt)
-- LXGW WenKai Mono Screen (Chinese CJK, 16pt)
+~my/apply-fonts~ runs on both ~after-init-hook~ and ~server-after-make-frame-hook~,
+guarded by ~(display-graphic-p frame)~ for daemon safety:
+
+- Monaspace Neon (English, 15pt; variable-pitch 16pt)
+- LXGW WenKai Mono Screen (Chinese / CJK, 16pt)
+
+Apply with ~M-x my/apply-fonts~ or ~M-x doom/reload-font~.
+
+** Theme
+~doom-wilmersdorf~ — a warm, high-contrast dark theme. Set via ~doom-theme~.
+
+** Line numbers
+~relative~ style — display relative line numbers for Evil motion efficiency.
 
 ** Chinese input method
-Fcitx5 integrated with Evil via ~find-file-hook~ + ~run-with-idle-timer~.
+Fcitx5 integration via ~fcitx~ package:
+- Auto-detects ~fcitx5-remote~ binary at startup
+- Integrates with Evil: automatically toggles Chinese IM on insert-mode entry
+- Loaded lazily via ~run-with-idle-timer~ (0.5s after init)
+- Also integrates with Vertico for pinyin-based file search (~evil-pinyin~)
 
-** Denote keybindings (~SPC r d~)
+** Denote notes (~SPC r d~)
+Note-taking system at ~~/Documents/notes/~ (configured via ~denote-directory~).
+Keywords: =创作= =学习= =工作= =生活= =技术= =思考= =索引=
 
-| Key | Command                      |
-|-----+------------------------------|
-| ~n~ | denote                       |
-| ~d~ | denote-date                  |
-| ~l~ | denote-find-link             |
-| ~i~ | denote-link-or-create        |
-| ~k~ | denote-rename-file-keywords  |
-| ~r~ | denote-rename-file           |
-| ~R~ | denote-rename-using-front-matter |
-| ~f~ | consult-notes               |
-| ~b~ | denote-find-backlink         |
-| ~s~ | denote-sequence              |
-| ~h~ | denote-org-link-to-heading   |
-| ~e~ | denote-explore submenu       |
+| Key             | Command                              |
+|-----------------+--------------------------------------|
+| ~SPC r d n~     | ~denote~ — new note                  |
+| ~SPC r d d~     | ~denote-date~ — note with date       |
+| ~SPC r d l~     | ~denote-find-link~                   |
+| ~SPC r d i~     | ~denote-link-or-create~              |
+| ~SPC r d k~     | ~denote-rename-file-keywords~        |
+| ~SPC r d r~     | ~denote-rename-file~                 |
+| ~SPC r d R~     | ~denote-rename-file-using-front-matter~ |
+| ~SPC r d f~     | ~consult-notes~ — search notes       |
+| ~SPC r d b~     | ~denote-find-backlink~               |
+| ~SPC r d h~     | ~denote-org-link-to-heading~         |
+| ~SPC r d s~     | ~denote-sequence~ — new sequence     |
+| ~SPC r d e c~   | ~denote-explore-count-notes~         |
+| ~SPC r d e C~   | ~denote-explore-count-keywords~      |
+| ~SPC r d e r~   | ~denote-explore-random-note~         |
+| ~SPC r d e l~   | ~denote-explore-random-link~         |
+| ~SPC r d e n~   | ~denote-explore-network~             |
 
-** LaTeX (~ox-latex~)
-- Compiler: ~xelatex~ (3 passes + bibtex) for CJK support
-- Default class: ~elegantbook~ with minted code highlighting
-- ~inputenc~ removed from default packages to avoid xelatex conflict
+** Org mode
+- TODO keywords extended: ~DRAFT~ (R) → ~REVIEW~ (r) → ~CANCELLED~ (C)
+- Capture template for novel-writing ideas (~SPC X x~):
+  - File: ~~/org/novel-inbox.org~ under "灵感收件箱" heading
+  - Fields: title, source, character, emotional tone, notes
+- ~org-directory~: ~~/org/~
 
-** Org
-- TODO keywords extended: ~DRAFT~ → ~REVIEW~ → ~CANCELLED~
-- Capture template for novel writing ideas (~SPC X x~)
+** LaTeX (ox-latex)
+Configured for CJK / Chinese publishing:
 
-** PDF (~pdf-tools~)
-- Fit-page by default, roll scrolling, Evil emacs state
-- Scaling with imagemagick disabled
+- Compiler: ~xelatex~ (3 passes + ~bibtex~)
+- Default class: ~elegantbook~ (Chinese template)
+- ~inputenc~ removed from default packages (conflicts with xelatex)
+- Code highlighting via ~minted~ + ~fvextra~ (breaklines, footnotesize, line numbers)
+- Log files auto-cleaned (~.aux~, ~.log~, ~.bbl~, etc.)
 
-** Writing (~olivetti~)
-- Auto-enabled in Org buffers
-- 100 char width, hides mode-line and line numbers
+** PDF (pdf-tools)
+- Default: fit-page display, roll (continuous) scrolling, Evil emacs state
+- ~pdf-annot-activate-created-annotations~ — auto-activate new annotations
+- Imagemagick scaling disabled
+
+** Writing (olivetti)
+- Auto-enabled in all Org buffers
+- 100-char width (~olivetti-body-width~)
+- Hides mode-line (~olivetti-hide-mode-line~ t) and line numbers
+- Toggle manually with ~M-x olivetti-mode~
 
 ** Super-save
-- Auto-save on idle, trim trailing whitespace (except current line)
-- No save on buffer/window switch
+- Auto-save on idle (~super-save-auto-save-when-idle~)
+- Trim trailing whitespace on save (except current line)
+- No auto-save on buffer/window switch
+
+** Ace-pinyin
+- Global minor mode enabled, integrated with Avy
+- Jump to Chinese characters by pinyin initials with ~avy-goto-char-timer~
+
+** Spacious-padding
+- Adds padding and breathing room around Emacs frames
+- ~line-spacing~: 3
+- Daemon-aware: enables after frame creation with idle timer
+
+** Large Org file handling
+- Threshold: 1 MiB
+- Disables ~org-modern~, ~org-appear~, ~org-indent~, prettify symbols, variable-pitch, and all fontification for files exceeding threshold
+- Inactive by default (commented out in config)
 
 * Startup performance
-Cold (no caches): ~1.3s~ | Warm (cached): ~0.63s~
+
+| Condition    | Time  |
+|--------------+-------|
+| Cold (no caches) | ~1.3s~ |
+| Warm (cached)    | ~0.63s~ |
+
+Measured with ~benchmark-init~. GC tuning removed (caused PDF flicker).
 
 * See also
 - [[file:REASONIX.md]] — operational notes and conventions
+- [[file:AGENTS.md]] — AI assistant instructions for this repo
+- [[file:init.el]] — module declarations
+- [[file:config.el]] — full user configuration
+- [[file:packages.el]] — package declarations

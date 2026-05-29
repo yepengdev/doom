@@ -1,14 +1,5 @@
 ;;; $DOOMDIR/config.el -*- lexical-binding: t; -*-
 
-;; ─── Startup optimisation ──────────────────────────────────────────────────────
-;; defer file-name handlers until after startup
-
-(setq file-name-handler-alist-orig file-name-handler-alist
-      file-name-handler-alist nil)
-
-(add-hook! 'doom-init-ui-hook
-  (setq file-name-handler-alist file-name-handler-alist-orig))
-
 ;; ─── Runtime GC (gcmh) ─────────────────────────────────────────────────────────
 ;; dynamically adjusts gc-cons-threshold: high during busy, low at idle
 
@@ -22,7 +13,6 @@
 ;; ─── Basics ──────────────────────────────────────────────────────────────────
 
 (global-auto-revert-mode 1)
-(global-so-long-mode 0)
 (setq confirm-kill-emacs nil)
 
 ;; ─── Fonts ───────────────────────────────────────────────────────────────────
@@ -294,11 +284,10 @@
     (setq-local prettify-symbols-alist nil)
     (when (bound-and-true-p variable-pitch-mode) (variable-pitch-mode -1))
     (font-lock-flush)))
+(add-hook 'find-file-hook #'my/org-maybe-disable-prettification)
 
 ;; Prevent so-long from activating in Org files
-(defun my/org-so-long-p ()
-  (unless (derived-mode-p 'org-mode)
-    (doom-so-long-p)))
-
 (after! so-long
-  (setq so-long-predicate #'my/org-so-long-p))
+  (setq so-long-predicate
+        (lambda () (and (not (derived-mode-p 'org-mode))
+                   (doom-so-long-p)))))

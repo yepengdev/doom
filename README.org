@@ -245,11 +245,10 @@ ElegantBook 是适合中英文书籍/笔记排版的 LaTeX 模板，见
 ** Large Org file handling
 - Threshold: 1 MiB
 - Disables ~org-modern~, ~org-appear~, ~org-indent~, prettify symbols, variable-pitch, and all fontification for files exceeding threshold
-- Inactive by default (commented out in config)
+- Registered via ~find-file-hook~; non-Org files skipped (short-circuits before ~file-attributes~)
 
 ** Startup optimisation
-- Defers ~file-name-handler-alist~ until ~doom-init-ui-hook~ to reduce Emacs daemon startup time
-- Restores original handlers after UI initialisation to avoid side effects
+- Previously deferred ~file-name-handler-alist~ until ~doom-init-ui-hook~ (removed per Doom upstream advice: Doom's own lazy loading handles this more safely; the old trick could interfere with remote files and archive-mode)
 - GC tuning deliberately avoided (caused PDF flicker in previous testing)
 
 * Startup performance

@@ -210,7 +210,7 @@
   (setq olivetti-hide-mode-line t))
 
 (use-package! super-save
-  :hook (after-init . super-save-mode)
+  :hook (find-file . super-save-mode)
   :config
   (super-save-mode +1)
   (setq super-save-auto-save-when-idle t
@@ -218,6 +218,17 @@
         super-save-when-focus-lost nil
         super-save-when-buffer-switched nil
         super-save-delete-trailing-whitespace 'except-current-line))
+
+;; ─── Emacs state replaces Insert state ──────────────────────────────────────
+
+;; Make all Insert-state operations enter Emacs state instead
+(defalias 'evil-insert-state 'evil-emacs-state)
+
+;; Bar cursor in Emacs state (no yellow — use default foreground)
+(setq evil-emacs-state-cursor 'bar)
+
+;; ESC from Emacs state returns to Normal state
+(define-key evil-emacs-state-map (kbd "<escape>") 'evil-normal-state)
 
 ;; ─── Chinese input (fcitx + Evil) ───────────────────────────────────────────
 

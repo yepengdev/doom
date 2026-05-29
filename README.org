@@ -209,11 +209,12 @@ Configured for CJK / Chinese publishing:
 
 * Startup performance
 
-Measured with Emacs daemon (~emacs --fg-daemon~) on Gentoo Linux, average of 3 runs after warm cache (all packages compiled):
+Measured on Gentoo Linux, average of 3 runs after warm cache (all packages compiled):
 
-| Condition                  | Time    |
-|----------------------------+---------|
-| Doom daemon (cached, PGTK) | ~0.54s~ |
+| Condition                        | Time    |
+|----------------------------------+---------|
+| ~emacs --fg-daemon~ (no GUI)     | ~0.54s~ |
+| ~emacs --eval '(kill-emacs)'~    | ~0.77s~ |
 
 * Gentoo notes
 

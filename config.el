@@ -5,6 +5,7 @@
 
 ;; Auto-revert buffers when files change externally (e.g. git checkout)
 (global-auto-revert-mode 1)
+(global-so-long-mode 0)
 
 ;; Some functionality uses this to identify you, e.g. GPG configuration, email
 ;; clients, file templates and snippets. It is optional.
@@ -57,7 +58,7 @@
 ;;There are two ways to load a theme. Both assume the theme is installed and
 ;; available. You can either set `doom-theme' or manually load a theme with the
 ;; `load-theme' function. This is the default:
-(setq doom-theme 'doom-one)
+(setq doom-theme 'doom-wilmersdorf)
 
 ;; This determines the style of line numbers in effect. If set to `nil', line
 ;; numbers are disabled. For relative line numbers, set this to `relative'.
@@ -109,7 +110,7 @@
 (setq confirm-kill-emacs nil)        ; 不额外确认
 
 (setq org-noter-notes-search-path '("~/notes/annotations"))  ; 笔记保存位置
-
+;;
 ;; 也可以保留原来的 find-file-hook 但加上 idle
 (after! evil
   (run-with-idle-timer 0.5 nil
@@ -346,3 +347,48 @@
   :after avy
   :init (setq ace-pinyin-use-avy t)
   :config (ace-pinyin-global-mode t))
+
+;; 大文件 Org 模式 — 用 find-file-hook 确保在所有美化 hook 之后运行
+(defvar my/org-large-file-size-threshold (* 1024 1024)
+  "Org 文件超过此大小（字节）时自动关闭所有美化。")
+
+(defun my/org-maybe-disable-prettification ()
+  "对超大 Org 文件关闭所有美化，只保留原初显示。"
+  (when (and (derived-mode-p 'org-mode)
+             buffer-file-name
+             (> (file-attribute-size (file-attributes buffer-file-name))
+                my/org-large-file-size-threshold))
+    ;; +pretty 层
+    (when (bound-and-true-p org-modern-mode)
+      (org-modern-mode -1))
+    (when (bound-and-true-p org-appear-mode)
+      (org-appear-mode -1))
+    ;; 核心层
+    (when (bound-and-true-p org-indent-mode)
+      (org-indent-mode -1))
+    (setq-local org-hide-leading-stars nil
+                org-fontify-done-headline nil
+                org-fontify-quote-and-verse-blocks nil
+                org-fontify-whole-heading-line nil
+                org-priority-faces nil
+                org-todo-keyword-faces nil
+                org-pretty-entities nil
+                org-hide-emphasis-markers nil
+                org-ellipsis "...")
+    ;; 符号替换/比例字体
+    (when (bound-and-true-p prettify-symbols-mode)
+      (prettify-symbols-mode -1))
+    (setq-local prettify-symbols-alist nil)
+    (when (bound-and-true-p variable-pitch-mode)
+      (variable-pitch-mode -1))
+    ;; 刷新 font-lock 使 faces 变更生效
+    (font-lock-flush)))
+
+;; (add-hook 'find-file-hook #'my/org-maybe-disable-prettification 'append)
+
+;; 阻止 so-long 在 Org 文件中激活
+(defun my/org-so-long-p ()
+  (unless (derived-mode-p 'org-mode)
+    (doom-so-long-p)))
+(after! so-long
+  (setq so-long-predicate #'my/org-so-long-p))

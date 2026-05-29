@@ -1,5 +1,14 @@
 ;;; $DOOMDIR/config.el -*- lexical-binding: t; -*-
 
+;; ─── Startup optimisation ──────────────────────────────────────────────────────
+;; defer file-name handlers until after startup
+
+(setq file-name-handler-alist-orig file-name-handler-alist
+      file-name-handler-alist nil)
+
+(add-hook! 'doom-init-ui-hook
+  (setq file-name-handler-alist file-name-handler-alist-orig))
+
 ;; ─── Basics ──────────────────────────────────────────────────────────────────
 
 (global-auto-revert-mode 1)
@@ -155,12 +164,26 @@
   :config
   (map! :leader
         (:prefix-map ("r d" . "Denote")
-         (:prefix-map ("e" . "Explore")
-          :desc "Count notes"         "c" #'denote-explore-count-notes
-          :desc "Count keywords"      "C" #'denote-explore-count-keywords
-          :desc "Random note"         "r" #'denote-explore-random-note
-          :desc "Random link"         "l" #'denote-explore-random-link
-          :desc "Knowledge network"   "n" #'denote-explore-network))))
+                     (:prefix-map ("e" . "Explore")
+                      :desc "Count notes"         "c" #'denote-explore-count-notes
+                      :desc "Count keywords"      "C" #'denote-explore-count-keywords
+                      :desc "Random note"         "r" #'denote-explore-random-note
+                      :desc "Random link"         "l" #'denote-explore-random-link
+                      :desc "Knowledge network"   "n" #'denote-explore-network))))
+
+;; ─── EPUB (nov.el) ──────────────────────────────────────────────────────────
+
+(use-package! nov
+  :mode ("\\.epub\\'" . nov-mode)
+  :custom
+  (nov-text-width t)
+  (nov-variable-pitch-mode t)
+  (nov-save-place-file (concat doom-cache-dir "nov-places"))
+  :init
+  (add-hook 'nov-mode-hook #'visual-line-mode)
+  (add-hook 'nov-mode-hook #'variable-pitch-mode)
+  (add-hook 'nov-mode-hook #'olivetti-mode)
+  (add-hook 'nov-mode-hook (lambda () (hl-line-mode -1))))
 
 ;; ─── PDF ─────────────────────────────────────────────────────────────────────
 

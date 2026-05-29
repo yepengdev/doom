@@ -252,7 +252,7 @@
   :init
   (defun my/enable-spacious-padding-later (&optional frame)
     (when (display-graphic-p frame)
-      (run-with-idle-timer 0.1 nil #'spacious-padding-mode)))
+      (run-with-idle-timer 0.1 nil (lambda () (spacious-padding-mode 1)))))
   (if (daemonp)
       (add-hook 'server-after-make-frame-hook #'my/enable-spacious-padding-later)
     (add-hook 'after-init-hook #'my/enable-spacious-padding-later)))
@@ -290,4 +290,4 @@
 (after! so-long
   (setq so-long-predicate
         (lambda () (and (not (derived-mode-p 'org-mode))
-                   (doom-so-long-p)))))
+                        (doom-so-long-p)))))

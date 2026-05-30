@@ -1,8 +1,10 @@
 ;;; $DOOMDIR/config.el -*- lexical-binding: t; -*-
 
-;; ─── Runtime GC (gcmh) ─────────────────────────────────────────────────────────
-;; dynamically adjusts gc-cons-threshold: high during busy, low at idle
+;; ─── Proxy for doom sync (gh-proxy.com) ──────────────────────────────────────
+(setenv "DOOMGITCONFIG"
+        (expand-file-name "doom-gitconfig" doom-user-dir))
 
+;; ─── Runtime GC (gcmh) ─────────────────────────────────────────────────────────
 (use-package! gcmh
   :hook (after-init . gcmh-mode)
   :custom
@@ -11,33 +13,21 @@
   (gcmh-idle-delay 15))
 
 ;; ─── Basics ──────────────────────────────────────────────────────────────────
-
-(global-auto-revert-mode 1)
 (setq confirm-kill-emacs nil)
 
 ;; ─── Fonts ───────────────────────────────────────────────────────────────────
-
-(defun my/apply-fonts (&optional frame)
-  "Apply fonts on graphical frames (handles daemon and normal startup)."
-  (when (display-graphic-p frame)
-    (setq doom-font (font-spec :family "Monaspace Neon" :size 15))
-    (setq doom-variable-pitch-font (font-spec :family "Monaspace Neon" :size 16))
-    (set-fontset-font t 'han (font-spec :family "LXGW WenKai Mono Screen" :size 16))
-    (when (fboundp 'doom/reload-font)
-      (doom/reload-font))))
-
-(add-hook 'after-init-hook #'my/apply-fonts)
-(add-hook 'server-after-make-frame-hook #'my/apply-fonts)
+(setq doom-font (font-spec :family "Monaspace Neon" :size 15)
+      doom-variable-pitch-font (font-spec :family "Monaspace Neon" :size 16))
+(after! doom-ui
+  (set-fontset-font t 'han (font-spec :family "LXGW WenKai Mono Screen" :size 16)))
 
 ;; ─── Theme & UI ──────────────────────────────────────────────────────────────
-
 (setq doom-theme 'doom-wilmersdorf)
 (setq display-line-numbers-type 'relative)
 (setq auto-save-timeout 30
       auto-save-interval 300)
 
 ;; ─── Org mode ────────────────────────────────────────────────────────────────
-
 (setq org-directory "~/org/")
 (setq org-noter-notes-search-path '("~/notes/annotations"))
 
@@ -49,10 +39,10 @@
                  (file+headline "~/org/novel-inbox.org" "Inspiration inbox")
                  "* %^{Title} :%^g\n  :PROPERTIES:\n  :CREATED: %U\n  :Source: %^{Source}\n  :Character: %^{Character}\n  :Mood: %^{Mood}\n  :Notes: %^{Notes}\n  :END:\n\n  %?\n  - From: %a"
                  :prepend t
-                 :empty-lines 1)))
+                 :empty-lines 1))
+  (setq org-hide-emphasis-markers t))
 
 ;; ─── LaTeX ───────────────────────────────────────────────────────────────────
-
 (use-package! ox-latex
   :defer t
   :after ox
@@ -96,11 +86,10 @@
   (setq org-latex-default-class "elegantbook"))
 
 ;; ─── Deft (quick note search) ────────────────────────────────────────────────
-
-(setq deft-directory "~/notes"
-      deft-recursive t)
-
+;; 在 init.el 中启用 deft 模块后生效；用 :after-call 延迟加载
 (after! deft
+  (setq deft-directory "~/notes"
+        deft-recursive t)
   (defun cm/deft-parse-title (file contents)
     (if (string-match "^#\\+[tT][iI][tT][lL][eE]:\\s-*\\(.*\\)" contents)
         (match-string 1 contents)
@@ -114,7 +103,6 @@
                 "\\)")))
 
 ;; ─── Denote (Zettelkasten notes) ─────────────────────────────────────────────
-
 (use-package! denote
   :defer t
   :commands (denote denote-date denote-find-link denote-link-or-create
@@ -172,7 +160,6 @@
                       :desc "Knowledge network"   "n" #'denote-explore-network))))
 
 ;; ─── EPUB (nov.el) ──────────────────────────────────────────────────────────
-
 (use-package! nov
   :mode ("\\.epub\\'" . nov-mode)
   :custom
@@ -186,7 +173,6 @@
   (add-hook 'nov-mode-hook (lambda () (hl-line-mode -1))))
 
 ;; ─── PDF ─────────────────────────────────────────────────────────────────────
-
 (after! pdf-tools
   (setq pdf-view-display-size 'fit-page
         pdf-view-resize-factor 1.1
@@ -210,8 +196,8 @@ Fallback to roll-mode overlay when standard overlay is nil."
             (error nil)))))
   ;; Suppress arrow timer errors when overlay is still nil
   (advice-add 'org-noter-pdf--show-arrow :around
-    (lambda (orig-fn)
-      (condition-case nil (funcall orig-fn) (error nil)))))
+              (lambda (orig-fn)
+                (condition-case nil (funcall orig-fn) (error nil)))))
 ;;
 ;; org-noter-pdftools struct → cons bridge
 ;; (with-eval-after-load 'org-noter-core
@@ -230,105 +216,82 @@ Fallback to roll-mode overlay when standard overlay is nil."
 ;; -- org-pdftools: precise org links to PDF locations
 
 (use-package! org-pdftools
+  :defer t
+  :commands org-pdftools-setup-link
   :hook (org-load . org-pdftools-setup-link))
 
-;; org-noter-pdftools temporarily disabled for testing
-;; (use-package! org-noter-pdftools
-;;   :after (org-noter pdf-tools)
-;;   :config
-;;   (with-eval-after-load 'pdf-annot
-;;     (add-hook 'pdf-annot-activate-handler-functions
-;;               #'org-noter-pdftools-jump-to-note))
-;;   M-i is intercepted by pdf-tools annotations; redirect to org-noter
-;;   (map! :map pdf-view-mode-map
-;;         "M-i" #'org-noter-insert-note))
-
 ;; Open current PDF in Zathura for quick reference / LaTeX preview
-;; Note: avoid "Z" — evil-collection uses Z as a prefix for zoom/quit keys
 (map! :map pdf-view-mode-map
       :n "g z" (lambda () (interactive)
                  (when-let ((f (buffer-file-name)))
                    (start-process "zathura" nil "zathura" f))))
 
 ;; ─── Writing tools ───────────────────────────────────────────────────────────
-
 (use-package! olivetti
   :defer t
   :init
   (add-hook 'org-mode-hook #'olivetti-mode)
   :config
   (define-key olivetti-mode-map (kbd "C-c |") nil)
-  (setq olivetti-body-width 100)
+  (setq olivetti-body-width 120)
   (add-hook 'olivetti-mode-on-hook (lambda () (display-line-numbers-mode -1)))
   (add-hook 'olivetti-mode-off-hook (lambda () (display-line-numbers-mode 1)))
   (setq olivetti-hide-mode-line t))
 
 (use-package! super-save
-  :hook (find-file . super-save-mode)
+  :hook (after-init . super-save-mode)
+  :custom
+  (super-save-auto-save-when-idle t)
+  (super-save-silent t)
+  (super-save-when-focus-lost nil)
+  (super-save-when-buffer-switched nil)
+  (super-save-delete-trailing-whitespace 'except-current-line)
   :config
-  (super-save-mode +1)
-  (setq super-save-auto-save-when-idle t
-        super-save-silent t
-        super-save-when-focus-lost nil
-        super-save-when-buffer-switched nil
-        super-save-delete-trailing-whitespace 'except-current-line)
-  ;; don't touch read-only buffers (e.g. PDFs)
   (add-to-list 'super-save-predicates
                (lambda () (not buffer-read-only))))
 
 ;; ─── Emacs state replaces Insert state ──────────────────────────────────────
-
 (after! evil
-  ;; Make all Insert-state operations enter Emacs state instead
   (defalias 'evil-insert-state 'evil-emacs-state)
-
-  ;; Bar cursor in Emacs state (no yellow — use default foreground)
   (setq evil-emacs-state-cursor 'bar)
-
-  ;; ESC from Emacs state returns to Normal state
-  (define-key evil-emacs-state-map (kbd "<escape>") 'evil-normal-state)
-  )
+  (define-key evil-emacs-state-map (kbd "<escape>") 'evil-normal-state))
 
 ;; ─── Chinese input (fcitx + Evil) ───────────────────────────────────────────
-
-(after! evil
-  (run-with-idle-timer 0.5 nil
-                       (lambda ()
-                         (when (setq fcitx-remote-command
-                                     (or (executable-find "fcitx5-remote")
-                                         (executable-find "fcitx-remote")))
-                           (require 'fcitx)
-                           (fcitx-evil-turn-on)))))
+(run-with-idle-timer 0.5 nil
+                     (lambda ()
+                       (when-let ((cmd (or (executable-find "fcitx5-remote")
+                                           (executable-find "fcitx-remote"))))
+                         (setq fcitx-remote-command cmd)
+                         (require 'fcitx)
+                         (fcitx-evil-turn-on))))
 
 ;; ─── Fuzzy matching with pinyin support ─────────────────────────────────────
-
-(after! vertico
-  (when (modulep! :editor evil +everywhere)
-    (require 'evil-pinyin)
-    (advice-add #'orderless-regexp
-                :filter-return
-                #'evil-pinyin--build-regexp-string)))
+(use-package! evil-pinyin
+  :defer t
+  :commands (evil-pinyin--build-regexp-string)
+  :init
+  (advice-add #'orderless-regexp :filter-return #'evil-pinyin--build-regexp-string)
+  :config (evil-pinyin-mode 1))
 
 (use-package! ace-pinyin
-  :after avy
+  :commands ace-pinyin-global-mode
+  :after-call avy-goto-char-timer
   :init (setq ace-pinyin-use-avy t)
   :config (ace-pinyin-global-mode t))
 
 ;; ─── UI spacing ──────────────────────────────────────────────────────────────
-
 (use-package! spacious-padding
   :defer t
   :custom (line-spacing 3)
   :init
-  (defun my/enable-spacious-padding-later (&optional frame)
-    (when (display-graphic-p frame)
-      (run-with-idle-timer 0.1 nil (lambda () (spacious-padding-mode 1)))))
   (if (daemonp)
-      (add-hook 'server-after-make-frame-hook #'my/enable-spacious-padding-later)
-    (add-hook 'after-init-hook #'my/enable-spacious-padding-later)))
+      (add-hook 'server-after-make-frame-hook
+                (lambda (&optional frame)
+                  (when (display-graphic-p frame)
+                    (spacious-padding-mode 1))))
+    (add-hook 'after-init-hook (lambda () (spacious-padding-mode 1)))))
 
 ;; ─── Large Org file handling ─────────────────────────────────────────────────
-
 (defvar my/org-large-file-size-threshold (* 1024 1024)
   "Org files exceeding this size (bytes) disable all prettification.")
 

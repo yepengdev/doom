@@ -29,5 +29,5 @@
 (package! ace-pinyin)
 (package! evil-pinyin)
 
-;; Profiling
-(package! benchmark-init)
+
+

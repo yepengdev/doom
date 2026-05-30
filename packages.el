@@ -16,6 +16,8 @@
 
 ;; Reading
 (package! nov)
+(package! org-pdftools)
+;; (package! org-noter-pdftools)  ; disabled for testing
 
 ;; GC
 (package! gcmh)

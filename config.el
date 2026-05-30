@@ -192,9 +192,63 @@
         pdf-view-resize-factor 1.1
         pdf-annot-activate-created-annotations t
         pdf-view-use-scaling t
-        pdf-view-use-imagemagick nil)
+        pdf-view-use-imagemagick nil
+        pdf-view-selection-style 'glyph)
   (add-hook 'pdf-view-mode-hook #'pdf-view-roll-minor-mode)
   (add-hook 'pdf-view-mode-hook #'evil-emacs-state))
+;; pdf-view-current-overlay is a macro; org-noter-pdf's compiled bytecode calls
+;; it as a function.  Provide function fallback regardless of org-noter-pdftools.
+(with-eval-after-load 'org-noter-pdf
+  (defun pdf-view-current-overlay (&optional window)
+    "Get the current overlay for the pdf view.
+Fallback to roll-mode overlay when standard overlay is nil."
+    (or (image-mode-window-get 'overlay window)
+        (when (and (bound-and-true-p pdf-view-roll-minor-mode)
+                   (fboundp 'pdf-roll-page-overlay))
+          (condition-case nil
+              (pdf-roll-page-overlay (pdf-view-current-page) window)
+            (error nil)))))
+  ;; Suppress arrow timer errors when overlay is still nil
+  (advice-add 'org-noter-pdf--show-arrow :around
+    (lambda (orig-fn)
+      (condition-case nil (funcall orig-fn) (error nil)))))
+;;
+;; org-noter-pdftools struct → cons bridge
+;; (with-eval-after-load 'org-noter-core
+;;   (dolist (fn '(org-noter--get-location-top
+;;                  org-noter--get-location-page
+;;                  org-noter--get-location-left))
+;;     (advice-add fn :around
+;;       (lambda (orig-fn location)
+;;         (funcall orig-fn
+;;                  (if (and location (not (listp location))
+;;                           (fboundp 'org-noter-pdftools--location-p)
+;;                           (org-noter-pdftools--location-p location))
+;;                      (org-noter-pdftools--location-link-to-cons location)
+;;                    location))))))
+
+;; -- org-pdftools: precise org links to PDF locations
+
+(use-package! org-pdftools
+  :hook (org-load . org-pdftools-setup-link))
+
+;; org-noter-pdftools temporarily disabled for testing
+;; (use-package! org-noter-pdftools
+;;   :after (org-noter pdf-tools)
+;;   :config
+;;   (with-eval-after-load 'pdf-annot
+;;     (add-hook 'pdf-annot-activate-handler-functions
+;;               #'org-noter-pdftools-jump-to-note))
+;;   M-i is intercepted by pdf-tools annotations; redirect to org-noter
+;;   (map! :map pdf-view-mode-map
+;;         "M-i" #'org-noter-insert-note))
+
+;; Open current PDF in Zathura for quick reference / LaTeX preview
+;; Note: avoid "Z" — evil-collection uses Z as a prefix for zoom/quit keys
+(map! :map pdf-view-mode-map
+      :n "g z" (lambda () (interactive)
+                 (when-let ((f (buffer-file-name)))
+                   (start-process "zathura" nil "zathura" f))))
 
 ;; ─── Writing tools ───────────────────────────────────────────────────────────
 
@@ -217,18 +271,23 @@
         super-save-silent t
         super-save-when-focus-lost nil
         super-save-when-buffer-switched nil
-        super-save-delete-trailing-whitespace 'except-current-line))
+        super-save-delete-trailing-whitespace 'except-current-line)
+  ;; don't touch read-only buffers (e.g. PDFs)
+  (add-to-list 'super-save-predicates
+               (lambda () (not buffer-read-only))))
 
 ;; ─── Emacs state replaces Insert state ──────────────────────────────────────
 
-;; Make all Insert-state operations enter Emacs state instead
-(defalias 'evil-insert-state 'evil-emacs-state)
+(after! evil
+  ;; Make all Insert-state operations enter Emacs state instead
+  (defalias 'evil-insert-state 'evil-emacs-state)
 
-;; Bar cursor in Emacs state (no yellow — use default foreground)
-(setq evil-emacs-state-cursor 'bar)
+  ;; Bar cursor in Emacs state (no yellow — use default foreground)
+  (setq evil-emacs-state-cursor 'bar)
 
-;; ESC from Emacs state returns to Normal state
-(define-key evil-emacs-state-map (kbd "<escape>") 'evil-normal-state)
+  ;; ESC from Emacs state returns to Normal state
+  (define-key evil-emacs-state-map (kbd "<escape>") 'evil-normal-state)
+  )
 
 ;; ─── Chinese input (fcitx + Evil) ───────────────────────────────────────────
 

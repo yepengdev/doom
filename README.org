@@ -266,6 +266,8 @@ Emacs and some packages (e.g. ~nov~, ~olivetti~, ~org-mode~) are installed
 from Portage. After emerging a new ~app-emacs/*~, declare it in ~packages.el~
 via ~(package! <name>)~ — Doom picks it up from the site-lisp dir automatically.
 
+
+
 * See also
 - [[file:REASONIX.md]] — operational notes and conventions
 - [[file:AGENTS.md]] — AI assistant instructions for this repo

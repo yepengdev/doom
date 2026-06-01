@@ -5,6 +5,7 @@
 (load! "config/ui")
 (load! "config/editor")
 (load! "config/org")
+(load! "config/latex")
 (load! "config/notes")
 (load! "config/reading")
 (load! "config/i18n")

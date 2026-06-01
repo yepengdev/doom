@@ -7,13 +7,13 @@
   (set-fontset-font t 'han (font-spec :family "LXGW WenKai Mono Screen" :size 15)))
 
 ;; ─── Theme & UI ──────────────────────────────────────────────────────────────
-(defvar my/theme-day 'doom-one-light
+(defconst my/theme-day 'doom-one-light
   "Light theme used during daytime.")
-(defvar my/theme-night 'doom-tokyo-night
+(defconst my/theme-night 'doom-tokyo-night
   "Dark theme used at night.")
-(defvar my/theme-day-start 7
+(defconst my/theme-day-start 7
   "Hour (0-23) when day theme activates.")
-(defvar my/theme-night-start 18
+(defconst my/theme-night-start 18
   "Hour (0-23) when night theme activates.")
 
 (defun my/theme-for-hour (&optional hour)
@@ -56,6 +56,6 @@
 
 (use-package! spacious-padding
   :commands spacious-padding-mode
-  :custom (line-spacing 3)
   :init
+  (setq-default line-spacing 3)
   (add-hook 'doom-switch-frame-hook #'my/enable-spacious-padding--fn))

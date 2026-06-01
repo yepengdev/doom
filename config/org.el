@@ -13,7 +13,8 @@
                  "* %^{Title} :%^g\n  :PROPERTIES:\n  :CREATED: %U\n  :Source: %^{Source}\n  :Character: %^{Character}\n  :Mood: %^{Mood}\n  :Notes: %^{Notes}\n  :END:\n\n  %?\n  - From: %a"
                  :prepend t
                  :empty-lines 1))
-  (setq org-hide-emphasis-markers t))
+  (setq org-hide-emphasis-markers t)
+  (add-to-list 'org-file-apps '("\\.x?html?\\'" . "xdg-open %s")))
 
 ;; ─── Org capture helper ───────────────────────────────────────────────────────
 (defun org-capture-goto-target (&optional template-key)
@@ -39,49 +40,6 @@ If TEMPLATE-KEY is nil, the user is queried for the template."
                              my/pandoc-dir))
           (lua-filter . ,(expand-file-name "markdown-to-docx.lua" my/pandoc-dir)))))
 
-;; ─── LaTeX ───────────────────────────────────────────────────────────────────
-(use-package! ox-latex
-  :defer t
-  :after ox
-  :custom
-  (org-latex-pdf-process
-   '("xelatex -interaction nonstopmode -output-directory %o %f"
-     "bibtex %b"
-     "xelatex -shell-escape -interaction nonstopmode -output-directory %o %f"
-     "xelatex -shell-escape -interaction nonstopmode -output-directory %o %f"))
-  (org-latex-logfiles-extensions
-   '("lof" "lot" "tex~" "aux" "idx" "log" "out" "toc" "nav" "snm"
-     "vrb" "dvi" "fdb_latexmk" "blg" "brf" "fls" "entoc" "ps" "spl" "bbl" "tex" "bcf"))
-  (org-latex-default-packages-alist
-   (remove '("AUTO" "inputenc" t) org-latex-default-packages-alist))
-  :config
-  (add-to-list 'org-latex-classes
-               '("elegantbook"
-                 "\\documentclass[fontsize=10pt,paper=a4,twoside=true,lang=cn]{elegantbook}
-\\usepackage{xeCJK}
-\\hypersetup{colorlinks=true}
-\\usepackage{fvextra}
-\\DefineVerbatimEnvironment{verbatim}{Verbatim}{
-  breaklines=true,
-  breakanywhere=true,
-  breaksymbol={},
-  breakautoindent=false
-}
-\\usepackage{minted}
-\\setminted{
-  fontsize=\\footnotesize,
-  linenos,
-  breaklines,
-  frame=leftline,
-  framesep=2mm
-}
-[NO-DEFAULT-PACKAGES]
-[NO-PACKAGES]"
-                 ("\\chapter{%s}" . "\\chapter*{%s}")
-                 ("\\section{%s}" . "\\section*{%s}")
-                 ("\\subsection{%s}" . "\\subsection*{%s}")))
-  (setq org-latex-default-class "elegantbook"))
-
 ;; ─── Org HTML export ────────────────────────────────────────────────────────
 (defvar my/org-export-assets-dir
   (expand-file-name "org-export/minimal" doom-user-dir)
@@ -98,8 +56,6 @@ If TEMPLATE-KEY is nil, the user is queried for the template."
 
 ;; ─── Use external browser for links ──────────────────────────────────────────
 (setq browse-url-browser-function #'browse-url-xdg-open)
-(after! org
-  (add-to-list 'org-file-apps '("\\.x?html?\\'" . "xdg-open %s")))
 
 ;; ─── Large Org file handling ─────────────────────────────────────────────────
 (defvar my/org-large-file-size-threshold (* 1024 1024)

@@ -47,9 +47,11 @@
   (denote-rename-buffer-mode 1)
   (defun my/denote-git-auto-commit ()
     (when-let ((dir (denote-directory)))
-      (when (file-exists-p (expand-file-name ".git" dir))
-        (let ((default-directory dir))
-          (shell-command-to-string "git add -A && git commit -m \"auto: note saved\"")))))
+      (let ((git-dir (expand-file-name ".git" dir)))
+        (when (file-exists-p git-dir)
+          (let ((default-directory dir))
+            (call-process "git" nil nil nil "add" "-A")
+            (call-process "git" nil nil nil "commit" "-m" "auto: note saved"))))))
   (add-hook 'denote-after-new-note-hook #'my/denote-git-auto-commit))
 
 (use-package! consult-notes

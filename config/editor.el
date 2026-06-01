@@ -18,12 +18,9 @@
   (olivetti-hide-mode-line t)
   :config
   (define-key olivetti-mode-map (kbd "C-c |") nil)
-  (defun +olivetti-hide-line-numbers-h ()
-    (display-line-numbers-mode -1))
-  (defun +olivetti-show-line-numbers-h ()
-    (display-line-numbers-mode 1))
-  (add-hook 'olivetti-mode-on-hook #'+olivetti-hide-line-numbers-h)
-  (add-hook 'olivetti-mode-off-hook #'+olivetti-show-line-numbers-h))
+  (defun +olivetti-toggle-line-numbers-h ()
+    (display-line-numbers-mode (if olivetti-mode -1 1)))
+  (add-hook 'olivetti-mode-hook #'+olivetti-toggle-line-numbers-h))
 
 (use-package! super-save
   :hook (doom-first-file . super-save-mode)

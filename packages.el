@@ -15,6 +15,7 @@
 (package! consult-notes)
 
 ;; Reading
+(package! djvu)
 (package! nov)
 (package! org-pdftools)
 ;; (package! org-noter-pdftools)  ; disabled for testing

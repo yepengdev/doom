@@ -5,6 +5,8 @@
 (setq shell-file-name (executable-find "bash"))
 (setq-default vterm-shell "/usr/bin/fish")
 (setq-default explicit-shell-file-name "/usr/bin/fish")
+(setq server-raise-frame t
+      server-client-instructions nil)
 
 ;; ─── Magit ───────────────────────────────────────────────────────────────────
 (after! magit

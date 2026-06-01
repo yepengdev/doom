@@ -1,7 +1,10 @@
 ;;; $DOOMDIR/config.el -*- lexical-binding: t; -*-
 
+;; ─── Git proxy ──────────────────────────────────────────────────────────────
+(setenv "DOOMGITCONFIG"
+        (expand-file-name "doom-gitconfig" doom-user-dir))
+
 ;; ─── Load modular config files ───────────────────────────────────────────────
-(load! "config/proxy")
 (load! "config/ui")
 (load! "config/editor")
 (load! "config/org")

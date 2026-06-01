@@ -13,7 +13,7 @@
   "Dark theme used at night.")
 (defconst my/theme-day-start 7
   "Hour (0-23) when day theme activates.")
-(defconst my/theme-night-start 18
+(defconst my/theme-night-start 19
   "Hour (0-23) when night theme activates.")
 
 (defun my/theme-for-hour (&optional hour)
@@ -29,15 +29,18 @@
   (doom/reload-theme))
 
 (defun my/theme-switch-maybe ()
-  "Check hour and switch theme if needed."
+  "Check hour and switch theme if needed.
+After applying once, removes itself from the hook.
+Relies on `doom-switch-frame-hook' being called at least once per session."
   (let ((theme (my/theme-for-hour)))
     (unless (eq doom-theme theme)
-      (my/theme-apply theme))))
+      (my/theme-apply theme)
+      (remove-hook 'doom-switch-frame-hook #'my/theme-switch-maybe))))
 
 (setq doom-theme (my/theme-for-hour))
 
-;; Check theme on frame focus instead of polling every 60 minutes
-(add-hook 'doom-switch-frame-hook #'my/theme-switch-maybe)
+;; Check theme on first frame switch (once only, then unhooks)
+(add-hook 'doom-switch-frame-hook #'my/theme-switch-maybe 'append)
 
 (setq display-line-numbers-type 'relative)
 (setq auto-save-timeout 30
@@ -48,10 +51,11 @@
   "Whether spacious-padding has been enabled.")
 
 (defun my/enable-spacious-padding--fn (&optional _frame)
-  "Enable spacious-padding on the first graphical frame."
+  "Enable spacious-padding on the first graphical frame, then unhook."
   (when (and (display-graphic-p)
              (not my/enable-spacious-padding--done))
     (setq my/enable-spacious-padding--done t)
+    (remove-hook 'doom-switch-frame-hook #'my/enable-spacious-padding--fn)
     (spacious-padding-mode 1)))
 
 (use-package! spacious-padding

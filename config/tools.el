@@ -12,10 +12,15 @@ Intended for `doom-after-reload-hook'."
       (when (display-graphic-p frame)
         (with-selected-frame frame
           (run-hooks 'server-after-make-frame-hook)))))
+  ;; PERF: ensure workspace switch-to-N closures have fresh lexical
+  ;; bindings after reload; `doom/reload-autoloads` + `doom-startup`
+  ;; can leave them referencing an unbound `i` in some reload contexts.
+  (when (fboundp 'doom--startup-loaddefs-doom)
+    (ignore-errors (doom--startup-loaddefs-doom)))
   (message "Full reload complete (config + theme + font + frames)"))
 
 (defun my/doom-full-reload ()
-  "Reload config, theme, fonts, frames, packages & autoloads.
+  "Reload config, autoloads, packages, theme, fonts & frames.
 
 Replaces `doom/reload' for a more thorough reload.  NOTE:
 changes to `packages.el' still require `doom sync' first."

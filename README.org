@@ -29,10 +29,12 @@ writing, note-taking (Denote), and LaTeX publishing (xelatex + CJK).
 
 | File            | Purpose                                  | Need ~doom sync~? |
 |-----------------+------------------------------------------+-------------------|
-| ~init.el~       | Doom module list (~doom!~ block)         | Yes               |
-| ~packages.el~   | Third-party package declarations (~package!~) | Yes           |
-| ~config.el~     | User customizations                      | No                |
-| ~README.org~    | This file                                | —                 |
+| ~init.el~       | Doom module list (~doom!~ block)              | Yes               |
+| ~packages.el~   | Third-party package declarations (~package!~) | Yes               |
+| ~config.el~     | User customizations                           | No                |
+| ~pandoc/~       | Pandoc docx templates & Lua filters           | —                 |
+| ~org-export/minimal/~ | Org HTML export CSS                    | —                 |
+| ~README.org~    | This file                                     | —                 |
 
 * Active modules
 
@@ -101,31 +103,32 @@ Packages declared in ~packages.el~:
 | ~consult-notes~      | Consult integration for Denote notes                  |
 | ~super-save~         | Auto-save on idle, trim trailing whitespace           |
 | ~nov~                | EPUB reader                                           |
-| ~benchmark-init~     | Profile Emacs startup time                            |
+| ~org-pdftools~       | Org links to PDF locations                            |
+| ~gcmh~               | Dynamic runtime GC management                         |
+| ~immersive-translate~| Bilingual reading (nov.el ePub + Org)                 |
 
 * Notable configurations
 
 ** Fonts
-~my/apply-fonts~ runs on both ~after-init-hook~ and ~server-after-make-frame-hook~,
-guarded by ~(display-graphic-p frame)~ for daemon safety:
+Set declaratively inside ~(after! doom-ui ...)~:
 
-- Monaspace Neon (English, 15pt; variable-pitch 16pt)
-- LXGW WenKai Mono Screen (Chinese / CJK, 16pt)
-
-Apply with ~M-x my/apply-fonts~ or ~M-x doom/reload-font~.
+- ~doom-font~ — Monaspace Neon 16
+- ~doom-variable-pitch-font~ — Monaspace Neon 16
+- ~set-fontset-font~ for CJK — LXGW WenKai Mono Screen 16
+- Reload with ~M-x doom/reload-font~ or ~SPC h r R~ (full reload)
 
 ** Theme
-~doom-wilmersdorf~ — a warm, high-contrast dark theme. Set via ~doom-theme~.
+Auto-switches between ~doom-one-light~ (07:00–17:59) and ~doom-tokyo-night~ (18:00–06:59),
+checked on frame focus (~doom-switch-frame-hook~).
 
 ** Line numbers
 ~relative~ style — display relative line numbers for Evil motion efficiency.
 
 ** Chinese input method
 Fcitx5 integration via ~fcitx~ package:
-- Auto-detects ~fcitx5-remote~ binary at startup
+- Auto-detects ~fcitx5-remote~ / ~fcitx-remote~ binary via ~doom-first-input-hook~
 - Integrates with Evil: automatically toggles Chinese IM on insert-mode entry
-- Loaded lazily via ~run-with-idle-timer~ (0.5s after init)
-- Also integrates with Vertico for pinyin-based file search (~evil-pinyin~)
+- Pinyin fuzzy matching for Vertico/Orderless via ~evil-pinyin~ and Avy via ~ace-pinyin~
 
 ** Denote notes (~SPC r d~)
 Note-taking system at ~~/Documents/notes/~ (configured via ~denote-directory~).
@@ -155,6 +158,8 @@ Keywords: =创作= =学习= =工作= =生活= =技术= =思考= =索引=
 - Capture template for novel-writing ideas (~SPC X x~):
   - File: ~~/org/novel-inbox.org~ under "灵感收件箱" heading
   - Fields: title, source, character, emotional tone, notes
+- ~org-capture-goto-target~ overridden (adds ~(require 'org-capture)~ for reliable autoloading)
+- ~SPC n N~ — go to capture target location
 - ~org-directory~: ~~/org/~
 
 ** LaTeX (ox-latex)
@@ -165,6 +170,11 @@ Configured for CJK / Chinese publishing:
 - ~inputenc~ removed from default packages (conflicts with xelatex)
 - Code highlighting via ~minted~ + ~fvextra~ (breaklines, footnotesize, line numbers)
 - Log files auto-cleaned (~.aux~, ~.log~, ~.bbl~, etc.)
+
+** Pandoc docx export
+- Reference docx template & Lua filters in ~pandoc/~ (version-controlled)
+- Default reference: ~template_标题不编号-列表第二行顶格.docx~
+- Custom Lua filter: ~markdown-to-docx.lua~ (processed before pandoc's native writer)
 
 *** ElegantBook 安装与配置
 
@@ -240,7 +250,7 @@ ElegantBook 是适合中英文书籍/笔记排版的 LaTeX 模板，见
 ** Spacious-padding
 - Adds padding and breathing room around Emacs frames
 - ~line-spacing~: 3
-- Daemon-aware: enables after frame creation with idle timer
+- Daemon-safe: enabled once on first graphical frame (~doom-switch-frame-hook~ with flag)
 
 ** Large Org file handling
 - Threshold: 1 MiB

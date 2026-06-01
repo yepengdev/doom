@@ -82,13 +82,16 @@ If TEMPLATE-KEY is nil, the user is queried for the template."
     (pop-to-buffer-same-window (org-capture-get :buffer))
     (goto-char (org-capture-get :pos))))
 
-;; ─── Pandoc docx export (Achuan-2 template) ──────────────────────────────────
+;; ─── Pandoc docx export ──────────────────────────────────────────────────────
+(defvar my/pandoc-dir (expand-file-name "pandoc" doom-user-dir)
+  "Base directory for Pandoc docx export templates.")
+
 (after! ox-pandoc
   (setq org-pandoc-options-for-docx
         `((reference-doc . ,(expand-file-name
-                             "~/pandoc_docx_template/templates/template_标题不编号-列表第二行顶格.docx"))
-          (lua-filter . ,(expand-file-name
-                          "~/pandoc_docx_template/markdown-to-docx.lua")))))
+                             "templates/template_标题不编号-列表第二行顶格.docx"
+                             my/pandoc-dir))
+          (lua-filter . ,(expand-file-name "markdown-to-docx.lua" my/pandoc-dir)))))
 
 ;; ─── LaTeX ───────────────────────────────────────────────────────────────────
 (use-package! ox-latex

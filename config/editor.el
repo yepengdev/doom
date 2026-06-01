@@ -2,6 +2,7 @@
 
 ;; ─── Basics ──────────────────────────────────────────────────────────────────
 (setq confirm-kill-emacs nil)
+(setq shell-file-name (executable-find "bash"))
 (setq-default vterm-shell "/usr/bin/fish")
 (setq-default explicit-shell-file-name "/usr/bin/fish")
 

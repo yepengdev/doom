@@ -2,9 +2,9 @@
 
 ;; ─── Fonts ───────────────────────────────────────────────────────────────────
 (after! doom-ui
-  (setq doom-font (font-spec :family "Monaspace Neon" :size 16)
-        doom-variable-pitch-font (font-spec :family "Monaspace Neon" :size 16))
-  (set-fontset-font t 'han (font-spec :family "LXGW WenKai Mono Screen" :size 16)))
+  (setq doom-font (font-spec :family "Monaspace Neon" :size 15)
+        doom-variable-pitch-font (font-spec :family "Monaspace Neon" :size 15))
+  (set-fontset-font t 'han (font-spec :family "LXGW WenKai Mono Screen" :size 15)))
 
 ;; ─── Theme & UI ──────────────────────────────────────────────────────────────
 (defvar my/theme-day 'doom-one-light

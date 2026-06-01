@@ -27,14 +27,16 @@ writing, note-taking (Denote), and LaTeX publishing (xelatex + CJK).
 
 * File structure
 
-| File            | Purpose                                  | Need ~doom sync~? |
-|-----------------+------------------------------------------+-------------------|
-| ~init.el~       | Doom module list (~doom!~ block)              | Yes               |
-| ~packages.el~   | Third-party package declarations (~package!~) | Yes               |
-| ~config.el~     | User customizations                           | No                |
-| ~pandoc/~       | Pandoc docx templates & Lua filters           | —                 |
-| ~org-export/minimal/~ | Org HTML export CSS                    | —                 |
-| ~README.org~    | This file                                     | —                 |
+| Path                             | Purpose                                     | Need ~doom sync~? |
+|----------------------------------+---------------------------------------------+-------------------|
+| ~init.el~                        | Doom module list (~doom!~ block)                 | Yes               |
+| ~packages.el~                    | Third-party package declarations (~package!~)    | Yes               |
+| ~config.el~                      | Entry point, loads ~config/*.el~                 | No                |
+| ~config/*.el~                    | Modular settings (proxy, ui, editor, org,        | No                |
+|                                  | latex, notes, reading, i18n, tools)              |                   |
+| ~pandoc/~                        | Pandoc docx templates & Lua filters              | —                 |
+| ~org-export/minimal/~            | Org HTML export CSS (local, no CDN)              | —                 |
+| ~README.org~                     | This file                                        | —                 |
 
 * Active modules
 
@@ -83,6 +85,7 @@ Modules enabled in ~init.el~ (commented-out ones omitted):
 
 ** Lang
 - ~emacs-lisp~ — Elisp development support
+- ~(latex +cdlatex +fold)~ — LaTeX with cdlatex math/tab inserts and code folding
 - ~markdown~ — Markdown editing
 - ~(org +journal +noter +pretty +pandoc)~ — Org mode with journaling, noter, pretty bullets, and pandoc export
 
@@ -162,64 +165,55 @@ Keywords: =创作= =学习= =工作= =生活= =技术= =思考= =索引=
 - ~SPC n N~ — go to capture target location
 - ~org-directory~: ~~/org/~
 
-** LaTeX (ox-latex)
-Configured for CJK / Chinese publishing:
+** LaTeX (ox-latex via ~config/latex.el~)
 
-- Compiler: ~xelatex~ (3 passes + ~bibtex~)
-- Default class: ~elegantbook~ (Chinese template)
-- ~inputenc~ removed from default packages (conflicts with xelatex)
-- Code highlighting via ~minted~ + ~fvextra~ (breaklines, footnotesize, line numbers)
-- Log files auto-cleaned (~.aux~, ~.log~, ~.bbl~, etc.)
+Org → LaTeX / PDF publishing configured for Chinese typesetting.
+
+*** Build system
+
+Uses ~latexmk~ instead of manual xelatex multi-pass:
+
+- Compiler: ~latexmk -xelatex -shell-escape -interaction=nonstopmode -f~
+- Handles bibtex/makeindex/multiple xelatex passes automatically
+- Org's ~org-latex-logfiles-extensions~ cleans auxiliary files on each export
+
+*** Default class: ~ctexbook~
+
+Custom ~ctexbook~ template tailored for Chinese books/notes:
+
+- **No section numbering** (~secnumdepth{0}~), preserves PDF bookmarks
+- XeLaTeX-native (no ~inputenc~/~fontenc~, ~hyperref~ loaded manually after ~xcolor~)
+- ~minted~ + ~fvextra~ for code listings (breaklines, footnotesize, line numbers)
+- ~fancyhdr~ headers/footers, ~geometry~ margins, ~booktabs~ tables
+- ~microtype~ (protrusion only), ~caption~, ~enumitem~ (nosep)
+- ~\linespread{1.3}~ for comfortable CJK line spacing
+
+*** Custom headline formatting
+
+~org-latex-format-headline-function~ override in ~config/latex.el~:
+
+- TODO keywords rendered in red/green bold sans-serif via ~\texorpdfstring~
+- Priority cookies (~[#A]~) shown in orange
+- Tags pushed to the right margin in gray
+- PDF bookmarks remain clean (raw LaTeX stripped by ~\texorpdfstring~)
+
+*** LaTeX module flags
+
+~init.el~ enables ~(latex +cdlatex +fold)~:
+
+- ~+cdlatex~ — quick LaTeX math/tab snippets (e.g. ~=>~ → ~\Rightarrow~)
+- ~+fold~ — TeX environment folding (hide ~\begin~...~\end~ blocks)
+
+*** Removed default packages
+
+- ~inputenc~ — conflicts with XeLaTeX (native UTF-8)
+- ~fontenc~ — not needed with OpenType fonts
+- ~hyperref~ — loaded manually after ~xcolor~ in template (precise placement)
 
 ** Pandoc docx export
 - Reference docx template & Lua filters in ~pandoc/~ (version-controlled)
 - Default reference: ~template_标题不编号-列表第二行顶格.docx~
 - Custom Lua filter: ~markdown-to-docx.lua~ (processed before pandoc's native writer)
-
-*** ElegantBook 安装与配置
-
-ElegantBook 是适合中英文书籍/笔记排版的 LaTeX 模板，见
-[[https://github.com/ElegantLaTeX/ElegantBook]]。
-
-**** 安装方式
-
-1.  **tlmgr（推荐）**
-
-    #+begin_src sh
-    sudo tlmgr install elegantbook elegantnote elegantpaper
-    #+end_src
-
-2.  **手动安装**（若 CTAN 缺失或需要定制版本）
-
-    #+begin_src sh
-    # 下载 .cls / .sty 放到用户 texmf 树
-    mkdir -p ~/texmf/tex/latex/elegantbook
-    cp elegantbook.cls elegantbook.sty ~/texmf/tex/latex/elegantbook/
-    # 刷新 FNDB（= texhash）
-    mktexlsr ~/texmf
-    #+end_src
-
-    验证：
-
-    #+begin_src sh
-    kpsewhich elegantbook.cls
-    #+end_src
-
-    输出应为 ~/texmf/tex/latex/elegantbook/elegantbook.cls 或系统路径。
-
-**** 注意事项
-
-- **inputenc 冲突**：xelatex 使用 UTF-8 原生，不再需要 ~inputenc~ 宏包。配置中已从 ~org-latex-default-packages-alist~ 移除。
-- **多平台**：配置通过 ~TEXMFHOME=~/texmf~ 支持用户级安装，不影响系统 TeX Live。
-
-**** 排查
-
-| 问题              | 排查命令                                                         |
-|-------------------+------------------------------------------------------------------|
-| 找不到模板        | ~kpsewhich elegantbook.cls~                                      |
-| 搜索路径不对      | ~kpsepath cnf~ 查看 TeX 搜索路径                                 |
-| 系统字体看不到    | ~fc-cache -fv~（xelatex）；~luaotfload-tool -fu~（LuaTeX）       |
-| 用户级安装不生效  | 检查 ~TEXMFHOME~ 是否指向 ~/texmf~；运行 ~mktexlsr~ 后重试       |
 
 ** PDF (pdf-tools)
 - Default: fit-page display, roll (continuous) scrolling, Evil emacs state
@@ -258,8 +252,12 @@ ElegantBook 是适合中英文书籍/笔记排版的 LaTeX 模板，见
 - Registered via ~find-file-hook~; non-Org files skipped (short-circuits before ~file-attributes~)
 
 ** Startup optimisation
-- Previously deferred ~file-name-handler-alist~ until ~doom-init-ui-hook~ (removed per Doom upstream advice: Doom's own lazy loading handles this more safely; the old trick could interfere with remote files and archive-mode)
-- GC tuning deliberately avoided (caused PDF flicker in previous testing)
+- ~vc-handled-backends~ limited to ~'(Git)~ to skip unnecessary VCS backend stats on file open
+- ~auto-mode-case-fold~ set to ~nil~ to avoid per-mode ~file-exists-p~ probing
+- ~native-comp-async-jobs-number~ set to 4 with ~native-comp-speed~ 3 for parallel .eln compilation
+- ~gcmh~ manages GC dynamically to avoid startup jank from aggressive GC
+- ~recentf~ and ~save-place~ entry limits kept modest (100 each)
+- Run ~doom compile~ after config changes for byte-compiled load speed
 
 * Startup performance
 

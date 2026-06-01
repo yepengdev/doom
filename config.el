@@ -1,6 +1,6 @@
 ;;; $DOOMDIR/config.el -*- lexical-binding: t; -*-
 
-;; ─── Proxy for doom sync (gh-proxy.com) ──────────────────────────────────────
+;; ─── Proxy for doom sync ─────────────────────────────────────────────────────
 (setenv "DOOMGITCONFIG"
         (expand-file-name "doom-gitconfig" doom-user-dir))
 
@@ -8,9 +8,9 @@
 (setq confirm-kill-emacs nil)
 
 ;; ─── Fonts ───────────────────────────────────────────────────────────────────
-(setq doom-font (font-spec :family "Monaspace Neon" :size 16)
-      doom-variable-pitch-font (font-spec :family "Monaspace Neon" :size 16))
 (after! doom-ui
+  (setq doom-font (font-spec :family "Monaspace Neon" :size 16)
+        doom-variable-pitch-font (font-spec :family "Monaspace Neon" :size 16))
   (set-fontset-font t 'han (font-spec :family "LXGW WenKai Mono Screen" :size 16)))
 
 ;; ─── Theme & UI ──────────────────────────────────────────────────────────────
@@ -20,21 +20,20 @@
   "Dark theme used at night.")
 (defvar my/theme-day-start 7
   "Hour (0-23) when day theme activates.")
-(defvar my/theme-night-start 19
+(defvar my/theme-night-start 18
   "Hour (0-23) when night theme activates.")
 
 (defun my/theme-for-hour (&optional hour)
   "Return the theme appropriate for HOUR (default: current hour)."
   (let ((h (or hour (string-to-number (format-time-string "%H")))))
-    (if (or (< h my/theme-night-start) (>= h my/theme-day-start))
+    (if (and (>= h my/theme-day-start) (< h my/theme-night-start))
         my/theme-day
       my/theme-night)))
 
 (defun my/theme-apply (theme)
-  "Apply THEME unconditionally."
+  "Apply THEME using Doom's theme reload."
   (setq doom-theme theme)
-  (mapc #'disable-theme custom-enabled-themes)
-  (load-theme theme t))
+  (doom/reload-theme))
 
 (defun my/theme-switch-maybe ()
   "Check hour and switch theme if needed."
@@ -44,8 +43,8 @@
 
 (setq doom-theme (my/theme-for-hour))
 
-;; Check every 60 minutes for day/night transition
-(run-with-timer 0 (* 60 60) #'my/theme-switch-maybe)
+;; Check theme on frame focus instead of polling every 60 minutes
+(add-hook 'doom-switch-frame-hook #'my/theme-switch-maybe)
 
 (setq display-line-numbers-type 'relative)
 (setq auto-save-timeout 30
@@ -53,7 +52,6 @@
 
 ;; ─── Magit ───────────────────────────────────────────────────────────────────
 (after! magit
-  ;; Only refine diff hunk on demand, not all hunks (slow on large diffs)
   (setq magit-diff-refine-hunk nil))
 
 ;; ─── Org mode ────────────────────────────────────────────────────────────────
@@ -70,6 +68,27 @@
                  :prepend t
                  :empty-lines 1))
   (setq org-hide-emphasis-markers t))
+
+;; ─── Org capture helper ───────────────────────────────────────────────────────
+(defun org-capture-goto-target (&optional template-key)
+  "Go to the target location of a capture template.
+If TEMPLATE-KEY is nil, the user is queried for the template."
+  (interactive)
+  (require 'org-capture)
+  (let ((entry (org-capture-select-template template-key)))
+    (unless entry (error "No capture template selected"))
+    (org-capture-set-plist entry)
+    (org-capture-set-target-location)
+    (pop-to-buffer-same-window (org-capture-get :buffer))
+    (goto-char (org-capture-get :pos))))
+
+;; ─── Pandoc docx export (Achuan-2 template) ──────────────────────────────────
+(after! ox-pandoc
+  (setq org-pandoc-options-for-docx
+        `((reference-doc . ,(expand-file-name
+                             "~/pandoc_docx_template/templates/template_标题不编号-列表第二行顶格.docx"))
+          (lua-filter . ,(expand-file-name
+                          "~/pandoc_docx_template/markdown-to-docx.lua")))))
 
 ;; ─── LaTeX ───────────────────────────────────────────────────────────────────
 (use-package! ox-latex
@@ -114,15 +133,13 @@
                  ("\\subsection{%s}" . "\\subsection*{%s}")))
   (setq org-latex-default-class "elegantbook"))
 
-;; ─── Full reload (config + theme + font + frames + packages) ─────────────────
+;; ─── Full reload ─────────────────────────────────────────────────────────────
 (defun my/doom-full-reload--apply (&rest _)
   "Apply theme, font & frame settings after config reload.
 Intended for `doom-after-reload-hook'."
   (my/theme-apply (my/theme-for-hour))
-  ;; Reload fonts
   (when (fboundp 'doom/reload-font)
     (doom/reload-font))
-  ;; Re-apply daemon-frame hooks for each existing frame
   (when (daemonp)
     (dolist (frame (frame-list))
       (when (display-graphic-p frame)
@@ -136,12 +153,10 @@ Intended for `doom-after-reload-hook'."
 Replaces `doom/reload' for a more thorough reload.  NOTE:
 changes to `packages.el' still require `doom sync' first."
   (interactive)
-  ;; 1. Reload autoloads & package metadata (synchronous)
   (when (fboundp 'doom/reload-autoloads)
     (ignore-errors (doom/reload-autoloads)))
   (when (fboundp 'doom/reload-packages)
     (ignore-errors (doom/reload-packages)))
-  ;; 2. Reload init.el + config.el (async — runs bin/doom sync then load init)
   (when (fboundp 'doom/reload)
     (ignore-errors
       (add-hook 'doom-after-reload-hook #'my/doom-full-reload--apply)
@@ -150,7 +165,7 @@ changes to `packages.el' still require `doom sync' first."
 (map! :leader
       :desc "Full reload" "h r R" #'my/doom-full-reload)
 
-;; ─── Dired: open file externally ──────────────────────────────────────────────
+;; ─── Dired ──────────────────────────────────────────────────────────────────
 (after! dired
   (defun my/dired-open-externally ()
     "Open marked files or file at point with system default application."
@@ -165,43 +180,34 @@ changes to `packages.el' still require `doom sync' first."
   (map! :map dired-mode-map
         :n "E" #'my/dired-open-externally))
 
-;; ─── Use external browser (not ewww/lynx) for links ──────────────────────────
+;; ─── Use external browser for links ──────────────────────────────────────────
 (setq browse-url-browser-function #'browse-url-xdg-open)
 (after! org
   (add-to-list 'org-file-apps '("\\.x?html?\\'" . "xdg-open %s")))
 
-;; ─── Org HTML export: ReadTheOrg theme (fully local) ────────────────────────
+;; ─── Org HTML export ────────────────────────────────────────────────────────
 (defvar my/org-export-assets-dir
-  (expand-file-name "org-export/readtheorg" doom-user-dir)
-  "Local directory for Org HTML export assets (CSS, JS, fonts).")
+  (expand-file-name "org-export/minimal" doom-user-dir)
+  "Local directory for Org HTML export assets.")
 
 (after! ox-html
   (setq org-html-head-include-default-style nil)
-  (let ((css-dir (expand-file-name "css" my/org-export-assets-dir))
-        (js-dir  (expand-file-name "js" my/org-export-assets-dir)))
+  (let ((css-dir (expand-file-name "css" my/org-export-assets-dir)))
     (setq org-html-head
           (concat
-           "<link rel=\"stylesheet\" type=\"text/css\" href=\"" css-dir "/htmlize.css\"/>\n"
-           "<link rel=\"stylesheet\" type=\"text/css\" href=\"" css-dir "/readtheorg.css\"/>\n"
-           "<link rel=\"stylesheet\" type=\"text/css\" href=\"" css-dir "/code-copy.css\"/>"))
-    (setq org-html-head-extra
-          (concat
-           "<script src=\"" js-dir "/jquery.min.js\"></script>\n"
-           "<script src=\"" js-dir "/bootstrap.min.js\"></script>\n"
-           "<script type=\"text/javascript\" src=\"" js-dir "/jquery.stickytableheaders.min.js\"></script>\n"
-           "<script type=\"text/javascript\" src=\"" js-dir "/readtheorg.js\"></script>\n"
-           "<script type=\"text/javascript\" src=\"" js-dir "/code-copy.js\"></script>"))))
+           "<link rel=\"stylesheet\" type=\"text/css\" href=\"" css-dir "/org.css\"/>\n"
+           "<link rel=\"stylesheet\" type=\"text/css\" href=\"" css-dir "/htmlize.css\"/>"))
+    (setq org-html-head-extra "")))
 
-;; ─── Deft (quick note search) ────────────────────────────────────────────────
-;; 在 init.el 中启用 deft 模块后生效；用 :after-call 延迟加载
+;; ─── Deft ────────────────────────────────────────────────────────────────────
 (after! deft
   (setq deft-directory "~/notes"
         deft-recursive t)
-  (defun cm/deft-parse-title (file contents)
+  (defun my/deft-parse-title (file contents)
     (if (string-match "^#\\+[tT][iI][tT][lL][eE]:\\s-*\\(.*\\)" contents)
         (match-string 1 contents)
       (deft-base-filename file)))
-  (advice-add 'deft-parse-title :override #'cm/deft-parse-title)
+  (advice-add 'deft-parse-title :override #'my/deft-parse-title)
   (setq deft-strip-summary-regexp
         (concat "\\("
                 "[\n\t]"
@@ -209,13 +215,9 @@ changes to `packages.el' still require `doom sync' first."
                 "\\|^:PROPERTIES:\n\\(.+\n\\)+:END:\n"
                 "\\)")))
 
-;; ─── Denote (Zettelkasten notes) ─────────────────────────────────────────────
+;; ─── Denote ──────────────────────────────────────────────────────────────────
 (use-package! denote
-  :defer t
-  :commands (denote denote-date denote-find-link denote-link-or-create
-                    denote-rename-file-keywords denote-rename-file
-                    denote-rename-file-using-front-matter
-                    denote-find-backlink)
+  :after-call doom-first-buffer-hook
   :custom
   (denote-link-description-function "%t")
   (denote-directory (expand-file-name "~/Documents/notes"))
@@ -227,11 +229,27 @@ changes to `packages.el' still require `doom sync' first."
          :desc "Date note"               "d" #'denote-date
          :desc "Find link"               "l" #'denote-find-link
          :desc "Link or create"          "i" #'denote-link-or-create
+         :desc "Link to heading"         "h" #'denote-org-link-to-heading
+         :desc "New sequence"            "s" #'denote-sequence
          :desc "Rename keywords"         "k" #'denote-rename-file-keywords
          :desc "Rename file"             "r" #'denote-rename-file
          :desc "Rename front matter"     "R" #'denote-rename-file-using-front-matter
          :desc "Search notes"            "f" #'consult-notes
-         :desc "Find backlinks"          "b" #'denote-find-backlink)))
+         :desc "Find backlinks"          "b" #'denote-find-backlink
+         (:prefix-map ("e" . "Explore")
+          :desc "Count notes"         "c" #'denote-explore-count-notes
+          :desc "Count keywords"      "C" #'denote-explore-count-keywords
+          :desc "Random note"         "r" #'denote-explore-random-note
+          :desc "Random link"         "l" #'denote-explore-random-link
+          :desc "Knowledge network"   "n" #'denote-explore-network)))
+  :config
+  (denote-rename-buffer-mode 1)
+  (defun my/denote-git-auto-commit ()
+    (when-let ((dir (denote-directory)))
+      (when (file-exists-p (expand-file-name ".git" dir))
+        (let ((default-directory dir))
+          (shell-command-to-string "git add -A && git commit -m \"auto: note saved\"")))))
+  (add-hook 'denote-after-new-note-hook #'my/denote-git-auto-commit))
 
 (use-package! consult-notes
   :after denote
@@ -240,43 +258,19 @@ changes to `packages.el' still require `doom sync' first."
   :config
   (consult-notes-denote-mode))
 
-(use-package! denote-org
-  :after denote
-  :config
-  (map! :leader
-        (:prefix-map ("r d" . "Denote")
-         :desc "Link to heading"  "h" #'denote-org-link-to-heading)))
-
-(use-package! denote-sequence
-  :after denote
-  :config
-  (map! :leader
-        (:prefix-map ("r d" . "Denote")
-         :desc "New sequence"     "s" #'denote-sequence)))
-
-(use-package! denote-explore
-  :after denote
-  :config
-  (map! :leader
-        (:prefix-map ("r d" . "Denote")
-                     (:prefix-map ("e" . "Explore")
-                      :desc "Count notes"         "c" #'denote-explore-count-notes
-                      :desc "Count keywords"      "C" #'denote-explore-count-keywords
-                      :desc "Random note"         "r" #'denote-explore-random-note
-                      :desc "Random link"         "l" #'denote-explore-random-link
-                      :desc "Knowledge network"   "n" #'denote-explore-network))))
-
-;; ─── EPUB (nov.el) ──────────────────────────────────────────────────────────
+;; ─── EPUB ────────────────────────────────────────────────────────────────────
 (use-package! nov
   :mode ("\\.epub\\'" . nov-mode)
-  :hook (nov-mode . visual-line-mode)
-  (nov-mode . variable-pitch-mode)
-  (nov-mode . olivetti-mode)
-  (nov-mode . (lambda () (hl-line-mode -1)))
+  :hook ((nov-mode . visual-line-mode)
+         (nov-mode . variable-pitch-mode)
+         (nov-mode . (lambda () (hl-line-mode -1))))
   :custom
   (nov-text-width t)
   (nov-variable-pitch-mode t)
-  (nov-save-place-file (concat doom-cache-dir "nov-places")))
+  (nov-save-place-file (concat doom-cache-dir "nov-places"))
+  :config
+  (add-hook 'nov-mode-hook #'olivetti-mode)
+  (add-hook 'nov-mode-hook #'(lambda () (setq-local adaptive-fill-mode nil))))
 
 ;; ─── PDF ─────────────────────────────────────────────────────────────────────
 (after! pdf-tools
@@ -287,8 +281,7 @@ changes to `packages.el' still require `doom sync' first."
         pdf-view-use-imagemagick nil
         pdf-view-selection-style 'glyph)
   (add-hook! 'pdf-view-mode-hook #'pdf-view-roll-minor-mode #'evil-emacs-state))
-;; pdf-view-current-overlay is a macro; org-noter-pdf's compiled bytecode calls
-;; it as a function.  Provide function fallback regardless of org-noter-pdftools.
+
 (after! org-noter-pdf
   (defun pdf-view-current-overlay (&optional window)
     "Get the current overlay for the pdf view.
@@ -299,44 +292,25 @@ Fallback to roll-mode overlay when standard overlay is nil."
           (condition-case nil
               (pdf-roll-page-overlay (pdf-view-current-page) window)
             (error nil)))))
-  ;; Suppress arrow timer errors when overlay is still nil
   (defadvice! +org-noter-pdf--show-arrow-a (orig-fn)
     "Suppress arrow timer errors in org-noter-pdf."
     :around #'org-noter-pdf--show-arrow
     (condition-case nil (funcall orig-fn) (error nil))))
-;;
-;; org-noter-pdftools struct → cons bridge
-;; (with-eval-after-load 'org-noter-core
-;;   (dolist (fn '(org-noter--get-location-top
-;;                  org-noter--get-location-page
-;;                  org-noter--get-location-left))
-;;     (advice-add fn :around
-;;       (lambda (orig-fn location)
-;;         (funcall orig-fn
-;;                  (if (and location (not (listp location))
-;;                           (fboundp 'org-noter-pdftools--location-p)
-;;                           (org-noter-pdftools--location-p location))
-;;                      (org-noter-pdftools--location-link-to-cons location)
-;;                    location))))))
-
-;; -- org-pdftools: precise org links to PDF locations
 
 (use-package! org-pdftools
   :defer t
   :commands org-pdftools-setup-link
   :hook (org-load . org-pdftools-setup-link))
 
-;; Open current PDF in Zathura for quick reference / LaTeX preview
 (map! :map pdf-view-mode-map
       :n "g z" (cmd! (when-let ((f (buffer-file-name)))
-                        (start-process "zathura" nil "zathura" f))))
+                       (start-process "zathura" nil "zathura" f))))
 
 ;; ─── Writing tools ───────────────────────────────────────────────────────────
 (use-package! olivetti
-  :defer t
   :hook (org-mode . olivetti-mode)
   :custom
-  (olivetti-body-width 120)
+  (olivetti-body-width 100)
   (olivetti-hide-mode-line t)
   :config
   (define-key olivetti-mode-map (kbd "C-c |") nil)
@@ -348,7 +322,7 @@ Fallback to roll-mode overlay when standard overlay is nil."
   (add-hook 'olivetti-mode-off-hook #'+olivetti-show-line-numbers-h))
 
 (use-package! super-save
-  :hook (after-init . super-save-mode)
+  :hook (doom-first-file . super-save-mode)
   :custom
   (super-save-auto-save-when-idle t)
   (super-save-silent t)
@@ -368,7 +342,26 @@ Fallback to roll-mode overlay when standard overlay is nil."
 ;; ─── Global keybindings ─────────────────────────────────────────────────────
 (map! :g "M-!" #'eshell-command)
 
-;; ─── Chinese input (fcitx + Evil) ───────────────────────────────────────────
+;; ─── Immersive bilingual translation ─────────────────────────────────────────
+(use-package! immersive-translate
+  :defer t
+  :commands (immersive-translate-setup
+             immersive-translate-buffer
+             immersive-translate-paragraph
+             immersive-translate-clear
+             immersive-translate-auto-mode
+             immersive-translate-abort)
+  :custom
+  (immersive-translate-backend 'baidu)
+  (immersive-translate-baidu-appid (getenv "BAIDU_TRANSLATE_APPID"))
+  (immersive-translate-auto-idle 0.5)
+  :init
+  ;; Defer setup until first file/buffer is opened
+  (add-hook! 'doom-first-buffer-hook
+    (add-hook 'nov-pre-html-render-hook #'immersive-translate-setup)
+    (add-hook 'org-mode-hook #'immersive-translate-setup)))
+
+;; ─── Chinese input ───────────────────────────────────────────────────────────
 (add-transient-hook! 'doom-first-input-hook
   (when-let ((cmd (or (executable-find "fcitx5-remote")
                       (executable-find "fcitx-remote"))))
@@ -392,16 +385,21 @@ Fallback to roll-mode overlay when standard overlay is nil."
   :config (ace-pinyin-global-mode t))
 
 ;; ─── UI spacing ──────────────────────────────────────────────────────────────
+(defvar my/enable-spacious-padding--done nil
+  "Whether spacious-padding has been enabled.")
+
+(defun my/enable-spacious-padding--fn (&optional _frame)
+  "Enable spacious-padding on the first graphical frame."
+  (when (and (display-graphic-p)
+             (not my/enable-spacious-padding--done))
+    (setq my/enable-spacious-padding--done t)
+    (spacious-padding-mode 1)))
+
 (use-package! spacious-padding
   :commands spacious-padding-mode
   :custom (line-spacing 3)
   :init
-  (if (daemonp)
-      (add-hook 'server-after-make-frame-hook
-                (lambda (&optional frame)
-                  (when (display-graphic-p frame)
-                    (spacious-padding-mode 1))))
-    (spacious-padding-mode 1)))
+  (add-hook 'doom-switch-frame-hook #'my/enable-spacious-padding--fn))
 
 ;; ─── Large Org file handling ─────────────────────────────────────────────────
 (defvar my/org-large-file-size-threshold (* 1024 1024)
@@ -430,7 +428,6 @@ Fallback to roll-mode overlay when standard overlay is nil."
       (font-lock-flush))))
 (add-hook 'org-mode-hook #'my/org-maybe-disable-prettification)
 
-;; Prevent so-long from activating in Org files
 (after! so-long
   (setq so-long-predicate
         (lambda () (and (not (derived-mode-p 'org-mode))

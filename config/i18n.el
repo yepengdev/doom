@@ -80,4 +80,4 @@ total char count, and percentage."
              cn-chars total-cn total pct)))
 
 (map! :leader
-      :desc "Count Chinese chars" "n c" #'my/count-chinese-chars)
+      :desc "Count Chinese chars" "r n" #'my/count-chinese-chars)

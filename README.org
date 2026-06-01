@@ -16,27 +16,26 @@ writing, note-taking (Denote), and LaTeX publishing (xelatex + CJK).
 
 * Quick start
 
-| Command          | When to run                           |
-|------------------+---------------------------------------|
-| ~doom sync~      | After editing ~init.el~ or ~packages.el~ |
-| ~doom doctor~    | Check for config issues               |
-| ~doom upgrade~   | Update Doom Emacs framework           |
-| ~doom clean~     | Remove compiled / elpa cache          |
-| ~doom env~       | Regenerate env file for GUI Emacs     |
-| ~doom/reload-font~ | Re-apply font settings (M-x)        |
+| Command          | When to run                          |
+|------------------+--------------------------------------|
+| ~doom sync~        | After editing ~init.el~ or ~packages.el~ |
+| ~doom doctor~      | Check for config issues              |
+| ~doom upgrade~     | Update Doom Emacs framework          |
+| ~doom clean~       | Remove compiled / elpa cache         |
+| ~doom env~         | Regenerate env file for GUI Emacs    |
+| ~doom/reload-font~ | Re-apply font settings (M-x)         |
 
 * File structure
 
-| Path                             | Purpose                                     | Need ~doom sync~? |
-|----------------------------------+---------------------------------------------+-------------------|
-| ~init.el~                        | Doom module list (~doom!~ block)                 | Yes               |
-| ~packages.el~                    | Third-party package declarations (~package!~)    | Yes               |
-| ~config.el~                      | Entry point, loads ~config/*.el~                 | No                |
-| ~config/*.el~                    | Modular settings (proxy, ui, editor, org,        | No                |
-|                                  | latex, notes, reading, i18n, tools)              |                   |
-| ~pandoc/~                        | Pandoc docx templates & Lua filters              | —                 |
-| ~org-export/minimal/~            | Org HTML export CSS (local, no CDN)              | —                 |
-| ~README.org~                     | This file                                        | —                 |
+| Path                | Purpose                                     | Need ~doom sync~? |
+|---------------------+---------------------------------------------+-----------------|
+| ~init.el~             | Doom module list (~doom!~ block)              | Yes             |
+| ~packages.el~         | Third-party package declarations (~package!~) | Yes             |
+| ~config.el~           | Single-file config (replaces former ~config/*.el~ split) | No   |
+| ~doom-handbook.org~   | Comprehensive reference (replaces former ~docs/~) | —        |
+| ~pandoc/~             | Pandoc docx templates & Lua filters         | —               |
+| ~org-export/minimal/~ | Org HTML export CSS (local, no CDN)         | —               |
+| ~README.org~          | This file                                   | —               |
 
 * Active modules
 
@@ -51,11 +50,9 @@ Modules enabled in ~init.el~ (commented-out ones omitted):
 - ~doom~ — Doom Emacs theme framework
 - ~hl-todo~ — highlight ~TODO~, ~FIXME~, ~NOTE~, ~HACK~, ~REVIEW~, ~DEPRECATED~
 - ~modeline~ — doom-modeline with detailed info
-- ~ophints~ — visual highlights for operator regions
 - ~(popup +defaults)~ — rule-based window popping for temporary buffers
 - ~(vc-gutter +pretty)~ — diff indicators in fringe with icons
 - ~workspaces~ — persp-mode workspace tabs
-- ~zen~ — writeroom-mode for distraction-free writing
 
 ** Editor
 - ~(evil +everywhere)~ — Vim emulation in all buffers
@@ -103,8 +100,11 @@ Packages declared in ~packages.el~:
 | ~denote-org~         | Org-link to heading for Denote                        |
 | ~denote-sequence~    | Sequential note series for Denote                     |
 | ~denote-explore~     | Note network visualization & exploration              |
+| ~denote-journal~     | Daily journal for Denote                              |
+| ~denote-menu~        | Sidebar menu for Denote navigation                    |
 | ~consult-notes~      | Consult integration for Denote notes                  |
 | ~super-save~         | Auto-save on idle, trim trailing whitespace           |
+| ~palimpsest~         | Revisions inlay / undo history sidebar                |
 | ~nov~                | EPUB reader                                           |
 | ~org-pdftools~       | Org links to PDF locations                            |
 | ~gcmh~               | Dynamic runtime GC management                         |
@@ -165,7 +165,7 @@ Keywords: =创作= =学习= =工作= =生活= =技术= =思考= =索引=
 - ~SPC n N~ — go to capture target location
 - ~org-directory~: ~~/org/~
 
-** LaTeX (ox-latex via ~config/latex.el~)
+** LaTeX (ox-latex via ~config.el~)
 
 Org → LaTeX / PDF publishing configured for Chinese typesetting.
 
@@ -190,7 +190,7 @@ Custom ~ctexbook~ template tailored for Chinese books/notes:
 
 *** Custom headline formatting
 
-~org-latex-format-headline-function~ override in ~config/latex.el~:
+~org-latex-format-headline-function~ override in ~config.el~:
 
 - TODO keywords rendered in red/green bold sans-serif via ~\texorpdfstring~
 - Priority cookies (~[#A]~) shown in orange
@@ -279,6 +279,7 @@ via ~(package! <name>)~ — Doom picks it up from the site-lisp dir automaticall
 * See also
 - [[file:REASONIX.md]] — operational notes and conventions
 - [[file:AGENTS.md]] — AI assistant instructions for this repo
+- [[file:doom-handbook.org]] — comprehensive reference (replaces former ~docs/~)
 - [[file:init.el]] — module declarations
 - [[file:config.el]] — full user configuration
 - [[file:packages.el]] — package declarations

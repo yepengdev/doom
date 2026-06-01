@@ -1,0 +1,720 @@
+#+TITLE: Doom Emacs 个人配置手册
+#+AUTHOR: peng
+#+STARTUP: overview
+
+* 速查表
+** 通用
+| 按键 | 命令 | 说明 |
+|------+------+------|
+| ~M-!~ | ~eshell-command~ | 执行 shell 命令 |
+| ~SPC h r R~ | ~my/doom-full-reload~ | 完整重载配置 |
+
+** Org mode
+| 按键 | 命令 | 说明 |
+|------+------+------|
+| ~SPC m n h~ | ~denote-org-link-to-heading~ | 链接到 Org 文件标题 |
+| ~SPC m n b~ | ~denote-org-backlinks-for-heading~ | 标题反向链接 |
+| ~SPC m n x~ | ~denote-org-extract-org-subtree~ | 提取子树为新笔记 |
+| ~C-c C-x x~ | ~org-dynamic-block-insert-dblock~ | 插入动态块 |
+
+** Denote（~SPC r d~）
+*** 创建
+| 按键 | 命令 | 说明 |
+|------+------+------|
+| ~n~ | ~denote~ | 新建笔记 |
+| ~d~ | ~denote-date~ | 指定日期创建 |
+| ~t~ | ~denote-type~ | 选择文件类型创建 |
+| ~o~ | ~denote-open-or-create~ | 打开或创建 |
+| ~j~ | ~denote-journal-new-or-existing-entry~ | 打开/创建今日日记 |
+| ~s~ | ~denote-sequence~ | 新建序列笔记 |
+
+*** 链接
+| ~l~ | ~denote-find-link~ | 查找并跳转链接 |
+| ~i~ | ~denote-link-or-create~ | 链接或创建笔记 |
+| ~h~ | ~denote-org-link-to-heading~ | 链接到 Org 标题 |
+| ~b~ | ~denote-find-backlink~ | 查找反向链接 |
+| ~H~ | ~denote-org-backlinks-for-heading~ | 标题反向链接 |
+
+*** 重命名
+| ~k~ | ~denote-rename-file-keywords~ | 修改关键词 |
+| ~r~ | ~denote-rename-file~ | 重命名文件 |
+| ~R~ | ~denote-rename-file-using-front-matter~ | 根据 front matter 重命名 |
+| ~x~ | ~denote-org-extract-org-subtree~ | 提取子树为新笔记 |
+
+*** 查看与搜索
+| ~f~ | ~consult-notes~ | 搜索笔记 |
+| ~D~ | ~denote-dired~ | Dired 浏览笔记 |
+| ~g~ | ~denote-grep~ | 搜索笔记内容 |
+| ~m~ | ~list-denotes~ | 表格视图 |
+
+*** 探索（~e~ 前缀）
+| ~e c~ | ~denote-explore-count-notes~ | 统计笔记数量 |
+| ~e C~ | ~denote-explore-count-keywords~ | 统计关键词数量 |
+| ~e r~ | ~denote-explore-random-note~ | 随机笔记 |
+| ~e l~ | ~denote-explore-random-link~ | 随机链接 |
+| ~e n~ | ~denote-explore-network~ | 笔记网络图 |
+
+** 阅读
+| 按键 | 命令 | 说明 |
+|------+------+------|
+| ~E~ (Dired) | ~my/dired-open-externally~ | 外部程序打开 |
+| ~g z~ (PDF) | — | Zathura 打开当前 PDF |
+
+** 中文工具
+| 按键 | 命令 | 说明 |
+|------+------+------|
+| ~SPC r n c~ | ~my/count-chinese-chars~ | 统计中文字数 |
+
+** Denote Menu 模式
+| 按键 | 命令 | 说明 |
+|------+------+------|
+| ~c~ | ~denote-menu-clear-filters~ | 清除筛选 |
+| ~/ r~ | ~denote-menu-filter~ | 正则筛选 |
+| ~/ k~ | ~denote-menu-filter-by-keyword~ | 关键词筛选 |
+| ~/ o~ | ~denote-menu-filter-out-keyword~ | 排除关键词 |
+| ~e~ | ~denote-menu-export-to-dired~ | 导出到 Dired |
+
+* Core 配置结构
+** init.el — Doom 模块清单
+Doom 的模块系统通过 ~doom!~ 宏声明，每个模块可带 flags 调整行为。
+
+*** 补全
+| 模块 | Flags | 说明 |
+|------+-------+------|
+| ~corfu~ | ~+orderless~ | 行内补全弹窗 + 模糊匹配 |
+| ~vertico~ | — | 垂直选择界面 |
+
+*** 界面
+| 模块 | Flags | 说明 |
+|------+-------+------|
+| ~deft~ | — | 笔记快速浏览 |
+| ~doom~ | — | Doom 主题框架 |
+| ~hl-todo~ | — | 高亮 TODO/FIXME 等标记 |
+| ~modeline~ | — | Doom 模式行 |
+| ~popup~ | ~+defaults~ | 临时窗口规则 |
+| ~vc-gutter~ | ~+pretty~ | 版本控制差异指示器 |
+| ~workspaces~ | — | 工作区 (persp-mode) |
+
+*** 编辑器
+| 模块 | Flags | 说明 |
+|------+-------+------|
+| ~evil~ | ~+everywhere~ | Vim 按键模拟 |
+| ~file-templates~ | — | 空文件自动模板 |
+| ~fold~ | — | 通用折叠 |
+| ~format~ | ~+onsave~ | 保存时自动格式化 |
+| ~multiple-cursors~ | — | 多点编辑 |
+| ~snippets~ | — | Yasnippet 代码片段 |
+| ~whitespace~ | ~+guess +trim~ | 尾部空白清理 |
+
+*** Emacs
+| 模块 | 说明 |
+|------+------|
+| ~dired~ | 文件管理器 |
+| ~electric~ | 智能缩进 |
+| ~tramp~ | 远程文件编辑 |
+| ~undo~ | 持久化撤销树 |
+| ~vc~ | 版本控制集成 |
+
+*** 终端
+| 模块 | 说明 |
+|------+------|
+| ~eshell~ | Elisp Shell |
+| ~vterm~ | 完整终端模拟 |
+
+*** 工具
+| 模块 | Flags | 说明 |
+|------+-------+------|
+| ~eval~ | ~+overlay~ | 行内求值结果 |
+| ~lookup~ | — | 文档/定义查找 |
+| ~magit~ | — | Git 前端 |
+| ~pdf~ | — | PDF 阅读器 |
+
+*** 语言
+| 模块 | Flags | 说明 |
+|------+-------+------|
+| ~emacs-lisp~ | — | Elisp 开发支持 |
+| ~latex~ | ~+cdlatex +fold~ | LaTeX 编辑 + 折叠 |
+| ~markdown~ | — | Markdown 编辑 |
+| ~org~ | ~+journal +noter +pretty +pandoc~ | Org mode |
+
+*** 配置
+| 模块 | Flags | 说明 |
+|------+-------+------|
+| ~default~ | ~+bindings +smartparens~ | 默认键绑定 + 智能括号 |
+
+** packages.el — 第三方包
+通过 ~package!~ 声明的包，由 Straight 包管理器安装：
+
+| 包 | 用途 |
+|-----+------|
+| ~fcitx~ | 中文输入法与 Evil 集成 |
+| ~spacious-padding~ | 界面内边距与呼吸感 |
+| ~denote~ | 笔记系统核心 |
+| ~denote-org~ | Org 模式深度集成 |
+| ~denote-sequence~ | 序列/层级笔记 |
+| ~denote-explore~ | 笔记探索与可视化 |
+| ~denote-journal~ | 日记工作流 |
+| ~denote-menu~ | 表格列表视图 |
+| ~consult-notes~ | Consult 笔记搜索 |
+| ~nov~ | EPUB 阅读器 |
+| ~org-pdftools~ | Org 链接到 PDF 位置 |
+| ~super-save~ | 空闲自动保存 |
+| ~ace-pinyin~ | Avy 拼音字符跳转 |
+| ~evil-pinyin~ | Evil/Orderless 拼音搜索 |
+| ~immersive-translate~ | 沉浸式双语翻译 |
+
+** config.el — 配置结构
+~config.el~ 是单文件配置（替代了原先的 ~config/*.el~ 分裂结构），内容覆盖：
+
+| 域 | 职责 |
+|-----+------|
+| Git 代理 | 通过 ~DOOMGITCONFIG~ 设置 GitHub 镜像代理 |
+| UI | 字体、主题自动切换、间距 |
+| 编辑器 | 基础设置、Evil 配置、写作工具 |
+| Org mode | Org 基础、Capture、导出、大文件 |
+| LaTeX | AUCTeX、Org→LaTeX 导出 |
+| 笔记系统 | Deft + Denote 全系列 |
+| 阅读 | Dired, EPUB (nov), PDF (pdf-tools) |
+| 国际化 | 翻译、中文输入、拼音、字数统计 |
+| 工具 | 完整重载命令 |
+
+* UI
+** 字体
+*** 英文字体
+- [[https://github.com/githubnext/monaspace][Monaspace Neon]] — 大小 16，等宽
+- ~doom-font~ 和 ~doom-variable-pitch-font~ 均使用 Monaspace Neon
+
+*** 中文字体
+- [[https://github.com/lxgw/LxgwWenKai][LXGW WenKai Mono Screen]] — 大小 16
+- 通过 ~set-fontset-font~ 为 ~han~（CJK 表意文字）设置
+
+*** 注意事项
+- 字体须提前在系统中安装，可用 ~fc-list :lang=zh~ 检查中文字体
+- ~M-x describe-font~ 查看当前使用的字体
+- 修改后执行 ~M-x doom/reload-font~ 即时生效
+
+** 主题自动切换
+*** 方案
+| 时段 | 主题 | 颜色风格 |
+|------+------+----------|
+| 07:00 – 19:00 | ~doom-one-light~ | 浅色白天主题 |
+| 19:00 – 07:00 | ~doom-tokyo-night~ | 深色夜间主题 |
+
+*** 实现
+- ~my/theme-for-hour~ — 根据当前小时返回对应主题
+- ~my/theme-switch-maybe~ — 挂载在 ~doom-switch-frame-hook~，首次触发后自卸
+- 设计原因：用 hour 而非 sunrise（避免网络依赖），7–19 覆盖典型工作日
+
+*** 自定义
+修改 ~my/theme-day~ / ~my/theme-night~ 可更换主题；
+修改 ~my/theme-day-start~ / ~my/theme-night-start~ 可调整切换时间。
+
+** 间距与内边距
+- ~spacious-padding-mode~ 通过 ~doom-switch-frame-hook~ 在首个图形帧创建后启用
+- ~line-spacing~ = 3（行间额外间距），daemon-safe（终端中不触发）
+
+* Editor
+** 编辑器基础
+| 选项                        | 值            | 说明                               |
+|----------------------------+---------------+-----------------------------------|
+| ~confirm-kill-emacs~       | ~nil~           | 退出不确认                          |
+| ~shell-file-name~            | ~bash~          | shell 命令用 bash（避免 fish 不兼容） |
+| ~vterm-shell~                | ~/usr/bin/fish~ | 终端用 fish                        |
+| ~explicit-shell-file-name~   | ~/usr/bin/fish~ | ~M-x shell~ 用 fish                 |
+| ~server-raise-frame~         | ~t~             | 客户端启动时提升已有框架               |
+| ~server-client-instructions~ | ~nil~           | 不显示客户端提示                     |
+
+** Evil 配置
+*** Emacs state 替换 Insert state
+- ~evil-insert-state~ 别名为 ~evil-emacs-state~
+- 光标为竖线（~bar~），~<escape>~ 返回 Normal 模式
+- 原因：中文输入法在 Insert state 下切换状态时出现兼容问题；Emacs state 避免输入法状态混乱
+
+** Olivetti 写作专注
+- 用途：将文本居中显示，减少视觉宽度
+- ~olivetti-body-width~ = 100，~olivetti-hide-mode-line~ = t
+- 自动在 ~org-mode~ 中启用
+- Olivetti 启用时关闭行号，退出时恢复
+
+** Super-save 自动保存
+- ~doom-first-file~ 时启用，空闲时自动保存
+- ~super-save-delete-trailing-whitespace~ = ~'except-current-line~
+- 只读 buffer 不触发，不监听失去焦点/切换 buffer
+
+** Magit
+| 选项 | 值 | 说明 |
+|------+-----+------|
+| ~magit-diff-refine-hunk~ | ~nil~ | 不自动高亮行内差异（提升性能） |
+
+* Org Mode
+** Org 基础与 Capture
+*** 目录
+- ~org-directory~ = ~/org/~
+- ~org-noter-notes-search-path~ = ~("~/notes/annotations")~
+
+*** TODO 关键词序列
+DRAFT (R) → REVIEW (r) → → CANCELLED (C)
+（~|~ 标记不可转为 DONE 的状态）
+
+*** Capture 模板
+- "w" — Novel idea（小说灵感），存入 ~/org/novel-inbox.org~ Inspiration inbox 标题下
+- 字段: Title, Source, Character, Mood, Notes; ~:prepend t~ 新条目在顶部
+
+*** 辅助函数
+- ~org-capture-goto-target~ — 跳转到 capture 模板目标位置
+- 文件关联：~.html~ / ~.xhtml~ 使用 ~xdg-open~ 在外部浏览器打开
+
+** Pandoc docx 导出
+- 资源目录 ~my/pandoc-dir~ = ~pandoc/~（相对于 Doom 用户目录）
+- 参考模板: ~pandoc/templates/template_标题不编号-列表第二行顶格.docx~
+- Lua filter: ~pandoc/markdown-to-docx.lua~
+
+*** Docx 模板清单
+| 模板文件 | 特点 |
+|----------+------|
+| ~template_sci论文-标题不编号.docx~ | 学术论文风格 |
+| ~template_sci论文-标题编号.docx~ | 学术论文编号 |
+| ~template_标题不编号-列表第二行缩进.docx~ | 无编号+缩进 |
+| ~template_标题不编号-列表第二行顶格-无首行缩进.docx~ | 无编号+顶格 |
+| ~template_标题不编号-列表第二行顶格.docx~ | 无编号+顶格（默认使用） |
+| ~template_标题编号-列表第二行缩进.docx~ | 编号+缩进 |
+| ~template_标题编号-列表第二行顶格.docx~ | 编号+顶格 |
+
+*** Lua Filter 管线
+~pandoc/lua/~ 目录: add-inline-code, image-title-to-caption (含编号版), markdown-html-recognition, preserve-font-color。
+
+** HTML 导出
+- 本地 CSS 方案，不使用 Org 默认样式
+- ~org-html-head~ 引用 ~org-export/minimal/css/~ 下的 ~org.css~ + ~htmlize.css~
+- 零 JavaScript，无 CDN 依赖，完全离线可用
+
+** LaTeX 导出
+*** AUCTeX 基础
+- ~TeX-engine~ = ~xetex~（XeLaTeX，支持中文/OpenType）
+
+*** Org → LaTeX 构建流程
+~latexmk -xelatex -shell-escape -interaction=nonstopmode -f~
+
+*** 自定义 LaTeX 类: ~ctexbook~
+- XeLaTeX + UTF-8 + Fandol 字体，11pt, a4paper, twoside
+- ~secnumdepth{0}~（正文不编号，PDF 书签保留）
+- 包含: xcolor, microtype, geometry, fancyhdr, hyperref, xurl
+- 代码: minted（breaklines, footnotesize, line numbers, frame）
+- 表格: booktabs, caption; 列表: enumitem nosep; 行距: 1.3
+- ~org-latex-default-class~ = ~"ctexbook"~
+
+*** Headline 格式化
+~my/org-latex-format-headline~ 为 TODO/DONE/PRIORITY/TAG 添加颜色，
+使用 ~\texorpdfstring{}~ 保持 PDF 书签干净（不含 LaTeX 命令）。
+
+*** 注意事项
+- 移除 ~inputenc~ / ~fontenc~（XeLaTeX 不需要）
+- 日志清理扩展列表含 ~.aux~ ~.log~ ~.out~ 等
+- 需安装 ~minted~ 包和 ~pygments~
+
+** 大文件处理
+- 阈值：文件 ≥ 1 MiB 时自动关闭所有美化功能
+- 关闭项：org-modern, org-appear, org-indent, fontification, prettify-symbols, variable-pitch
+- ~so-long~ 的自动触发被禁用（避免与自定义大文件处理冲突）
+
+* 笔记系统
+** 全景
+Denote 生态系统的 7 个包和 2 个辅助工具的分工：
+
+#+BEGIN_SRC text
+  consult-notes     Deft
+      |               |
+      +-------+-------+
+              |
+         denote (核心)
+        /   |    |    \
+       /    |    |     \
+  journal org sequence explore
+      |
+   menu
+#+END_SRC
+
+| 包 | 核心功能 |
+|-----+----------|
+| ~denote~ | 文件命名、创建、重命名、链接、搜索 |
+| ~denote-journal~ | 日记新建/打开、日历集成 |
+| ~denote-org~ | 链接到标题、提取子树、动态块 |
+| ~denote-sequence~ | 父子兄弟序列、层级浏览 |
+| ~denote-explore~ | 统计、随机、网络图、关键词管理 |
+| ~denote-menu~ | 表格列表、筛选、导出到 Dired |
+| ~consult-notes~ | Consult 搜索 Denote 笔记 |
+| ~deft~ | 快速笔记浏览（与 Denote 独立） |
+
+*** 目录约定
+| 目录 | 用途 |
+|------+------|
+| ~/Documents/notes/~ | Denote 主笔记目录 |
+| ~/Documents/notes/journal/~ | 日记条目 |
+| ~/notes/~ | Deft 笔记目录 |
+
+** Denote 核心
+[[https://protesilaos.com/emacs/denote][官方文档]]
+
+*** 文件命名规范
+#+BEGIN_SRC text
+  IDENTIFIER--TITLE__KEYWORDS.EXT
+  如: 20240322T131856--some-title__topic1_topic2.org
+#+END_SRC
+
+*** 配置要点
+| 选项 | 值 | 说明 |
+|------+-----+------|
+| ~denote-directory~ | ~~/Documents/notes/~ | 笔记根目录 |
+| ~denote-known-keywords~ | ~'("创作" "学习" "工作" "生活" "技术" "思考" "索引")~ | 预定义关键词 |
+| ~denote-infer-keywords~ | ~t~ | 从文件名推断关键词 |
+| ~denote-prompts~ | ~'(title keywords)~ | 新建时依次提示→关键词 |
+| ~denote-rename-confirmations~ | ~'(rewrite-front-matter modify-file-name)~ | 重命名时确认 |
+| ~denote-link-description-format~ | ~"%t"~ | 链接描述=笔记标题 |
+| ~denote-save-buffers~ | ~nil~ | 创建后不自动保存 |
+
+*** Git 自动提交
+~my/denote-git-auto-commit~ 在 ~denote-after-new-note-hook~ 上执行 ~git add -A && git commit~，仅在笔记目录有 ~.git~ 时生效。
+
+** 日记 (denote-journal)
+| 选项 | 值 | 说明 |
+|------+-----+------|
+| ~denote-journal-directory~ | ~"journal"~ | 日记子目录 |
+| ~denote-journal-keyword~ | ~'("日记")~ | 日记关键词 |
+| ~denote-journal-title-format~ | ~'day-date-month-year~ | 标题格式 |
+
+- 进入：~SPC r d j~（打开或创建今日日记）
+- 日历集成：~calendar-mode~ 中自动高亮有日记的日期
+- ~C-u~ 前缀可指定日期（补写/预写）
+
+** 序列笔记 (denote-sequence)
+- Folgezettel（层次编号），通过 SIGNATURE 字段建立层级关系
+- 方案：numeric / alphanumeric / alphanumeric-delimited
+- ~SPC r d s~ 创建序列笔记，~denote-sequence-view-hierarchy~ 查看层级树
+
+** 探索与分析 (denote-explore)
+- 统计：笔记数、关键词频次、年度柱状图、链接度数分布
+- 随机浏览：随机笔记/有入链笔记/按关键词随机
+- 网络图：生成交互式 d3.js 网络图（社区/邻域/序列/关键词模式）
+- 维护：检查重复标识符、死链接、孤立笔记
+
+** 表格视图 (denote-menu)
+- ~SPC r d m~ 打开，~tabulated-list-mode~ 表格，日期降序排列
+- 筛选：~/ r~ 正则、~/ k~ 关键词、~/ o~ 排除、~c~ 清除
+- ~e~ 导出当前列表到 Dired 进行批量操作
+
+** Org 集成 (denote-org)
+| 命令 | 绑定 | 说明 |
+|------+------+------|
+| ~denote-org-link-to-heading~ | ~SPC r d h~, ~SPC m n h~ | 链接到 Org 标题 |
+| ~denote-org-backlinks-for-heading~ | ~SPC r d H~, ~SPC m n b~ | 标题反向链接 |
+| ~denote-org-extract-org-subtree~ | ~SPC r d x~, ~SPC m n x~ | 提取子树为新笔记 |
+
+*** 动态块
+通过 ~C-c C-x x~ 插入，~C-c C-x C-u~ 刷新：
+- ~denote-links~ — 列出匹配正则的笔记链接
+- ~denote-backlinks~ — 列出反向链接
+- ~denote-files~ — 嵌入匹配笔记的完整内容
+- ~denote-files-as-headings~ — 嵌入并转为 Org 标题
+- ~denote-missing-links~ — 尚未链接的笔记
+- ~denote-sequence~ — 序列层级列表
+
+** Consult 笔记搜索
+- ~SPC r d f~ 使用 consult 搜索 Denote 笔记，支持实时预览
+- 注解格式：~标题  _关键词1 关键词2  /子目录~
+- 输入不存在的内容按 ~RET~ 可创建新笔记
+
+** Deft 快速浏览
+- 管理 ~/notes/~ 目录（独立于 Denote），递归搜索子目录
+- 自定义 ~deft-parse-title~ 从 ~#+TITLE:~ 行解析标题，fallback 到文件名
+- 摘要清理：移除 ~#+KEY:~ 行和 ~:PROPERTIES:~ drawer
+
+* 阅读
+** Dired
+- ~my/dired-open-externally~：用系统默认程序打开标记文件（~E~ Normal 模式）
+- 使用 ~xdg-open~，跨平台兼容（macOS ~open~、Windows ~start~）
+- Denote 高亮：~denote-dired-mode-in-directories~ 在笔记目录中高亮文件名
+
+** EPUB 阅读 (nov.el)
+- ~.epub~ 自动关联 ~nov-mode~
+- Hook 链：visual-line-mode → variable-pitch-mode → hl-line-mode 关闭 → olivetti-mode
+- ~nov-save-place-file~ 保存阅读进度到缓存目录
+
+** PDF 阅读 (pdf-tools)
+- ~pdf-view-display-size~ = ~'fit-page~，~pdf-view-resize-factor~ = 1.1
+- Hook 链：pdf-view-roll-minor-mode（连续滚动）→ evil-emacs-state
+- ~org-pdftools~ 在 ~org-load~ 时自动设置链接
+- ~g z~ 用 Zathura 打开当前 PDF（用于 pdf-tools 渲染不佳时的备用）
+- 已知问题：~org-noter-pdf--show-arrow~ 偶尔报错，已添加 advice 抑制
+
+* 国际化
+** 沉浸式翻译
+- 后端：百度翻译 API（~BAIDU_TRANSLATE_APPID~ + ~BAIDU_TRANSLATE_SECRET~ 从环境变量读取）
+- 启用场景：EPUB 阅读（~nov-pre-html-render-hook~）+ Org 文件（~org-mode-hook~）
+- ~M-x immersive-translate-toggle~ 切换翻译显示
+
+** 中文输入 (fcitx)
+- ~fcitx~ 包管理输入法与 Evil 状态的集成
+- 自动在 ~doom-first-input-hook~ 时检测 ~fcitx5-remote~ 或 ~fcitx-remote~
+- 配合 [[#evil-emacs-state][Emacs state 替换 Insert state]] 避免 IME 状态混乱
+
+** 拼音模糊搜索
+- ~evil-pinyin~：advice ~orderless-regexp~，输入拼音（如 "zhongwen"）可匹配中文文件名
+- ~ace-pinyin~：集成 Avy 字符跳转，中文文本也能用 ~f/F~ ~t/T~ 跳转
+
+** 中文字数统计
+- ~my/count-chinese-chars~：统计汉字 + 中文标点 + 百分比
+- ~SPC r n c~ — 选中区域则统计区域，否则统计整个 buffer
+- 正则覆盖 CJK 统一表意文字 (U+4E00~U+2EBFF，含 Ext B-H)
+
+* 工具
+** 完整重载 (~my/doom-full-reload~)
+绑定：~SPC h r R~。比 ~doom/reload~ 更彻底：
+
+1. ~doom/reload-autoloads~ — 重载 autoloads
+2. ~doom/reload-packages~ — 重载包配置
+3. ~doom/reload~ 后 hook 执行：重应用主题、字体、frame hooks
+
+适用于 ~config.el~ 修改后快速应用（不适用于 ~init.el~ / ~packages.el~）。
+
+** Git 代理
+- 通过 ~DOOMGITCONFIG~ 环境变量为 Git 设置代理
+- 将所有 GitHub HTTPS 请求重定向到 gh-proxy.com（解决 GFW 问题）
+- 仅影响 Doom 内部 Git 操作（~doom sync~），不影响系统 Git
+
+* 附录
+** 自定义命令参考
+| 函数 | 位置 | 用途 |
+|------+------+------|
+| ~my/doom-full-reload~ | config.el | 完整重载 Doom 配置 |
+| ~my/theme-for-hour~ | config.el | 根据当前小时返回主题 |
+| ~my/theme-apply~ | config.el | 应用主题 |
+| ~my/theme-switch-maybe~ | config.el | 检查并切换主题 |
+| ~my/enable-spacious-padding--fn~ | config.el | 启用 spacious-padding |
+| ~my/dired-open-externally~ | config.el | 外部程序打开文件 |
+| ~my/deft-parse-title~ | config.el | 解析 Org 文件标题 |
+| ~my/denote-git-auto-commit~ | config.el | 笔记自动 git commit |
+| ~my/org-latex-format-headline~ | config.el | 格式化 LaTeX 标题 |
+| ~org-capture-goto-target~ | config.el | 跳转到 capture 目标位置 |
+| ~my/org-maybe-disable-prettification~ | config.el | 大文件关闭美化 |
+| ~my/count-chinese-chars~ | config.el | 中文字数统计 |
+| ~my/cjk-regexp~ | config.el | CJK 正则（全局变量） |
+| ~my/cjk-punct-regexp~ | config.el | CJK 标点正则（全局变量） |
+
+** 问题排查
+*** Denote
+| 问题 | 原因 | 解决 |
+|------+------+------|
+| ~denote-org-link-to-heading~ 无法绑定 | 该命令在 ~denote-org~ 中定义 | 将绑定移到 ~use-package! denote-org~ |
+| 创建日记失败 | ~denote-journal-keywords~ 是错误名称 | 应为 ~denote-journal-keyword~（单数） |
+| 日记标题显示 raw 字符串 | ~denote-journal-title-format~ 需用符号 | 改为 ~'day-date-month-year~ |
+
+*** Git 代理
+| 问题 | 解决 |
+|------+------|
+| ~doom sync~ 拉取失败（超时/SSL） | 设置 ~DOOMGITCONFIG~ 环境变量 |
+| ~doom sync~ 仍有域名解析失败 | 检查 ~GIT_CONFIG_GLOBAL~ 是否指向生成的 gitconfig |
+
+*** Org 导出
+| 问题 | 解决 |
+|------+------|
+| LaTeX 导出缺少 ~inputenc~ | 正常行为，XeLaTeX 不需要 |
+| LaTeX CJK 字体缺失 | 安装 fandol 字体 |
+| Pandoc docx 格式不对 | 检查 ~my/pandoc-dir~ 路径 |
+| HTML 导出样式丢失 | 检查 ~org-export/minimal/css/~ 路径 |
+
+*** 字体
+| 问题 | 解决 |
+|------+------|
+| CJK 显示方块 | 检查 LXGW WenKai Mono Screen 是否安装 |
+| 修改字体后不生效 | ~M-x doom/reload-font~ |
+
+*** 大文件
+| 问题 | 解决 |
+|------+------|
+| 大 Org 文件打开卡顿 | 自动检测 ≥1 MiB 并关闭美化 |
+| 大文件仍然慢 | 检查 ~find-file-hook~ 中的 ~my/org-inhibit-modes-in-large-files~ |
+
+*** 阅读
+| 问题 | 解决 |
+|------+------|
+| PDF 注释 timer 错误 | 已添加 ~:around~ advice 抑制 |
+| EPUB 不显示 | 检查 ~.epub~ 文件关联 |
+| nov 阅读进度丢失 | 检查 ~doom-cache-dir~ 是否存在 |
+
+** Doom 键绑定大全
+*** prefix 约定
+| 变量 | 默认值 | 说明 |
+|----------+---------+-------------|
+| ~doom-leader-key~ | ~SPC~ | Leader 前缀 (normal/visual/motion) |
+| ~doom-leader-alt-key~ | ~M-SPC~ | Leader 前缀 (insert/emacs) |
+| ~doom-localleader-key~ | ~SPC m~ | 模式特定前缀 |
+
+*** 全局键
+| 按键 | 命令 | 说明 |
+|-----+---------+-------------|
+| ~ESC~ / ~C-g~ | ~doom/escape~ | 通用 escape |
+| ~C-x b~ | ~consult-buffer~ | 切换 buffer |
+| ~C-x C-b~ | ~ibuffer~ | IBuffer |
+| ~C-@@~ | ~completion-at-point~ | 补全 |
+| ~C-=~ | ~er/expand-region~ | 扩展选区 |
+
+*** Evil 普通/可视/移动状态
+| 按键 | 命令 | 说明 |
+|-----+---------+-------------|
+| ~gd~ | ~+lookup/definition~ | 跳转定义 |
+| ~gD~ | ~+lookup/references~ | 查找引用 |
+| ~K~ | ~+lookup/documentation~ | 文档 |
+| ~gf~ | ~+lookup/file~ | 查找文件 |
+| ~gr~ | ~+eval:region~ | 求值区域 |
+| ~gR~ | ~+eval/buffer~ | 求值 buffer |
+| ~gc~ | ~evilnc-comment-operator~ | 注释 |
+| ~gO~ | ~consult-imenu~ | Imenu |
+| ~gy~ | ~+evil:yank-unindented~ | 无缩进复制 |
+| ~g=~ / ~g-~ | ~evil-numbers~ | 数字增减 |
+| ~gQ~ | ~+format:region~ | 格式化区域 |
+| ~[ SPC~ / ~] SPC~ | ~+evil/insert-newline-above/below~ | 插入空行 |
+| ~[b~ / ~]b~ | ~previous/next-buffer~ | 切换 buffer |
+| ~[f~ / ~]f~ | ~+evil/prev/next-file~ | 切换文件 |
+| ~[d~ / ~]d~ | ~+vc-gutter/prev/next-hunk~ | 前后 hunk |
+| ~[t~ / ~]t~ | ~hl-todo-prev/next~ | 前后 TODO |
+| ~[e~ / ~]e~ | ~prev/next-error~ | 前后错误 |
+| ~[w~ / ~]w~ | ~+workspace/switch-left/right~ | 切换 workspace |
+| ~za~/~zc~/~zo~ | ~+fold~ | 折叠 |
+| ~zM~/~zR~ | ~+fold~ | 折叠全部 |
+| ~C-t~ | ~+workspace/new~ | 新建 workspace |
+| ~M-1~…~M-0~ | ~+workspace/switch-to-N~ | 切换到 workspace N |
+| ~C-+~/~C-=~ | ~doom/reset-font-size~ | 重置字号 |
+| ~C-+~ | ~text-scale-increase~ | 增大字号 |
+| ~C---~ | ~text-scale-decrease~ | 减小字号 |
+| ~C-S-f~ | ~toggle-frame-fullscreen~ | 全屏切换 |
+| ~M-d~ | ~evil-multiedit-match-symbol-and-next~ | 多点编辑 |
+
+*** 窗口管理 (~C-w~)
+| 按键 | 说明 |
+|-----+------|
+| ~C-h~/~C-j~/~C-k~/~C-l~ | 方向切换窗口 |
+| ~d~ | 删除窗口 |
+| ~S~/~V~ | 水平/垂直分割 |
+| ~H~/~J~/~K~/~L~ | 移动窗口 |
+| ~o~ | 放大窗口 |
+| ~u~/~C-r~ | 撤销/重做窗口布局 |
+
+*** 文本对象 (~i~/~a~)
+| 按键 | 对象 |
+|-----+------|
+| ~a~ | 函数参数 |
+| ~B~ | 任意括号 |
+| ~c~ | 注释 |
+| ~f~ | defun |
+| ~g~ | 整个 buffer |
+| ~q~ | 任意引号 |
+| ~u~ | URL |
+
+*** Leader 键 (~SPC~)
+**** 顶层
+| 按键 | 说明 |
+|-----+------|
+| ~SPC~ / ~.~ | 查找文件 |
+| ~,~ | 切换 buffer |
+| ~;~ | 求值表达式 |
+| ~:~ | M-x |
+| ~*~ / ~/~ | 搜索项目 |
+| ~X~ | Org capture |
+| ~w~ | 窗口命令 |
+
+**** ~SPC a~ — Embark
+| ~a~ | ~embark-act~ |
+
+**** ~SPC b~ — Buffer
+| ~d~/~k~ | 杀死 buffer | ~i~ | IBuffer | ~n~/~p~ | 上下 buffer | ~s~ | 保存 | ~S~ | 全部保存 |
+
+**** ~SPC c~ — Code
+| ~c c~ | 编译 | ~c d~ | 定义 | ~c D~ | 引用 | ~c e~ | 求值 | ~c f~ | 格式化 | ~c k~ | 文档 | ~c r~ | 重命名 |
+
+**** ~SPC f~ — File
+| ~f f~ | 查找文件 | ~f d~ | Dired | ~f s~ | 保存 | ~f r~ | 最近文件 | ~f R~ | 重命名 |
+
+**** ~SPC g~ — Git
+| ~g g~ | Magit status | ~g G~ | Magit status here | ~g b~ | 切换分支 | ~g B~ | Blame | ~g F~ | Fetch | ~g c c~ | 提交 | ~g o o~ | 浏览远程 |
+
+**** ~SPC h~ — Help
+| ~h d h~ | Doom help | ~h d d~ | 配置目录 | ~h t~ | 加载主题 | ~h r f~ | 重载字体 | ~h r R~ | 完整重载（自定义） |
+
+**** ~SPC n~ — Notes
+| ~n a~ | Org agenda | ~n d~ | Deft | ~n n~ | Org capture | ~n l~ | 存储链接 | ~n r~ | Denote 前缀 |
+
+**** ~SPC p~ — Project
+| ~p p~ | 切换项目 | ~p f~ | 查找文件 | ~p b~ | 切换 buffer | ~p s~ | 搜索项目 | ~p T~ | 测试项目 |
+
+**** ~SPC q~ — Quit
+| ~q q~ | 退出 | ~q Q~ | 错误码退出 | ~q r~ | 重启 | ~q K~ | 杀死 daemon |
+
+**** ~SPC s~ — Search
+| ~s b~ | 搜索 buffer | ~s p~ | 搜索项目 | ~s d~ | 搜索目录 | ~s i~ | Imenu | ~s j~ | 跳转列表 |
+
+**** ~SPC t~ — Toggle
+| ~t b~ | 大字体 | ~t f~ | 语法检查 | ~t l~ | 行号 | ~t s~ | 拼写 | ~t w~ | 折行 | ~t z~ | Zen mode |
+
+**** ~SPC w~ — Workspace
+| ~w c~ | 创建 | ~w k~ | 删除 | ~w r~ | 重命名 | ~w w~ | 切换 | ~w u~ | 撤销窗口布局 |
+
+*** 补全 (Corfu)
+| 按键 | 说明 |
+|-----+------|
+| ~C-n~/~C-j~ | 下一项 |
+| ~C-p~/~C-k~ | 上一项 |
+| ~C-h~ | 文档切换 |
+| ~TAB~ | 智能下一项 |
+| ~S-TAB~ | 智能上一项 |
+| ~RET~ | 插入 |
+| ~C-SPC~ | 插入分隔符 |
+
+*** Vertico
+| 按键 | 说明 |
+|-----+------|
+| ~C-j~/~C-k~ | 上下选择 |
+| ~C-h~ | 目录上 (文件) |
+| ~C-l~ | 进入/预览 (文件) |
+| ~M-RET~ | 用输入文本退出 |
+| ~C-x C-d~ | Consult dir |
+
+*** Org 模式 (~SPC m~)
+| 按键 | 说明 |
+|-----+------|
+| ~,e~ | 导出 |
+| ~,t~ | TODO |
+| ~,q~ | 设置标签 |
+| ~,o~ | 设置属性 |
+| ~,n~ | 存储链接 |
+| ~,f~ | 脚注 |
+| ~,h~ | 切换标题 |
+| ~,x~ | 切换复选框 |
+| ~,A~ | 归档 |
+| ~,/ ~ | 搜索 agenda |
+
+*** Org 折叠 (~evil-org-mode-map~)
+| ~za~ | 切换折叠 | ~zA~ | 全部切换 | ~zo~ | 打开 | ~zO~ | 全部打开 |
+| ~zc~ | 关闭 | ~zC~ | 全部关闭 | ~zm~ | 隐藏下一级 | ~zM~ | 全部关闭 |
+
+*** Magit
+| 按键 | 说明 |
+|-----+------|
+| ~q~ | 退出 | ~gr~ | 刷新 | ~gR~ | 全部刷新 | ~TAB~ | 展开/折叠 |
+| ~]~ / ~[~ | 下一个/上一个 section |
+
+*** Eshell
+| 按键 | 说明 |
+|-----+------|
+| ~C-j~ | 下一条匹配输入 |
+| ~C-k~ | 上一条匹配输入 |
+| ~C-s~ | 搜索历史 |
+| ~C-l~ | 清屏 |
+| ~C-c s~ | 下方分割 |
+| ~C-c v~ | 右侧分割 |
+
+*** Dired
+| ~h~ | 上级目录 | ~l~ | 打开 | ~C-c C-e~ | 可编辑 Dired (wdired) |
+| ~E~ (normal) | 外部程序打开（自定义） |
+
+*** PDF
+| ~g z~ (normal) | Zathura 打开（自定义） |

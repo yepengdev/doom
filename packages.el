@@ -12,19 +12,19 @@
 (package! denote-org)
 (package! denote-sequence)
 (package! denote-explore)
+(package! denote-journal)
+(package! denote-menu)
 (package! consult-notes)
 
 ;; Reading
-(package! djvu)
 (package! nov)
 (package! org-pdftools)
 ;; (package! org-noter-pdftools)  ; disabled for testing
 
-;; GC
-(package! gcmh)
 
 ;; Writing
 (package! super-save)
+(package! palimpsest)
 
 ;; Chinese-aware navigation & completion
 (package! ace-pinyin)

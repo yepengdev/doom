@@ -965,15 +965,97 @@ Bound to `SPC h r R`."
 (module-load (expand-file-name "modules/cnotify-module.so" doom-user-dir))
 (module-load (expand-file-name "modules/count-cjk.so" doom-user-dir))
 
-(defun my/pomodoro-start (&optional work-min break-min)
-  "Start pomodoro: WORK-MIN focus / BREAK-MIN rest (default 25/5)."
+;; ─── Pomodoro log ────────────────────────────────────────────────────────
+(defvar my/pomodoro-log-file
+  (expand-file-name "pomodoro.log.el" doom-user-dir)
+  "Sexp log of completed pomodoro cycles.")
+
+(defvar my/pomodoro-default-task "专注"
+  "Default task name when none provided at prompt.")
+
+(defun my/pomodoro-log-read ()
+  "Read all log entries, returns list of plists."
+  (when (file-exists-p my/pomodoro-log-file)
+    (with-temp-buffer
+      (insert-file-contents my/pomodoro-log-file)
+      (goto-char (point-min))
+      (read (current-buffer)))))
+
+(defun my/pomodoro-log-write (entry)
+  "Append ENTRY (plist) to log file."
+  (with-temp-file my/pomodoro-log-file
+    (when (file-exists-p my/pomodoro-log-file)
+      (insert-file-contents my/pomodoro-log-file))
+    (goto-char (point-max))
+    (insert (prin1-to-string entry) "\n")))
+
+(defun my/pomodoro-log-entry (task minutes)
+  "Write a completed pomodoro entry."
+  (my/pomodoro-log-write
+   `(:time ,(format-time-string "%Y-%m-%d %H:%M")
+     :task ,task :work ,minutes :break 5)))
+
+(defun my/pomodoro-show-stats ()
+  "Show pomodoro statistics: today, week, total."
   (interactive)
-  (cnotify-pomodoro-start (or work-min 25) (or break-min 5)))
+  (let* ((entries (my/pomodoro-log-read))
+         (today (format-time-string "%Y-%m-%d"))
+         (week-start (format-time-string "%Y-%m-%d"
+                      (time-subtract (current-time)
+                       (* (1- (string-to-number (format-time-string "%u"))) 86400))))
+         (today-entries (seq-filter
+                         (lambda (e) (string-prefix-p today (plist-get e :time)))
+                         entries))
+         (week-entries (seq-filter
+                        (lambda (e) (not (string< (substring (plist-get e :time) 0 10) week-start)))
+                        entries))
+         (today-cycles (length today-entries))
+         (today-minutes (apply #'+ (mapcar (lambda (e) (plist-get e :work)) today-entries)))
+         (week-cycles (length week-entries))
+         (week-minutes (apply #'+ (mapcar (lambda (e) (plist-get e :work)) week-entries)))
+         (total-cycles (length entries))
+         (total-minutes (apply #'+ (mapcar (lambda (e) (plist-get e :work)) entries)))
+         (buf (get-buffer-create "*Pomodoro Stats*")))
+    (with-current-buffer buf
+      (erase-buffer)
+      (insert (format "🍅 Pomodoro Statistics\n\n"))
+      (insert (format "Today:  %d cycles, %d min\n" today-cycles today-minutes))
+      (insert (format "Week:   %d cycles, %d min\n" week-cycles week-minutes))
+      (insert (format "Total:  %d cycles, %d min (%.1f hours)\n\n"
+                      total-cycles total-minutes (/ total-minutes 60.0)))
+      (insert "Recent:\n")
+      (dolist (e (reverse (seq-take (reverse entries) 10)))
+        (insert (format "  %s  %s  %dmin\n"
+                        (plist-get e :time) (plist-get e :task) (plist-get e :work))))
+      (special-mode)
+      (goto-char (point-min)))
+    (switch-to-buffer buf)))
+
+;; ─── Pomodoro tracking (phase transitions) ────────────────────────────────
+(defvar my/pomodoro--prev-phase 0 "Previous pomodoro phase, for detecting cycle completion.")
+(defvar my/pomodoro--current-task nil "Task name for current pomodoro session.")
+(defvar my/pomodoro--current-work-min 25 "Work minutes for current session.")
+
+(defun my/pomodoro-start (&optional task work-min break-min)
+  "Start pomodoro with TASK name (default \"专注\")."
+  (interactive)
+  (let ((tname (or task
+                   (let ((s (read-string "Task: " nil nil my/pomodoro-default-task)))
+                     (if (string= s "") my/pomodoro-default-task s))))
+        (w (or work-min 25))
+        (b (or break-min 5)))
+    (setq my/pomodoro--current-task tname
+          my/pomodoro--current-work-min w
+          my/pomodoro--prev-phase 0)
+    (cnotify-pomodoro-start w b)
+    (message "🍅 %s — %d min" tname w)))
 
 (defun my/pomodoro-stop ()
-  "Stop running pomodoro."
+  "Stop running pomodoro (incomplete — not logged)."
   (interactive)
-  (cnotify-pomodoro-stop))
+  (cnotify-pomodoro-stop)
+  (setq my/pomodoro--prev-phase 0)
+  (message "🍅 Pomodoro stopped — not logged"))
 
 (defun my/timer-start (minutes &optional message)
   "Start countdown timer for MINUTES, notify with MESSAGE."
@@ -985,13 +1067,25 @@ Bound to `SPC h r R`."
   (interactive)
   (cnotify-timer-stop))
 
+(defun my/word-count (&optional beg end)
+  "Count CJK/English chars and words in region (or whole buffer)."
+  (interactive "r")
+  (let* ((text (if (use-region-p)
+                   (buffer-substring-no-properties beg end)
+                 (buffer-substring-no-properties (point-min) (point-max))))
+         (label (if (use-region-p) "Region" "Buffer"))
+         (v    (my/count-text text)))
+    (message "%s: %d CJK, %d punct, %d EN words (%d EN chars), %d total cp"
+             label (aref v 0) (aref v 1) (aref v 2) (aref v 3) (aref v 4))))
+
 (map! :leader
-      (:prefix-map ("r t" . "Tools")  ; 工具类: timer / pomodoro / word-count
+      (:prefix-map ("r t" . "Tools")
        :desc "Start timer"              "t" #'my/timer-start
        :desc "Stop timer"               "T" #'my/timer-stop
        :desc "Start pomodoro"           "s" #'my/pomodoro-start
        :desc "Stop pomodoro"            "S" #'my/pomodoro-stop
-       :desc "Word count"               "w" #'my/word-count))
+       :desc "Word count"               "w" #'my/word-count
+       :desc "Pomodoro stats"           "v" #'my/pomodoro-show-stats))
 
 ;; ── Modeline: timer / pomodoro countdown ───────────────────────
 (defvar my/cnotify-indicator nil "Mode-line string for timer/pomodoro.")
@@ -1003,8 +1097,17 @@ Bound to `SPC h r R`."
   (when (cnotify-poll-action)
     (select-frame-set-input-focus (selected-frame)))
 
-  ;; Update modeline indicator
+  ;; Detect pomodoro cycle completion (phase 1→2 = work finished)
   (pcase-let ((`(,remaining . ,phase) (cnotify-status)))
+    (when (and (= my/pomodoro--prev-phase 1) (= phase 2)
+               my/pomodoro--current-task)
+      (my/pomodoro-log-entry my/pomodoro--current-task
+                             my/pomodoro--current-work-min)
+      (message "🍅 %s — %d min ✓" my/pomodoro--current-task
+               my/pomodoro--current-work-min))
+    (setq my/pomodoro--prev-phase phase)
+
+    ;; Update modeline indicator
     (if (and (= remaining 0) (= phase 0))
         (progn (setq my/cnotify-indicator nil)
                (when my/cnotify-update-timer

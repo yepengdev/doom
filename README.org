@@ -55,6 +55,7 @@
 | ~REASONIX.md~              | 运维与约定备忘（gitignore）         | —                |
 | ~doom-gitconfig~           | Git 代理配置（GitHub 镜像）         | —                |
 | ~opencode.json~            | opencode AI 配置（gitignore）      | —                |
+| ~modules/~                 | C 动态模块源码 + Makefile           | —                |
 
 * 已启用的 Doom 模块
 

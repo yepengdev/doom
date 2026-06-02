@@ -13,7 +13,8 @@
 | ~my/denote-git-auto-commit~ | config.el | 笔记创建后自动 git commit |
 | ~my/org-latex-format-headline~ | config.el | 带颜色 /texorpdfstring 的 LaTeX 标题格式 |
 | ~my/org-maybe-disable-prettification~ | config.el | ≥1 MiB Org 文件关闭美化 |
-| ~my/count-chinese-chars~ | config.el | 中文字数统计 |
+| ~my/count-chinese-chars~ | config.el | 中文字数统计（~SPC r n c~，C 模块） |
+| ~my/count-words~ | config.el | 中英综合统计（~M-=~，C 模块） |
 | ~org-capture-goto-target~ | config.el | 跳转到 capture 模板目标位置 |
 
 * 变量
@@ -26,7 +27,6 @@
 | ~my/theme-night-start~ | 夜间切换小时（19） |
 | ~my/enable-spacious-padding--done~ | ~spacious-padding~ 一次性 guard |
 | ~my/org-large-file-size-threshold~ | 大文件阈值（~1024*1024~） |
-| ~my/cjk-regexp~ | CJK 汉字正则 |
-| ~my/cjk-punct-regexp~ | 中文标点正则 |
+| ~my/cjk-so~ | C 模块路径（~modules/count-cjk.so~） |
 | ~my/pandoc-dir~ | Pandoc 资源目录 |
 | ~my/org-export-assets-dir~ | HTML 导出资源目录 |

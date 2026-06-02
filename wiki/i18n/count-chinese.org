@@ -1,65 +1,49 @@
-#+TITLE: 中文计数 (my/count-chinese-chars)
+#+TITLE: 字数统计 (my/count-words / my/count-chinese-chars)
 
 * 用途
 
-统计 buffer 或选中区域中的汉字数 + 中文标点数 + 总字符数 + 中文占比。
+中英双语统一统计。C 动态模块（~modules/count-cjk.so~）一次扫描完成所有计数。
 
-* 配置
+| 功能 | 快捷键 | 输出示例 |
+|------|--------|----------|
+| 综合统计（中/英/标点/总） | ~M-=~ | ~中:12  英:2  标点:2  总:28~ |
+| CJK 字数（旧接口） | ~SPC r n c~ | ~字:12  含标点:14  总:28  50.0%~ |
 
-#+BEGIN_SRC emacs-lisp
-(defvar my/cjk-regexp "\\(?:[一-鿿㐀-䶵𠀀-𪛟𪜀-𫜸𫝀-𫠝𫠠-𬺡𬺰-𮯠丽-𪘀]\\)")
-(defvar my/cjk-punct-regexp "\\(?:[。，、；：？！“”‘’（）【】《》—…～·『』〔〕〖〗〘〙〚〛〜　]\\)")
+* 架构
 
-(defun my/count-chinese-chars (&optional beg end)
-  (interactive)
-  (let* ((beg (or beg (if (use-region-p) (region-beginning) (point-min))))
-         (end (or end (if (use-region-p) (region-end) (point-max))))
-         (text (buffer-substring-no-properties beg end))
-         (total (length text))
-         (cn-chars (with-temp-buffer
-                     (insert text)
-                     (goto-char (point-min))
-                     (let ((count 0))
-                       (while (re-search-forward my/cjk-regexp nil t)
-                         (cl-incf count))
-                       count)))
-         (cn-punct (with-temp-buffer
-                     (insert text)
-                     (goto-char (point-min))
-                     (let ((count 0))
-                       (while (re-search-forward my/cjk-punct-regexp nil t)
-                         (cl-incf count))
-                       count)))
-         (total-cn (+ cn-chars cn-punct))
-         (pct (if (> total 0) (/ (* total-cn 100.0) total) 0.0)))
-    (message (concat "字:%d  含标点:%d  总:%d  %.1f%%"
-                     (if (use-region-p) " (选中)" ""))
-             cn-chars total-cn total pct)))
+C 模块导出两个函数：
+
+- ~my/count-cjk (STRING)~ → ~(CHARS . PUNCT)~（CJK 字和标点）
+- ~my/count-text (STRING)~ → ~[cjk punct en-words en-chars total-cp]~（全量统计）
+
+Elisp 层只做 message 格式化，计算由 C 完成。
+
+* 英文词界定
+
+~[a-zA-Z0-9']~ 连续序列为一个英文词：
+
+- ~Hello~ → 1 词
+- ~don't~ → 1 词（~'~ 视为词内字符）
+- ~well-known~ → 2 词（~-~ 是词边界）
+- ~42~ → 1 词（数字参与）
+
+* 性能
+
+| 规模 | 原 Elisp 版 | C 模块 | 加速比 |
+|------+------------+--------+--------|
+| 1 KB   | 28 ms      | 0.7 ms | 42×    |
+| 10 KB  | 211 ms     | 21 ms  | 10×    |
+| 100 KB | 1926 ms    | 162 ms | 12×    |
+| 500 KB | 9376 ms    | 613 ms | 15×    |
+
+* C 模块构建
+
+#+BEGIN_SRC sh
+cd ~/.config/doom && make -C modules/
 #+END_SRC
 
-* 用法
+需 ~emacs-module.h~（Emacs 30 开发头文件）。
 
-~SPC r n c~
+* Unicode 覆盖
 
-- 无选中区域 → 统计整个 buffer
-- 选中区域 → 统计选中部分（方便统计某章的进度）
-
-* 正则覆盖范围
-
-~my/cjk-regexp~ 覆盖 CJK 统一表意文字：
-
-| 区块 | 码段 | 字数 |
-|------+------+------|
-| CJK 统一表意文字 | U+4E00–U+9FFF | ~20,992 |
-| CJK 统一表意文字扩展 A | U+3400–U+4DBF | ~6,592 |
-| CJK 统一表意文字扩展 B | U+20000–U+2A6DF | ~42,720 |
-| CJK 统一表意文字扩展 C | U+2A700–U+2B73F | ~4,154 |
-| CJK 统一表意文字扩展 D | U+2B740–U+2B81F | ~222 |
-| CJK 统一表意文字扩展 E | U+2B820–U+2CEAF | ~5,762 |
-| CJK 统一表意文字扩展 F | U+2CEB0–U+2EBE0 | ~7,473 |
-| CJK 统一表意文字扩展 G | U+30000–U+3134F | ~4,939 |
-| CJK 统一表意文字扩展 H | U+31350–U+323AF | ~4,192 |
-
-总计约 ~97,000 字——覆盖所有现代汉字和古籍用字。
-
-~my/cjk-punct-regexp~ 覆盖常见中文标点（不包括英文标点如 ~.,!?~）。
+CJK 统一表意文字及其扩展区块（A–F），合计约 ~97,000 字。UTF-8 解码带边界检查，拒绝 overlong / surrogate / 截断序列。

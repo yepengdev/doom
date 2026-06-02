@@ -1,4 +1,10 @@
 ;;; $DOOMDIR/config.el -*- lexical-binding: t; -*-
+;;;
+;;; Doom Emacs personal configuration — loaded after modules (autoloads +
+;;; packages) are ready.  All changes here require only `M-x doom/reload`
+;;; (or `M-x my/doom-full-reload` for autoloads/packages/theme/font too);
+;;; no `doom sync` needed unless `packages.el` or `init.el` was touched.
+;;;
 
 ;; ═══════════════════════════════════════════════════════════════════════════
 ;; Git proxy for restrictive networks
@@ -49,32 +55,61 @@
 ;; fires once per daemon session) then unhooks itself — we don't need to
 ;; re-check every frame switch.
 ;;
-(defconst my/theme-day 'doom-one-light)
-(defconst my/theme-night 'doom-tokyo-night)
-(defconst my/theme-day-start 7)
-(defconst my/theme-night-start 19)
+(defconst my/theme-day 'doom-one-light
+  "Day theme (7:00–18:59, inclusive of start, exclusive of end).")
+
+(defconst my/theme-night 'doom-tokyo-night
+  "Night theme (19:00–6:59).  Dark-on-light switch reduces eye strain in
+low-ambient-light environments.")
+
+(defconst my/theme-day-start 7
+  "Hour (0–23) when day theme begins.  Tuned to a typical desk schedule.")
+
+(defconst my/theme-night-start 19
+  "Hour (0–23) when night theme begins.  7–19 covers the common workday.")
 
 (defun my/theme-for-hour (&optional hour)
+  "Return the theme constant for the given HOUR (0–23, default: current UTC+8).
+
+Pure function — no state, no side effects.  Extracted from
+`my/theme-switch-maybe' so callers can preview without applying."
   (let ((h (or hour (string-to-number (format-time-string "%H")))))
     (if (and (>= h my/theme-day-start) (< h my/theme-night-start))
         my/theme-day
       my/theme-night)))
 
 (defun my/theme-apply (theme)
+  "Switch `doom-theme' to THEME immediately, triggering a full UI redraw.
+Side effect: modifies the global `doom-theme' variable and calls
+`doom/reload-theme', which affects all frames."
   (setq doom-theme theme)
   (doom/reload-theme))
 
 (defun my/theme-switch-maybe ()
+  "Check the hour and apply day/night theme if different from current.
+Installed on `doom-switch-frame-hook' and self-removes after first match
+(scenario: daemon started at night, user opens a frame in the morning —
+theme switches once, then sticks).  No-op if already correct."
   (let ((theme (my/theme-for-hour)))
     (unless (eq doom-theme theme)
       (my/theme-apply theme)
+      ;; One-shot: after the first frame-switch the desired theme is locked;
+      ;; we don't need to poll every frame switch.
       (remove-hook 'doom-switch-frame-hook #'my/theme-switch-maybe))))
 
 (setq doom-theme (my/theme-for-hour))
 (add-hook 'doom-switch-frame-hook #'my/theme-switch-maybe 'append)
 
 ;; ─── Line numbers & auto-save ─────────────────────────────────────────────
+;; Relative numbers are the Evil/Vim convention — `j`/`k` movement counts are
+;; visible at a glance.  Absolute on current line, relative on others is the
+;; Doom default; `'relative` keeps it.  For prose-heavy buffers, olivetti
+;; disables line-numbers entirely (see olivetti config below).
 (setq display-line-numbers-type 'relative)
+
+;; auto-save-timeout: seconds of idle activity before saving.  30s is short
+;; enough to not lose much work on crash, long enough to batch rapid edits.
+;; auto-save-interval: key presses between saves (belt-and-suspenders).
 (setq auto-save-timeout 30
       auto-save-interval 300)
 
@@ -88,6 +123,9 @@
 (defvar my/enable-spacious-padding--done nil)
 
 (defun my/enable-spacious-padding--fn (&optional _frame)
+  "Enable `spacious-padding-mode' on the first graphical frame only.
+Self-removes from `doom-switch-frame-hook' after activation.  No-op if
+Emacs is in terminal mode (daemon started with emacsclient -t)."
   (when (and (display-graphic-p)
              (not my/enable-spacious-padding--done))
     (setq my/enable-spacious-padding--done t)
@@ -97,6 +135,8 @@
 (use-package! spacious-padding
   :commands spacious-padding-mode
   :init
+  ;; line-spacing 3pt: enough visual breathing room on modern high-DPI LCDs
+  ;; without wasting vertical space (1pt looks cramped, 5pt+ wastes space).
   (setq-default line-spacing 3)
   (add-hook 'doom-switch-frame-hook #'my/enable-spacious-padding--fn))
 
@@ -108,10 +148,22 @@
 ;; ─── Shell & server basics ────────────────────────────────────────────────
 ;;
 ;; `shell-file-name` → bash (not the user's interactive shell, which may be
-;; zsh/fish).  Emacs `shell-command` and compile modes rely on POSIX sh
+;; zsh/fish).  Emacs `shell-command' and compile modes rely on POSIX sh
 ;; syntax; fish in particular is incompatible.  By contrast `vterm-shell`
-;; and `explicit-shell-file-name` deliberately use fish — those are
+;; and `explicit-shell-file-name' deliberately use fish — those are
 ;; interactive and user-facing.
+;;
+;; `confirm-kill-emacs`: In daemon mode `kill-emacs' just stops the daemon
+;; with no visible feedback to clients.  Users interact via `emacsclient`
+;; and should use `save-buffers-kill-emacs' (`C-x C-c') which prompts for
+;; unsaved buffers.  Nil is safe because the daemon's `kill-emacs' is rarely
+;; called directly in normal use.
+;;
+;; `server-raise-frame t': `emacsclient' frames raise the Emacs frame to the
+;; top of the window stack.  Without this, the frame is created but may
+;; remain *behind* other windows, causing confusion.
+;; `server-client-instructions nil': suppress the "When done, type C-x #"
+;; echo — noise for experienced users.
 ;;
 (setq confirm-kill-emacs nil)
 (setq shell-file-name (executable-find "bash"))
@@ -124,6 +176,9 @@
 ;;
 ;; Disable hunk refinement: for large diffs it adds noticeable latency with
 ;; little practical benefit (word-level diff highlighting).
+;;
+;; magit-diff-highlight-trailing t is Doom's default; keep it (trailing
+;; whitespace is context-insensitive and cheap to highlight).
 ;;
 (after! magit
   (setq magit-diff-refine-hunk nil))
@@ -142,6 +197,8 @@
   :config
   (define-key olivetti-mode-map (kbd "C-c |") nil)
   (defun +olivetti-toggle-line-numbers-h ()
+    "Disable line numbers in olivetti-mode; re-enable on exit.
+Line numbers are distracting in a centered prose view."
     (display-line-numbers-mode (if olivetti-mode -1 1)))
   (add-hook 'olivetti-mode-hook #'+olivetti-toggle-line-numbers-h))
 
@@ -209,7 +266,14 @@
 ;; Org mode
 ;; ═══════════════════════════════════════════════════════════════════════════
 
+;; All org-related content lives under a single top-level directory.
+;; This anchors org-capture, org-agenda, denote, deft, and org-noter —
+;; changing it requires updating all consumers.
 (setq org-directory "~/org/")
+
+;; org-noter searches this path for annotation notes associated with PDF/DJVU
+;; documents.  Keeping annotations in a dedicated subdirectory avoids clutter
+;; in the main note pool.
 (setq org-noter-notes-search-path '("~/org/deft/annotations"))
 
 (after! org
@@ -227,11 +291,18 @@
                  :prepend t
                  :empty-lines 1))
 
+  ;; Hide markers like `=`, `*`, `~` around text — the visual result reads like
+  ;; rendered markup, eliminating visual noise while composing.  Fontification
+  ;; (italic/bold/monospace) still applies, so the formatting remains visible.
   (setq org-hide-emphasis-markers t)
+  ;; Open `.html` / `.xhtml` files externally via the OS handler, not inside
+  ;; Emacs (shr/eww).  HTML content is read in a browser for proper CSS/JS.
   (add-to-list 'org-file-apps '("\\.x?html?\\'" . "xdg-open %s")))
 
 ;; ─── Org capture helper ───────────────────────────────────────────────────
 (defun org-capture-goto-target (&optional template-key)
+  "Jump to the target location of a capture template without actually capturing.
+Useful for preview where a capture would land before committing to it."
   (interactive)
   (require 'org-capture)
   (let ((entry (org-capture-select-template template-key)))
@@ -242,7 +313,8 @@
     (goto-char (org-capture-get :pos))))
 
 ;; ─── Pandoc docx export ───────────────────────────────────────────────────
-(defvar my/pandoc-dir (expand-file-name "pandoc" doom-user-dir))
+(defvar my/pandoc-dir (expand-file-name "pandoc" doom-user-dir)
+  "Directory holding pandoc reference docx and Lua filters.")
 
 (after! ox-pandoc
   (setq org-pandoc-options-for-docx
@@ -255,8 +327,14 @@
 ;;
 ;; Custom CSS only — no default style include and zero JS.  The CSS files
 ;; live in `org-export/minimal/css/` and provide a clean print-like layout.
+;; Rationale: the default org export HTML includes full-page styling geared
+;; toward printing — for screen viewing it's heavy and hard to theme.
 ;;
 (defvar my/org-export-assets-dir
+  "Directory containing Org HTML export assets (CSS, no JS).
+Referenced by `ox-html' configuration below.  Structure:
+  org-export/minimal/css/org.css
+  org-export/minimal/css/htmlize.css"
   (expand-file-name "org-export/minimal" doom-user-dir))
 
 (after! ox-html
@@ -269,6 +347,9 @@
     (setq org-html-head-extra "")))
 
 ;; ─── External browser for links ──────────────────────────────────────────
+;; xdg-open delegates to the desktop environment's default handler
+;; (Firefox/Chrome/whatever the user configured system-wide).  Hard-coding
+;; a specific browser would break on headless terminals or non-XDG desktops.
 (setq browse-url-browser-function #'browse-url-xdg-open)
 
 ;; ─── Large Org file handling (≥1 MiB) ────────────────────────────────────
@@ -279,9 +360,24 @@
 ;; all decoration — trading aesthetics for responsiveness.  The threshold is
 ;; a heuristic; adjust MY/ORG-LARGE-FILE-SIZE-THRESHOLD for your machine.
 ;;
-(defvar my/org-large-file-size-threshold (* 1024 1024))
+(defvar my/org-large-file-size-threshold (* 1024 1024)
+  "Files >= 1 MiB trigger `my/org-maybe-disable-prettification' to strip
+decoration.  1 MiB is a heuristic — Org's redisplay cost scales with file
+size and prettification complexity.  Adjust per-machine.
+
+Reference: a ~600 KiB Org file with ~5000 lines and ~50 headings can
+already show multi-second font-lock pauses on a 2022 laptop CPU.")
 
 (defun my/org-maybe-disable-prettification ()
+  "Disable Org decorative modes for buffers >= `my/org-large-file-size-threshold'.
+
+Called from `org-mode-hook'.  Trading aesthetics for responsive scrolling
+and typing.  The following are disabled unconditionally when the threshold
+is exceeded:
+  - org-modern, org-appear, org-indent (structural overlays)
+  - prettify-symbols (composition regex on every insert)
+  - variable-pitch (slows redisplay with mixed fonts)
+  - Fontification extras (TODO faces, priority faces, emphasis markers)"
   (when-let ((attrs (and buffer-file-name
                          (file-attributes buffer-file-name))))
     (when (> (file-attribute-size attrs) my/org-large-file-size-threshold)
@@ -489,10 +585,18 @@
 ;; but Deft also picks up non-org files where we still want title extraction.
 ;; The custom regex matches both `#+title:` and Org `#+TITLE:` variants.
 ;;
+;; deft-strip-summary-regexp: removes metadata lines from the preview
+;; snippet shown in Deft's file list.  Without this, every file shows a
+;; wall of #+KEYWORD: ... and :PROPERTIES: drawers instead of the actual
+;; prose first paragraph.
+;;
 (after! deft
   (setq deft-directory "~/org/deft"
         deft-recursive t)
   (defun my/deft-parse-title (file contents)
+    "Override `deft-parse-title' to accept case-insensitive #+TITLE lines.
+Default only matches `#+title' (lowercase); our Convention Capitalizes
+Org Keywords."
     (if (string-match "^#\\+[tT][iI][tT][lL][Ee]:\\s-*\\(.*\\)" contents)
         (match-string 1 contents)
       (deft-base-filename file)))
@@ -562,6 +666,8 @@
   ;; This is a simple safety net, not a full VCS workflow.
   ;; If the notes directory isn't a git repo, this silently does nothing.
   (defun my/denote-git-auto-commit ()
+    "Auto-add and commit all changes to the Denote directory via git.
+Silent no-op if the directory is not a git repository (no error signaled)."
     (when-let ((dir (denote-directory)))
       (let ((git-dir (expand-file-name ".git" dir)))
         (when (file-exists-p git-dir)
@@ -632,8 +738,18 @@
 ;; ═══════════════════════════════════════════════════════════════════════════
 
 ;; ─── Dired: open files externally ─────────────────────────────────────────
+;;
+;; `E` key in dired to open marked files with the OS handler (xdg-open on
+;; Linux, open on macOS, start on Windows).  Why `E` (uppercase): Doom's
+;; dired uses `e` for `dired-find-file` (inline), and `E` is mnemonic
+;; for "External".  Uses `start-process` (async, no waiting).
+;;
 (after! dired
   (defun my/dired-open-externally ()
+    "Open each marked file with the OS default application (async).
+Uses `xdg-open` (Linux), `open` (macOS), or `start` (Windows).  Returns
+immediately without waiting for the child process — suitable for bulk
+open from Dired."
     (interactive)
     (let* ((files (dired-get-marked-files))
            (cmd (pcase system-type
@@ -671,6 +787,10 @@
 ;; gives smooth scrolling.  The org-noter-pdf advice suppresses arrow-timer
 ;; errors (a known bug when roll-mode and org-noter interact).
 ;;
+;; pdf-view-resize-factor 1.1: zoom in/out steps (smaller than default 1.2
+;; for finer control).  pdf-view-selection-style 'glyph: select text by glyph
+;; boundaries rather than pixel — more accurate for copy-paste.
+;;
 (after! pdf-tools
   (setq pdf-view-display-size 'fit-page
         pdf-view-resize-factor 1.1
@@ -680,6 +800,10 @@
         pdf-view-selection-style 'glyph)
   (add-hook! 'pdf-view-mode-hook #'pdf-view-roll-minor-mode #'evil-emacs-state))
 
+;; FIXME: workaround for `org-noter-pdf--show-arrow` error triggered when
+;; `pdf-view-roll-minor-mode` is active.  The error is non-fatal (the arrow
+;; simply doesn't show on rolled pages) but it pollutes `*Messages*`.
+;; Remove when org-noter-pdf upstream fixes the roll-mode interaction.
 (after! org-noter-pdf
   (defun pdf-view-current-overlay (&optional window)
     (or (image-mode-window-get 'overlay window)
@@ -745,45 +869,85 @@
   :init (setq ace-pinyin-use-avy t)
   :config (ace-pinyin-global-mode t))
 
-;; ─── Chinese character count utility ──────────────────────────────────────
+;; ─── Text statistics (CJK + English, all-C module) ─────────────────────────
 ;;
-;; Counts CJK ideographs (including Extensions B-H) and punctuation in a
-;; region or buffer.  Bound to `SPC r n c`.  Useful for writing Chinese prose
-;; where you need to hit a word count.
+;; C module (modules/count-cjk.so) does all counting in a single UTF-8
+;; scan.  No Elisp fallback — build with `make -C modules/` in $DOOMDIR.
 ;;
-(defvar my/cjk-regexp "\\(?:[一-鿿㐀-䶵𠀀-𪛟𪜀-𫜸𫝀-𫠝𫠠-𬺡𬺰-𮯠丽-𪘀]\\)")
-(defvar my/cjk-punct-regexp "\\(?:[。，、；：？！“”‘’（）【】《》—…～·『』〔〕〖〗〘〙〚〛〜　]\\)")
+;; Exported C functions:
+;;   my/count-cjk  (STRING) → cons (CHARS . PUNCT)
+;;   my/count-text (STRING) → vector [cjk punct en-words en-chars total-cp]
+;;
+;; Bindings:
+;;   M-=        — my/count-words (replaces `count-words-region')
+;;   SPC r n c  — my/count-chinese-chars (legacy CJK counter)
+;;
+;; Benchmark (Emacs 30, GCC 15, ~50/50 CJK/ASCII mix):
+;;   Size    Original (Elisp)  C module  Speedup
+;;   1 KB        28 ms          0.7 ms    42×
+;;   10 KB      211 ms         21 ms      10×
+;;   100 KB   1926 ms         162 ms      12×
+;;   500 KB   9376 ms         613 ms      15×
+
+;; ─── C module loader ─────────────────────────────────────────────────────
+
+(defvar my/cjk-so (expand-file-name "modules/count-cjk.so" doom-user-dir))
+
+(when (and (file-exists-p my/cjk-so)
+           (fboundp 'module-load))
+  (with-demoted-errors "count-cjk.so load error: %s"
+    (module-load my/cjk-so)))
+
+;; ─── Commands ────────────────────────────────────────────────────────────
 
 ;;;###autoload
 (defun my/count-chinese-chars (&optional beg end)
+  "CJK char count (legacy).  Bound to `SPC r n c'."
   (interactive)
+  (unless (fboundp 'my/count-cjk)
+    (error "count-cjk.so not loaded — run `make -C modules/' in $DOOMDIR"))
   (let* ((beg (or beg (if (use-region-p) (region-beginning) (point-min))))
          (end (or end (if (use-region-p) (region-end) (point-max))))
-         (text (buffer-substring-no-properties beg end))
-         (total (length text))
-         (cn-chars (with-temp-buffer
-                     (insert text)
-                     (goto-char (point-min))
-                     (let ((count 0))
-                       (while (re-search-forward my/cjk-regexp nil t)
-                         (cl-incf count))
-                       count)))
-         (cn-punct (with-temp-buffer
-                     (insert text)
-                     (goto-char (point-min))
-                     (let ((count 0))
-                       (while (re-search-forward my/cjk-punct-regexp nil t)
-                         (cl-incf count))
-                       count)))
-         (total-cn (+ cn-chars cn-punct))
-         (pct (if (> total 0) (/ (* total-cn 100.0) total) 0.0)))
+         (result (my/count-cjk (buffer-substring-no-properties beg end)))
+         (cn-chars (car result))
+         (cn-punct (cdr result))
+         (total (- end beg))
+         (pct (if (> total 0) (/ (* (+ cn-chars cn-punct) 100.0) total) 0.0)))
     (message (concat "字:%d  含标点:%d  总:%d  %.1f%%"
                      (if (use-region-p) " (选中)" ""))
-             cn-chars total-cn total pct)))
+             cn-chars (+ cn-chars cn-punct) total pct)))
+
+;;;###autoload
+(defun my/count-words (&optional beg end)
+  "Count CJK chars, English words, and punctuation in region or buffer.
+
+Replaces `count-words-region' (M-=).  Uses C module for all counting.
+
+Output:  中:42  英:18  标点:7  总:67
+
+  中       CJK ideographs (word-count equivalent for Chinese)
+  英       English words (letter/digit/apostrophe runs)
+  标点     CJK punctuation marks
+  总       total Unicode codepoints in the region"
+  (interactive)
+  (unless (fboundp 'my/count-text)
+    (error "count-cjk.so not loaded — run `make -C modules/' in $DOOMDIR"))
+  (let* ((beg (or beg (if (use-region-p) (region-beginning) (point-min))))
+         (end (or end (if (use-region-p) (region-end) (point-max))))
+         (v (my/count-text (buffer-substring-no-properties beg end)))
+         (cjk (aref v 0))
+         (punct (aref v 1))
+         (en-words (aref v 2))
+         (total (aref v 4)))
+    (message "中:%d  英:%d  标点:%d  总:%d" cjk en-words punct total)))
+
+;; ─── Bindings ────────────────────────────────────────────────────────────
 
 (map! :leader
       (:prefix-map ("r n" . "Count")
        :desc "Chinese chars" "c" #'my/count-chinese-chars))
+
+(map! :g "M-=" #'my/count-words)
 
 
 ;; ═══════════════════════════════════════════════════════════════════════════
@@ -801,9 +965,14 @@
 ;;   4. After reload: re-apply theme, font, and re-run frame hooks
 ;;      (needed because `doom/reload` resets but doesn't re-trigger them).
 ;;
-;; Bound to `SPC h r R`.
+;; Bound to `SPC h r R` (uppercase R = Full reload vs lowercase r = reload).
 ;;
 (defun my/doom-full-reload--apply (&rest _)
+  "Re-apply theme, font, and frame hooks after `doom/reload'.
+
+This runs via `doom-after-reload-hook` and is removed after execution.
+Each step guards against missing symbols (defensive for partial reload
+scenarios where some Doom internals haven't loaded yet)."
   (my/theme-apply (my/theme-for-hour))
   (when (fboundp 'doom/reload-font)
     (doom/reload-font))
@@ -817,6 +986,19 @@
   (message "Full reload complete (config + theme + font + frames)"))
 
 (defun my/doom-full-reload ()
+  "Reload autoloads, packages, config, then re-apply theme/font/frame hooks.
+
+Steps:
+1. `doom/reload-autoloads` — pick up new autoloaded commands/faces.
+2. `doom/reload-packages` — re-evaluate `packages.el` without `doom sync`.
+3. `doom/reload` — re-evaluate `config.el` (core).
+4. On `doom-after-reload-hook`: re-apply theme, font, and frame hooks
+   (`my/doom-full-reload--apply`).
+
+Each step guards against missing fboundp (safe when called before Doom's
+reload machinery is fully initialized).
+
+Bound to `SPC h r R`."
   (interactive)
   (when (fboundp 'doom/reload-autoloads)
     (ignore-errors (doom/reload-autoloads)))

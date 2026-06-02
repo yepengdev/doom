@@ -936,7 +936,7 @@ or other non-idempotent frame hooks.  Runs via `doom-after-reload-hook'."
   (add-hook 'doom-after-reload-hook #'my/doom-full-reload--apply))
 
 (defun my/doom-full-reload ()
-   "Reload autoloads, packages and config.
+  "Reload autoloads, packages and config.
 
 Steps:
 1. `doom/reload-autoloads` — pick up new autoloaded commands/faces.
@@ -975,27 +975,15 @@ Bound to `SPC h r R`."
   (interactive)
   (cnotify-pomodoro-stop))
 
-(defun my/timer-start (seconds &optional message)
-  "Start countdown timer for SECONDS, notify with MESSAGE."
-  (interactive "nSeconds: \nsMessage: ")
-  (cnotify-timer-start seconds (or message "Timer finished")))
+(defun my/timer-start (minutes &optional message)
+  "Start countdown timer for MINUTES, notify with MESSAGE."
+  (interactive "nMinutes: \nsMessage: ")
+  (cnotify-timer-start (* minutes 60) (or message "Timer finished")))
 
 (defun my/timer-stop ()
   "Stop running timer."
   (interactive)
   (cnotify-timer-stop))
-
-(defun my/word-count (&optional beg end)
-  "Count CJK/English chars and words in region (or whole buffer)."
-  (interactive "r")
-  (let* ((text (if (use-region-p)
-                   (buffer-substring-no-properties beg end)
-                 (buffer-substring-no-properties (point-min) (point-max))))
-         (label (if (use-region-p) "Region" "Buffer"))
-         (v    (my/count-text text)))
-    (message "%s: %d CJK chars, %d punct, %d EN words (%d EN chars), %d total cp"
-             label
-             (aref v 0) (aref v 1) (aref v 2) (aref v 3) (aref v 4))))
 
 (map! :leader
       (:prefix-map ("r t" . "Tools")  ; 工具类: timer / pomodoro / word-count
@@ -1003,4 +991,36 @@ Bound to `SPC h r R`."
        :desc "Stop timer"               "T" #'my/timer-stop
        :desc "Start pomodoro"           "s" #'my/pomodoro-start
        :desc "Stop pomodoro"            "S" #'my/pomodoro-stop
-       :desc "Word/char count"          "w" #'my/word-count))
+       :desc "Word count"               "w" #'my/word-count))
+
+;; ── Modeline: timer / pomodoro countdown ───────────────────────
+(defvar my/cnotify-indicator nil "Mode-line string for timer/pomodoro.")
+(defvar my/cnotify-update-timer nil "Internal 1s timer for modeline refresh.")
+
+(defun my/cnotify-refresh ()
+  "Refresh modeline from C module status."
+  (pcase-let ((`(,remaining . ,phase) (cnotify-status)))
+    (if (and (= remaining 0) (= phase 0))
+        (progn (setq my/cnotify-indicator nil)
+               (when my/cnotify-update-timer
+                 (cancel-timer my/cnotify-update-timer)
+                 (setq my/cnotify-update-timer nil)))
+      (setq my/cnotify-indicator
+            (cond
+             ((= phase 1) (format " 🍅 %d:%02d" (/ remaining 60) (% remaining 60)))
+             ((= phase 2) (format " ☕ %d:%02d" (/ remaining 60) (% remaining 60)))
+             (t           (format " ⏱ %d:%02d" (/ remaining 60) (% remaining 60))))))
+    (force-mode-line-update)))
+
+;; Start 1s poll when timer/pomodoro starts
+(defun my/cnotify-start-poll ()
+  (my/cnotify-refresh)
+  (unless my/cnotify-update-timer
+    (setq my/cnotify-update-timer (run-with-timer 1 1 #'my/cnotify-refresh))))
+
+(add-to-list 'mode-line-misc-info '("" my/cnotify-indicator ""))
+
+(advice-add 'cnotify-timer-start    :after (lambda (&rest _) (my/cnotify-start-poll)))
+(advice-add 'cnotify-pomodoro-start :after (lambda (&rest _) (my/cnotify-start-poll)))
+(advice-add 'cnotify-timer-stop     :after (lambda (&rest _) (my/cnotify-refresh)))
+(advice-add 'cnotify-pomodoro-stop  :after (lambda (&rest _) (my/cnotify-refresh)))

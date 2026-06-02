@@ -614,7 +614,7 @@
          :desc "Extract subtree"    "x" #'denote-org-extract-org-subtree))
   (map! :localleader
         :map org-mode-map
-        :prefix ("n" . "Denote")
+        :prefix ("D" . "Denote")
         :desc "Link to heading"     "h" #'denote-org-link-to-heading
         :desc "Heading backlinks"   "b" #'denote-org-backlinks-for-heading
         :desc "Extract subtree"     "x" #'denote-org-extract-org-subtree))

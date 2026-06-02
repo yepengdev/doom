@@ -29,29 +29,29 @@
        vertico           ; the search engine of the future
 
        :ui
-        deft              ; notational velocity for Emacs
-        doom              ; what makes DOOM look the way it does
-        ;;dashboard         ; a nifty splash screen for Emacs
-        ;;doom-quit         ; DOOM quit-message prompts when you quit Emacs
-        ;;(emoji +unicode)  ; 🙂
-        hl-todo           ; highlight TODO/FIXME/NOTE/DEPRECATED/HACK/REVIEW
-        ;;indent-guides     ; highlighted indent columns
-        ;;ligatures         ; ligatures and symbols to make your code pretty again
-        ;;minimap           ; show a map of the code on the side
-        modeline          ; snazzy, Atom-inspired modeline, plus API
-        ;;nav-flash         ; blink cursor line after big motions
-        ;;neotree           ; a project drawer, like NERDTree for vim
-        ;;ophints           ; highlight the region an operation acts on
-        (popup +defaults)   ; tame sudden yet inevitable temporary windows
-        ;;smooth-scroll     ; So smooth you won't believe it's not butter
-        ;;tabs              ; a tab bar for Emacs
-        ;;treemacs          ; a project drawer, like neotree but cooler
-        ;;unicode           ; extended unicode support for various languages
-        (vc-gutter +pretty) ; vcs diff in the fringe
-        ;;vi-tilde-fringe   ; fringe tildes to mark beyond EOB
-        ;;window-select     ; visually switch windows
-        workspaces        ; tab emulation, persistence & separate workspaces
-        ;;zen               ; distraction-free coding or writing
+       deft              ; notational velocity for Emacs
+       doom              ; what makes DOOM look the way it does
+       ;;dashboard         ; a nifty splash screen for Emacs
+       ;;doom-quit         ; DOOM quit-message prompts when you quit Emacs
+       ;;(emoji +unicode)  ; 🙂
+       hl-todo           ; highlight TODO/FIXME/NOTE/DEPRECATED/HACK/REVIEW
+       ;;indent-guides     ; highlighted indent columns
+       ;;ligatures         ; ligatures and symbols to make your code pretty again
+       ;;minimap           ; show a map of the code on the side
+       modeline          ; snazzy, Atom-inspired modeline, plus API
+       ;;nav-flash         ; blink cursor line after big motions
+       ;;neotree           ; a project drawer, like NERDTree for vim
+       ophints           ; highlight the region an operation acts on
+       (popup +defaults)   ; tame sudden yet inevitable temporary windows
+       ;;smooth-scroll     ; So smooth you won't believe it's not butter
+       ;;tabs              ; a tab bar for Emacs
+       treemacs          ; a project drawer, like neotree but cooler
+       ;;unicode           ; extended unicode support for various languages
+       (vc-gutter +pretty) ; vcs diff in the fringe
+       ;;vi-tilde-fringe   ; fringe tildes to mark beyond EOB
+       ;;window-select     ; visually switch windows
+       workspaces        ; tab emulation, persistence & separate workspaces
+       ;;zen               ; distraction-free coding or writing
 
        :editor
        (evil +everywhere); come to the dark side, we have cookies
@@ -99,7 +99,7 @@
        ;;ein               ; tame Jupyter notebooks with emacs
        (eval +overlay)     ; run code, run (also, repls)
        lookup              ; navigate your code and its documentation
-        ;;llm               ; when I said you needed friends, I didn't mean...
+       ;;llm               ; when I said you needed friends, I didn't mean...
        ;;(lsp +eglot)      ; M-x vscode
        magit             ; a git porcelain for Emacs
        ;;make              ; run make tasks from Emacs
@@ -112,7 +112,7 @@
 
        :os
        (:if (featurep :system 'macos) macos)  ; improve compatibility with macOS
-        tty               ; improve the terminal Emacs experience
+       tty               ; improve the terminal Emacs experience
 
        :lang
        ;;ada               ; In strong typing we (blindly) trust
@@ -149,7 +149,7 @@
        ;;javascript        ; all(hope(abandon(ye(who(enter(here))))))
        ;;julia             ; a better, faster MATLAB
        ;;kotlin            ; a better, slicker Java(Script)
-        (latex +cdlatex +fold) ; writing papers in Emacs has never been so fun
+       (latex +cdlatex +fold) ; writing papers in Emacs has never been so fun
        ;;lean              ; for folks with too much to prove
        ;;ledger            ; be audit you can be
        ;;lua               ; one-based indices? one-based indices

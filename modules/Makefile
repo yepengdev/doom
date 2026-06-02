@@ -1,20 +1,16 @@
-# Makefile for Doom Emacs dynamic C modules
-# Usage:  make          # build all .so files
-#         make clean    # remove all .so files
-
-EMACS_MODULE_INC = $(shell pkg-config --cflags emacs 2>/dev/null \
-  || echo "-I/usr/include/emacs-$(shell emacs --version | head -1 | sed 's/.*Emacs //; s/\..*//')")
 CC = gcc
-CFLAGS = -shared -fPIC -O2 -Wall -Wextra -fstack-protector-strong -D_FORTIFY_SOURCE=2 $(EMACS_MODULE_INC)
+CFLAGS = -Wall -Wextra -std=c99 -O2 -fPIC
+NOTIFY_LIBS = $(shell pkg-config --cflags --libs libnotify glib-2.0) -lpthread
 
-MODULES = count-cjk.so
+all: cnotify-module.so count-cjk.so
 
-.PHONY: all clean
-
-all: $(MODULES)
+cnotify-module.so: cnotify-module.c
+	$(CC) $(CFLAGS) -shared -o $@ $^ $(NOTIFY_LIBS)
 
 count-cjk.so: count-cjk.c
-	$(CC) $(CFLAGS) $< -o $@
+	$(CC) $(CFLAGS) -shared -o $@ $^
 
 clean:
-	rm -f $(MODULES)
+	rm -f cnotify-module.so count-cjk.so
+
+.PHONY: all clean

@@ -961,8 +961,9 @@ Bound to `SPC h r R`."
 (map! :leader
       :desc "Full reload" "h r R" #'my/doom-full-reload)
 
-;; ── cnotify: C dynamic module (libnotify + timer + pomodoro) ─────
-(module-load (expand-file-name "cnotify/cnotify-module.so" doom-user-dir))
+;; ── C dynamic modules: cnotify (notify/timer/pomodoro) + count-cjk ──
+(module-load (expand-file-name "modules/cnotify-module.so" doom-user-dir))
+(module-load (expand-file-name "modules/count-cjk.so" doom-user-dir))
 
 (defun my/pomodoro-start (&optional work-min break-min)
   "Start pomodoro: WORK-MIN focus / BREAK-MIN rest (default 25/5)."
@@ -984,10 +985,22 @@ Bound to `SPC h r R`."
   (interactive)
   (cnotify-timer-stop))
 
+(defun my/word-count (&optional beg end)
+  "Count CJK/English chars and words in region (or whole buffer)."
+  (interactive "r")
+  (let* ((text (if (use-region-p)
+                   (buffer-substring-no-properties beg end)
+                 (buffer-substring-no-properties (point-min) (point-max))))
+         (label (if (use-region-p) "Region" "Buffer"))
+         (v    (my/count-text text)))
+    (message "%s: %d CJK chars, %d punct, %d EN words (%d EN chars), %d total cp"
+             label
+             (aref v 0) (aref v 1) (aref v 2) (aref v 3) (aref v 4))))
+
 (map! :leader
-      (:prefix-map ("m t" . "Timer")
-       :desc "Start countdown"  "t" #'my/timer-start
-       :desc "Stop"             "T" #'my/timer-stop)
-      (:prefix-map ("m p" . "Pomodoro")
-       :desc "Start"            "s" #'my/pomodoro-start
-       :desc "Stop"             "S" #'my/pomodoro-stop))
+      (:prefix-map ("r t" . "Tools")  ; 工具类: timer / pomodoro / word-count
+       :desc "Start timer"              "t" #'my/timer-start
+       :desc "Stop timer"               "T" #'my/timer-stop
+       :desc "Start pomodoro"           "s" #'my/pomodoro-start
+       :desc "Stop pomodoro"            "S" #'my/pomodoro-stop
+       :desc "Word/char count"          "w" #'my/word-count))

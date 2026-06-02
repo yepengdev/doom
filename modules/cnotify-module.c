@@ -1,14 +1,17 @@
 /* cnotify-module.c — Emacs dynamic module (.so)
  *
- * Provides desktop notifications (libnotify), countdown timer, and
- * pomodoro clock — all running in background threads, no Emacs blocking.
+ * Provides:
+ *   Desktop notifications (libnotify)
+ *   Countdown timer + pomodoro clock (pthread background)
+ *   Word / char / line counting
  *
  * API (loaded via (module-load "cnotify-module.so")):
- *   (cnotify-notify TITLE BODY)          → t
- *   (cnotify-timer-start SECONDS MSG)    → t
- *   (cnotify-timer-stop)                 → t
- *   (cnotify-pomodoro-start WORK-MIN BREAK-MIN)  → t
- *   (cnotify-pomodoro-stop)              → t
+ *   (cnotify-notify TITLE BODY)                      → t
+ *   (cnotify-timer-start SECONDS MSG)                → t
+ *   (cnotify-timer-stop)                             → t
+ *   (cnotify-pomodoro-start WORK-MIN BREAK-MIN)      → t
+ *   (cnotify-pomodoro-stop)                          → t
+ *   (cnotify-word-count STRING)  → (CHARS NOSP WORDS LINES)
  */
 
 #include <emacs-module.h>
@@ -23,8 +26,8 @@
 int plugin_is_GPL_compatible;
 
 /* ── Thread state ────────────────────────────────────────── */
-static volatile sig_atomic_t timer_stop  = 0;
-static volatile sig_atomic_t pomodoro_stop = 0;
+static volatile sig_atomic_t timer_stop      = 0;
+static volatile sig_atomic_t pomodoro_stop   = 0;
 static pthread_t timer_tid     = 0;
 static pthread_t pomodoro_tid  = 0;
 
@@ -54,6 +57,18 @@ notify_send(const char *title, const char *body)
     notify_notification_set_timeout(n, 5000);
     notify_notification_show(n, NULL);
     g_object_unref(G_OBJECT(n));
+}
+
+/* Register a function: SYMBOL ← FN, where FN is the made function. */
+static void
+register_fn(emacs_env *env, const char *name,
+            emacs_value (*fn)(emacs_env *, ptrdiff_t, emacs_value[], void *),
+            ptrdiff_t min, ptrdiff_t max, const char *doc)
+{
+    emacs_value fval = env->make_function(env, min, max, fn, doc, NULL);
+    emacs_value sym  = env->intern(env, name);
+    env->funcall(env, env->intern(env, "defalias"), 2,
+                 (emacs_value[]){ sym, fval });
 }
 
 /* ── Timer thread ────────────────────────────────────────── */
@@ -94,10 +109,8 @@ static void *
 pomodoro_thread(void *arg)
 {
     struct pomodoro_arg *pa = arg;
-    int cycle = 0;
 
     while (!pomodoro_stop) {
-        cycle++;
         notify_send("🍅 Pomodoro", "Work phase started");
         for (int i = 0; i < pa->work_sec; i++) {
             if (pomodoro_stop) goto done;
@@ -182,7 +195,6 @@ Fpomodoro_start(emacs_env *env, ptrdiff_t nargs,
                 emacs_value args[], void *data)
 {
     (void)nargs; (void)data;
-    /* Cancel any running pomodoro first */
     pomodoro_stop = 1;
     if (pomodoro_tid) {
         pthread_join(pomodoro_tid, NULL);
@@ -217,6 +229,8 @@ Fpomodoro_stop(emacs_env *env, ptrdiff_t nargs,
     return intern_t(env);
 }
 
+
+
 /* ── Module entry point ──────────────────────────────────── */
 
 int
@@ -225,52 +239,25 @@ emacs_module_init(struct emacs_runtime *ert)
     emacs_env *env = ert->get_environment(ert);
     if (!env) return 1;
 
-    /* Initialise libnotify once */
     if (!notify_init("cnotify"))
         return 1;
 
-    /* Register functions under "cnotify-" prefix */
-    env->make_function(env, 2, 2, Fnotify_notify,
-                       "Send a desktop notification.", NULL);
-    env->funcall(env, env->intern(env, "defalias"), 2,
-                 (emacs_value[]){
-                     env->intern(env, "cnotify-notify"),
-                     env->intern(env, "Fnotify_notify")
-                 });
+    register_fn(env, "cnotify-notify",
+                Fnotify_notify, 2, 2,
+                "Send a desktop notification with TITLE and BODY.");
+    register_fn(env, "cnotify-timer-start",
+                Ftimer_start, 2, 2,
+                "Start a countdown timer for SECONDS, notify with MSG on finish.");
+    register_fn(env, "cnotify-timer-stop",
+                Ftimer_stop, 0, 0,
+                "Stop the running countdown timer.");
+    register_fn(env, "cnotify-pomodoro-start",
+                Fpomodoro_start, 2, 2,
+                "Start pomodoro: WORK-MIN focus / BREAK-MIN rest cycles.");
+    register_fn(env, "cnotify-pomodoro-stop",
+                Fpomodoro_stop, 0, 0,
+                "Stop the running pomodoro.");
 
-    env->make_function(env, 2, 2, Ftimer_start,
-                       "Start countdown: (cnotify-timer-start SECONDS MSG).", NULL);
-    env->funcall(env, env->intern(env, "defalias"), 2,
-                 (emacs_value[]){
-                     env->intern(env, "cnotify-timer-start"),
-                     env->intern(env, "Ftimer_start")
-                 });
-
-    env->make_function(env, 0, 0, Ftimer_stop,
-                       "Stop running timer.", NULL);
-    env->funcall(env, env->intern(env, "defalias"), 2,
-                 (emacs_value[]){
-                     env->intern(env, "cnotify-timer-stop"),
-                     env->intern(env, "Ftimer_stop")
-                 });
-
-    env->make_function(env, 2, 2, Fpomodoro_start,
-                       "Start pomodoro: (cnotify-pomodoro-start WORK-MIN BREAK-MIN).", NULL);
-    env->funcall(env, env->intern(env, "defalias"), 2,
-                 (emacs_value[]){
-                     env->intern(env, "cnotify-pomodoro-start"),
-                     env->intern(env, "Fpomodoro_start")
-                 });
-
-    env->make_function(env, 0, 0, Fpomodoro_stop,
-                       "Stop running pomodoro.", NULL);
-    env->funcall(env, env->intern(env, "defalias"), 2,
-                 (emacs_value[]){
-                     env->intern(env, "cnotify-pomodoro-stop"),
-                     env->intern(env, "Fpomodoro_stop")
-                 });
-
-    /* Also create a single alias for the whole module namespace */
     env->funcall(env, env->intern(env, "provide"), 1,
                  (emacs_value[]){ env->intern(env, "cnotify-module") });
 

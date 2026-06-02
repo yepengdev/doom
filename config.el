@@ -960,3 +960,23 @@ Bound to `SPC h r R`."
 
 (map! :leader
       :desc "Full reload" "h r R" #'my/doom-full-reload)
+
+;; ── Pomodoro via cnotify ──────────────────────────────────────────
+(defun my/pomodoro-start (work-min break-min)
+  "Start a pomodoro with WORK-MIN work and BREAK-MIN break."
+  (interactive "nWork minutes (default 25): \nnBreak minutes (default 5): ")
+  (let ((w (or work-min 25))
+        (b (or break-min 5)))
+    (start-process "pomodoro" nil "cnotify" "pomodoro"
+                   "-w" (number-to-string w)
+                   "-b" (number-to-string b))))
+
+(defun my/pomodoro-stop ()
+  "Stop the running pomodoro."
+  (interactive)
+  (call-process "cnotify" nil nil nil "stop"))
+
+(map! :leader
+      (:prefix-map ("m p" . "Pomodoro")
+       :desc "Start"  "s" #'my/pomodoro-start
+       :desc "Stop"   "S" #'my/pomodoro-stop))

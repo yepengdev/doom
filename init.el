@@ -16,7 +16,7 @@
 
 (doom! :input
        ;;bidi              ; (tfel ot) thgir etirw uoy gnipleh
-       ;;chinese
+       chinese             ; 中文拼音首字母搜索（SPC s s 可用）
        ;;japanese
        ;;layout            ; auie,ctsrnm is the superior home row
 

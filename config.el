@@ -964,6 +964,7 @@ Bound to `SPC h r R`."
 ;; ── C dynamic modules: cnotify (notify/timer/pomodoro) + count-cjk ──
 (module-load (expand-file-name "modules/cnotify-module.so" doom-user-dir))
 (module-load (expand-file-name "modules/count-cjk.so" doom-user-dir))
+(module-load (expand-file-name "modules/clipboard-wl.so" doom-user-dir))
 
 ;; ─── Pomodoro log ────────────────────────────────────────────────────────
 (defvar my/pomodoro-log-file

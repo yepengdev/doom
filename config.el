@@ -952,6 +952,8 @@
 ;; ── C 动态模块路径 ─────────────────────────────────────────────
 (defvar my/cnotify-so (expand-file-name "modules/cnotify-module.so" doom-user-dir)
   "cnotify 模块的 .so 文件路径。首次使用时惰性加载。")
+(defvar my/random-so (expand-file-name "modules/random.so" doom-user-dir)
+  "random 模块的 .so 文件路径。首次使用时惰性加载。")
 
 
 
@@ -1074,6 +1076,21 @@
 
 
 
+(defun my/random--ensure ()
+  "确保 random C 模块已加载。首次调用时通过 module-load 加载 .so。"
+  (unless (featurep 'random-module)
+    (module-load my/random-so)))
+
+(defun my/random-password (&optional length)
+  "生成随机密码并复制到剪贴板。
+使用内核熵池（getrandom），不回退 PRNG。"
+  (interactive "P")
+  (my/random--ensure)
+  (let* ((len (if (numberp length) length 24))
+         (pw (random-password len)))
+    (kill-new pw)
+    (message "🔑 密码（%d 字符）已复制到剪贴板" len)))
+
 (defun my/word-count (&optional beg end)
   "统计区域（或整个缓冲区）中的 CJK/英文字符和词数。"
   (interactive "r")
@@ -1092,6 +1109,7 @@
        :desc "Stop timer"               "T" #'my/timer-stop
        :desc "Start pomodoro"           "s" #'my/pomodoro-start
        :desc "Stop pomodoro"            "S" #'my/pomodoro-stop
+       :desc "Generate password"        "p" #'my/random-password
        :desc "Word count"               "w" #'my/word-count
        :desc "Pomodoro stats"           "v" #'my/pomodoro-show-stats))
 

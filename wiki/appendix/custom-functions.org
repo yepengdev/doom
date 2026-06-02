@@ -21,6 +21,11 @@
 | ~my/pomodoro-start~    | config.el | 开始番茄钟（~SPC r t s~） |
 | ~my/pomodoro-stop~     | config.el | 停止番茄钟（~SPC r t S~） |
 | ~my/pomodoro-show-stats~ | config.el | 番茄钟统计（~SPC r t v~） |
+| ~my/random-password~    | config.el | 生成随机密码并复制到剪贴板（~SPC r t p~，C 模块） |
+| ~random-password~       | random.so | C 函数：生成随机密码字符串（内核熵池） |
+| ~my/random-bytes~       | random.so | C 函数：返回 N 个随机字节 |
+| ~my/random-int~         | random.so | C 函数：返回 [0, N-1] 随机整数 |
+| ~my/random-in-range~    | random.so | C 函数：返回 [MIN, MAX] 随机整数 |
 | ~org-capture-goto-target~ | config.el | 跳转到 capture 模板目标位置 |
 
 * 变量
@@ -37,6 +42,7 @@
 | ~my/pandoc-dir~ | Pandoc 资源目录 |
 | ~my/org-export-assets-dir~ | HTML 导出资源目录 |
 | ~my/cnotify-so~ | cnotify 模块路径（~modules/cnotify-module.so~） |
+| ~my/random-so~ | random 模块路径（~modules/random.so~） |
 | ~my/pomodoro-log-file~ | 番茄钟日志文件路径 |
 | ~my/pomodoro-default-task~ | 默认番茄钟任务名 |
 | ~my/cnotify-indicator~ | 模式行计时器指示器字符串 |

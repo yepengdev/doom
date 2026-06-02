@@ -1,0 +1,52 @@
+#+TITLE: ADR-07: 用 latexmk 替代四步编译
+#+DATE: 2024
+#+STATUS: accepted
+
+* Context
+
+Org → LaTeX → PDF 的编译流程。默认的 ~org-latex-pdf-process~ 是硬编码的四步：
+
+#+BEGIN_SRC emacs-lisp
+;; Doom/Org 默认: (latex → bibtex → latex → latex)
+"latexmk -pdf -%latex -interaction=nonstopmode -output-directory=%o %f"
+#+END_SRC
+
+但四步流程有缺陷：
+1. 无论是否需要，总是运行 bibtex（无 .bib 文件时浪费）
+2. 无论是否需要，总是运行 3 次 latex（即使 1 次就够了）
+3. 不检测 makeindex / nomencl 等额外流程
+
+* Decision
+
+使用 latexmk 的单命令模式：
+
+#+BEGIN_SRC emacs-lisp
+(setq org-latex-pdf-process
+      '("latexmk -xelatex -shell-escape -interaction=nonstopmode -f -output-directory=%o %f"))
+#+END_SRC
+
+latexmk 的特点是：
+- 自动检测需要多少次编译
+- 自动检测是否需要 bibtex/biber/makeindex
+- 仅在必要时重跑
+- 支持 ~-f~（强制即使错误也继续）
+
+* Consequences
+
+**正面**
+
+- 小型文档：latexmk 1-2 轮即退出（vs 硬编码 3 轮），速度提升 30-50%
+- 大型文档：latexmk 智能检测交叉引用变化，不多跑也不少跑
+- 统一命令：不需要区分 ~C-c C-c LaTeX~、~C-c C-c BibTeX~ 等组合
+- 配合 ~-xelatex~ 省去手动设置编译引擎
+
+**负面**
+
+- 依赖 latexmk（Perl 脚本），不是所有系统预装
+- ~-shell-escape~ 开启 shell escape（安全风险：minted 需要它调用 pygments）
+- latexmk 的输出格式和标准 latex/bibtex 不同，需要适应
+
+* 参考
+
+- ~/.config/doom/config.el 第 357-358 行
+- ~/org/latexmkrc（如果存在——latexmk 的全局配置）

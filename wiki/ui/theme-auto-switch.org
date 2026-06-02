@@ -1,0 +1,41 @@
+#+TITLE: 主题自动切换
+
+* 方案
+
+| 时段 | 主题 | 风格 |
+|------+------+------|
+| 07:00 – 18:59 | ~doom-one-light~ | 浅色白天 |
+| 19:00 – 06:59 | ~doom-tokyo-night~ | 深色夜间 |
+
+* 实现
+
+三个函数 + 一个 hook：
+
+**~my/theme-for-hour~** — 根据当前小时返回主题符号。
+阈值由 ~my/theme-day-start~ (7) 和 ~my/theme-night-start~ (19) 控制。
+
+**~my/theme-apply~** — 设置 ~doom-theme~ 并调用 ~doom/reload-theme~。
+
+**~my/theme-switch-maybe~** — 挂载在 ~doom-switch-frame-hook~ 上，首次匹配时自卸。
+这样设计的原因：
+1. 守护进程 (daemon) 模式下，启动时没有 GUI frame，~emacs-startup-hook~ 中切换主题无效
+2. ~doom-switch-frame-hook~ 在第一个 GUI frame 创建时触发
+3. 触发一次后自卸，避免每次 frame 切换都检查
+
+* Daemon-safe 模式
+
+#+BEGIN_SRC emacs-lisp
+(setq doom-theme (my/theme-for-hour))
+(add-hook 'doom-switch-frame-hook #'my/theme-switch-maybe 'append)
+#+END_SRC
+
+~setq~ 确保非图形启动时使用正确的主题变量；hook 确保图形显示时真正渲染。
+
+* 自定义
+
+| 变量 | 默认值 | 用途 |
+|------+--------+------|
+| ~my/theme-day~ | ~doom-one-light~ | 白天主题 |
+| ~my/theme-night~ | ~doom-tokyo-night~ | 夜间主题 |
+| ~my/theme-day-start~ | 7 | 切换为白天的小时 |
+| ~my/theme-night-start~ | 19 | 切换为夜间的小时 |

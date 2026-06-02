@@ -1,0 +1,43 @@
+#+TITLE: Palimpsest 搬移文本
+
+* 用途
+
+写作中常有"这段去掉，但可能以后会用"的冲动。Palimpsest 提供"搬移而非删除"的三个目的地：
+- Buffer 顶部（保持上下文，临时避难）
+- Buffer 底部（同上，但收藏在底部）
+- Trash 文件（~<basename>.trash.<ext>~，持久化保留）
+
+* 配置
+
+#+BEGIN_SRC emacs-lisp
+(use-package! palimpsest
+  :hook (org-mode . palimpsest-mode)
+  :config
+  (map! :localleader
+        :map org-mode-map
+        :prefix ("P" . "Palimpsest")
+        :desc "Move to top"    "t" #'palimpsest-move-region-to-top
+        :desc "Move to bottom" "b" #'palimpsest-move-region-to-bottom
+        :desc "Move to trash"  "T" #'palimpsest-move-region-to-trash))
+#+END_SRC
+
+* 操作
+
+1. 选中区域（~V~ 或 ~v~）
+2. ~SPC m P t~ — 移至 buffer 顶部
+3. ~SPC m P b~ — 移至 buffer 底部
+4. ~SPC m P T~ — 移至 ~<file>.trash.<ext>~
+
+Trash 文件的格式与原始文件相同，可以用 ~recenter-top-bottom~ 或翻到文件末尾查看，
+或打开 ~.trash.~ 文件独立处理。
+
+* 与 delete/kill 的对比
+
+| 方式 | 效果 | 恢复难度 |
+|------+------+----------|
+| ~dd~ / ~x~ | 删除文本 | undo 回退（有限步数） |
+| ~d~ ~d~ | 删除 | undo |
+| palimpsest top | 移到当前 buffer 顶部 | ~gg~ ~d~ ~d~（删除顶部）undo |
+| palimpsest trash | 移到独立文件 | 打开 trash 文件恢复 |
+
+Palimpsest 的优势：关闭文件后不丢失（trash 文件持久）、不影响当前编辑空间（放底部/顶部）、不会干扰 undo 链（不是 deletion）。

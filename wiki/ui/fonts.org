@@ -1,0 +1,50 @@
+#+TITLE: 字体堆栈
+#+STARTUP: overview
+
+* 配置
+
+#+BEGIN_SRC emacs-lisp
+(after! doom-ui
+  (setq doom-font (font-spec :family "Monaspace Neon" :size 16)
+        doom-variable-pitch-font (font-spec :family "Monaspace Neon" :size 16))
+  (set-fontset-font t 'han (font-spec :family "LXGW WenKai Mono Screen" :size 16)))
+#+END_SRC
+
+* 选型理由
+
+**Monaspace Neon**
+- GitHub Next 出品，专为代码阅读设计
+- 1/l/I 明确区分（vs Iosevka 需要额外配置、Cascadia Code 不够锐利）
+- 比例字体也是同一家族，保证 prose 和 code 切换时视觉连续
+- 支持编程连字（如 /=~ 、-> 、>= 自动组合），但 ligatures 模块未启用
+
+**LXGW WenKai Mono Screen**
+- 霞鹜文楷 Monospace Screen 版——楷体骨架 + 等宽适配
+- x-height 和字重与 Monaspace Neon 接近（中英文混排时行高均匀）
+- 简化字形（Screen 版裁剪了过度的书法笔画），屏幕阅读友好
+
+* 字体栈渲染
+
+- 拉丁字母 → Monaspace Neon (16pt)
+- CJK 表意文字 (U+4E00-U+9FFF, Ext A-H) → LXGW WenKai Mono Screen (16pt)
+- 日韩汉字 (U+3040-等) → Monaspace Neon fallback → 系统 fallback
+- Emoji → 系统表情字体
+
+~set-fontset-font~ 的 ~t~ 参数表示 "修改默认 fontset"（即 frame 的默认字体集），
+~han~ 覆盖了 CJK 统一表意文字码段。
+
+* 诊断
+
+| 命令 | 用途 |
+|------+------|
+| ~fc-list :lang=zh~ | 检查系统安装的中文字体 |
+| ~M-x describe-font~ | 查看 frame 当前字体 |
+| ~M-x describe-char~ | 查看光标字符的实际渲染字体 |
+| ~C-u C-x =~ | 同上（字符信息） |
+| ~M-x doom/reload-font~ | 修改字体后立即生效 |
+
+* 注意事项
+
+- 字体必须提前在操作系统中安装（不是放到 Emacs 目录就行）
+- 修改 ~doom-font~ 后必须 ~doom/reload-font~ 或重启
+- CJK 字体大小和 Latin 字体尺寸匹配是经验活——16 已经是调整后的值

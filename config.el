@@ -369,12 +369,12 @@
   ;;     placement (before metalink, after color definitions).
   (org-latex-default-packages-alist
    (cl-remove '("" "hyperref" t)
-    (cl-remove '("T1" "fontenc" t)
-     (cl-remove '("AUTO" "inputenc" t)
-                org-latex-default-packages-alist
-                :test #'equal)
-              :test #'equal)
-            :test #'equal))
+              (cl-remove '("T1" "fontenc" t)
+                         (cl-remove '("AUTO" "inputenc" t)
+                                    org-latex-default-packages-alist
+                                    :test #'equal)
+                         :test #'equal)
+              :test #'equal))
 
   :config
   ;; Custom LaTeX class for Chinese typesetting, based on ctexbook.
@@ -727,10 +727,8 @@
   (immersive-translate-backend 'baidu)
   (immersive-translate-baidu-appid (getenv "BAIDU_TRANSLATE_APPID"))
   (immersive-translate-auto-idle 0.5)
-  :init
-  (add-hook! 'doom-first-buffer-hook
-    (add-hook 'nov-pre-html-render-hook #'immersive-translate-setup)
-    (add-hook 'org-mode-hook #'immersive-translate-setup)))
+  :hook (nov-pre-html-render-hook . immersive-translate-setup)
+        (org-mode-hook . immersive-translate-setup))
 
 ;; ─── Chinese input method (fcitx5) ────────────────────────────────────────
 ;;
@@ -778,7 +776,7 @@
 (defvar my/cjk-regexp "\\(?:[一-鿿㐀-䶵𠀀-𪛟𪜀-𫜸𫝀-𫠝𫠠-𬺡𬺰-𮯠丽-𪘀]\\)")
 (defvar my/cjk-punct-regexp "\\(?:[。，、；：？！“”‘’（）【】《》—…～·『』〔〕〖〗〘〙〚〛〜　]\\)")
 
-;;###autoload
+;;;###autoload
 (defun my/count-chinese-chars (&optional beg end)
   (interactive)
   (let* ((beg (or beg (if (use-region-p) (region-beginning) (point-min))))

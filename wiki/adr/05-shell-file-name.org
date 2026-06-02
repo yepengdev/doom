@@ -1,0 +1,44 @@
+#+TITLE: ADR-05: shell-file-name=bash 但 vterm-shell=fish
+#+DATE: 2024
+#+STATUS: accepted
+
+* Context
+
+Zsh/Fish 等现代 shell 有 POSIX 兼容问题。Emacs 内部使用 `shell-file-name` 执行
+~shell-command~、~compile~、进程通信等；而交互式终端 (~vterm~、~M-x shell~)
+的用户体验应该用用户偏好的 shell。
+
+* Decision
+
+双 shell 策略：
+
+#+BEGIN_SRC emacs-lisp
+;; 内部命令 → bash（POSIX 兼容）
+(setq shell-file-name (executable-find "bash"))
+
+;; 交互终端 → fish（用户友好）
+(setq-default vterm-shell "/usr/bin/fish")
+(setq-default explicit-shell-file-name "/usr/bin/fish")
+#+END_SRC
+
+- ~shell-file-name~：Emacs 的 ~call-process~、~shell-command~ (~M-!~) 等使用
+- ~vterm-shell~：~vterm~ 启动的 shell
+- ~explicit-shell-file-name~：~M-x shell~ 启动的 shell
+
+* Consequences
+
+**正面**
+
+- ~M-!~ ~compile~ ~async-shell-command~ 等用 bash 执行，避免 fish 的语法差异
+  （如 ~export FOO=bar~ vs ~set -x FOO bar~、~if [ ... ]~ vs ~if test ...~）
+- ~vterm~ 中用 fish，享受自动建议、语法高亮、web 搜索等 fish 特有的交互功能
+- ~M-x shell~ 中也用 fish（~explicit-shell-file-name~），用户一致体验
+
+**负面**
+
+- 初学者容易混淆：为什么 ~M-!~ 不能用 fish 语法？
+- 某些 Elisp 包假设 ~shell-file-name~ 是交互 shell
+
+* 参考
+
+- ~/.config/doom/config.el 第 116-121 行

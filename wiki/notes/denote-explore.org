@@ -1,0 +1,48 @@
+#+TITLE: 探索与分析 (denote-explore)
+
+* 用途
+
+笔记库的元层面工具：统计、随机浏览、网络图、维护检查。
+
+* 统计
+
+- ~SPC r d e c~ — 笔记总数
+- ~SPC r d e C~ — 关键词频次统计（哪个关键词被用得最多）
+- 年度柱状图（每年创建了多少笔记）
+- 链接度数分布（入链/出链的数量统计）
+
+* 随机浏览
+
+- ~SPC r d e r~ — 随机打开一篇笔记
+- ~SPC r d e l~ — 随机打开一篇有入链的笔记
+- 按关键词过滤随机
+
+* 网络图
+
+~SPC r d e n~ 生成交互式 d3.js 网络图（在浏览器中打开）。
+
+| 视图模式 | 说明 |
+|----------+------|
+| community | 按关键词/链接密度分群 |
+| neighbourhood | 以某笔记为中心的邻域图 |
+| sequence | 层级树状图 |
+| keywords | 关键词网络 |
+
+* 维护检查
+
+- 重复标识符检测（同一 ID 出现多次）
+- 死链接检测（链接指向不存在的文件）
+- 孤立笔记检测（无入链、无出链）
+
+* 完整命令列表
+
+| 命令 | 用途 |
+|------+------|
+| ~denote-explore-count-notes~ | 统计笔记 |
+| ~denote-explore-count-keywords~ | 统计关键词 |
+| ~denote-explore-random-note~ | 随机笔记 |
+| ~denote-explore-random-link~ | 随机有入链的笔记 |
+| ~denote-explore-network~ | 网络图 |
+| ~denote-explore-check-duplicate-identifiers~ | 重复 ID |
+| ~denote-explore-check-dead-links~ | 死链接 |
+| ~denote-explore-check-orphan-notes~ | 孤立笔记 |

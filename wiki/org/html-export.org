@@ -1,0 +1,40 @@
+#+TITLE: HTML 导出（本地主题）
+
+* 原则
+
+零 JavaScript、无 CDN 依赖、完全离线可用。
+
+* 实现
+
+关闭 Org 默认的 HTML 样式，替换为本地 CSS：
+
+#+BEGIN_SRC emacs-lisp
+(defvar my/org-export-assets-dir
+  (expand-file-name "org-export/minimal" doom-user-dir))
+
+(after! ox-html
+  (setq org-html-head-include-default-style nil)
+  (let ((css-dir (expand-file-name "css" my/org-export-assets-dir)))
+    (setq org-html-head
+          (concat
+           "<link rel=\"stylesheet\" type=\"text/css\" href=\"" css-dir "/org.css\"/>\n"
+           "<link rel=\"stylesheet\" type=\"text/css\" href=\"" css-dir "/htmlize.css\"/>"))
+    (setq org-html-head-extra "")))
+#+END_SRC
+
+* 文件结构
+
+#+BEGIN_SRC text
+~/.config/doom/org-export/minimal/
+  css/
+    org.css      -- 主样式表（排版、颜色、布局）
+    htmlize.css  -- 代码语法高亮样式
+#+END_SRC
+
+- ~org.css~ 定义正文排版（字体、行距、标题层级、表格边框、代码块、引用块）
+- ~htmlize.css~ 由 ~htmlize.el~ 生成，每个导出时根据当前 theme 重生成
+- 路径使用绝对路径 ~file://~ 引用，确保离线可工作
+
+* 自定义
+
+编辑 ~org.css~ 即可调整导出样式。无需重新编译，下次 ~C-c C-e h h~ 即生效。

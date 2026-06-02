@@ -1,0 +1,36 @@
+#+TITLE: ADR-01: Denote 而非 Org-roam
+#+DATE: 2024
+#+STATUS: accepted
+
+* Context
+
+Doom Emacs 环境下需要一个笔记系统。两个主流选择：
+- **Org-roam** — 基于 SQLite 数据库的 Roam Research 克隆，双向链接、反向链接浏览器、graph 视图
+- **Denote** — 基于文件命名的 Zettelkasten 系统，纯文本，无数据库
+
+* Decision
+
+选择 Denote 全家族（denote + denote-org + denote-sequence + denote-explore + denote-journal + denote-menu + consult-notes）。
+
+* Consequences
+
+**正面**
+
+- **纯文本可移植性**：笔记是普通文件，任何编辑器/工具都能读取。不依赖 SQLite 数据库——数据库损坏意味着丢失所有链接元数据
+- **Git 原生友好**：文件命名包含 timestamp+title+keywords，Git diff 可读。Org-roam 的 SQLite 数据库无法合理 diff
+- **备份简单**：`rsync` / `tar` 整个目录即可，无需额外 dump 数据库
+- **无外部依赖**：不需要 SQLite C 库、不需要 `ripgrep` 之外的搜索工具
+- **文件名即元数据**：`20240322T131856--some-title__topic1_topic2.org` 一眼可知创建时间、标题、关键词
+- **序列笔记 (Folgezettel)**：Org-roam 的纯层级 vs Denote-sequence 的父子兄弟签名方案，更适合写作而非知识图谱狂热
+
+**负面**
+
+- 无内建 graph 视图（denote-explore 的 d3.js 网络图是独立的，不如 Org-roam 原生）
+- 无内建 daily notes（denote-journal 补足）
+- 无自动 backlinks（denote-org-backlinks-for-heading 需要手动触发）
+- 社区规模小（但 Protesilaos Stavrou 是 Emacs 核心贡献者，质量有保障）
+
+* 参考
+
+- ~/.config/doom/config.el 第 507-627 行
+- https://protesilaos.com/emacs/denote

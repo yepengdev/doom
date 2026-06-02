@@ -1,0 +1,55 @@
+#+TITLE: PDF 阅读 (pdf-tools)
+#+STARTUP: overview
+
+* 用途
+
+使用 pdf-tools 在 Emacs 中阅读 PDF，支持：平滑滚动、搜索、批注、链接。
+
+* 配置
+
+#+BEGIN_SRC emacs-lisp
+(after! pdf-tools
+  (setq pdf-view-display-size 'fit-page
+        pdf-view-resize-factor 1.1
+        pdf-annot-activate-created-annotations t
+        pdf-view-use-scaling nil
+        pdf-view-use-imagemagick nil
+        pdf-view-selection-style 'glyph)
+  (add-hook! 'pdf-view-mode-hook #'pdf-view-roll-minor-mode #'evil-emacs-state))
+#+END_SRC
+
+* 核心设置
+
+| 选项 | 值 | 说明 |
+|------+-----+------|
+| ~pdf-view-display-size~ | ~fit-page~ | 整页显示（类似 PDF 阅读器） |
+| ~pdf-view-resize-factor~ | 1.1 | 缩放步长（~+~ ~-~ 每次 ±10%） |
+| ~pdf-annot-activate-created-annotations~ | t | 创建批注后立即激活编辑 |
+| ~pdf-view-roll-minor-mode~ | on | 连续滚动（而非逐页） |
+| ~evil-emacs-state~ | on | 用 Emacs state（i 键即可阅读/搜索，无需切换模式） |
+
+* Zathura 备用
+
+~g z~（Normal 模式）用 Zathura 外部 PDF 阅读器打开当前 PDF。
+
+#+BEGIN_SRC emacs-lisp
+(map! :map pdf-view-mode-map
+      :n "g z" (cmd! (when-let ((f (buffer-file-name)))
+                       (start-process "zathura" nil "zathura" f))))
+#+END_SRC
+
+用途：
+- pdf-tools 无法渲染的特殊 PDF（如某些扫描件）
+- 需要 Zathura 的 Annotator 高级批注功能
+
+* org-pdftools
+
+#+BEGIN_SRC emacs-lisp
+(use-package! org-pdftools
+  :defer t
+  :commands org-pdftools-setup-link
+  :hook (org-load . org-pdftools-setup-link))
+#+END_SRC
+
+Org 中可以通过 ~[[pdf:~/file.pdf::10+5]]~ 链接到 PDF 的具体页面+位置。
+~C-c C-o~ 打开链接 → 跳转到 PDF 对应页面。

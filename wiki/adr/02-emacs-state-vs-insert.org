@@ -1,0 +1,50 @@
+#+TITLE: ADR-02: Emacs state 替换 Insert state
+#+DATE: 2024
+#+STATUS: accepted
+
+* Context
+
+中文用户使用 Evil (Vim 模拟) 时遇到核心冲突：Vim 的 Insert state 和 Normal state 切换时，fcitx5 输入法状态会错乱。
+- 进入 Insert state → fcitx5 应切换到中文模式（不一定）
+- 离开 Insert state → fcitx5 应切换到英文模式（不一定）
+- 用 fcitx5-remote 监控状态切换，但 Evil 的 Insert state 钩子时机不准确（在 state 进入前/后触发不可控）
+
+* Decision
+
+通过 `defalias` 将 `evil-insert-state` 永久重定向到 `evil-emacs-state`：
+
+#+BEGIN_SRC emacs-lisp
+(defalias 'evil-insert-state 'evil-emacs-state)
+(setq evil-emacs-state-cursor 'bar)
+(define-key evil-emacs-state-map (kbd "<escape>") 'evil-normal-state)
+#+END_SRC
+
+Emacs state 的行为：
+- 光标为竖线（~bar~），与 GUI 编辑器一致
+- ~<escape>~ 返回 Normal state
+- 没有挂载 fcitx5-remote 监控钩子 → IME 状态完全由用户手动控制
+- 配合 `fcitx-evil-turn-on` 做基准同步
+
+* Consequences
+
+**正面**
+
+- 中文输入稳定：不再因模式切换意外关闭/开启 IME
+- 光标视觉一致：bar 光标在 Insert 和 Emacs state 下相同
+- 简单：不需要复杂的 `evil-insert-state-entry-hook` + fcitx5-remote 脚本
+
+**负面**
+
+- 失去 Vim Insert state 的 C-w/C-h/C-u 等插入模式快捷键
+- 失去 `evil-insert-state-map` 的自定义能力（可通过 `define-key evil-emacs-state-map` 恢复部分）
+- 不标准——不符合 Doom/Evil 用户预期，需要适应
+
+* 权衡
+
+接受负面因素，因为中文输入稳定性是刚需。如果将来 fcitx5-evil 集成成熟（如 libfcitx 直接监听 Evil state），
+可以考虑恢复标准 Insert state。
+
+* 参考
+
+- ~/.config/doom/config.el 第 187-202 行
+- ~/.config/doom/config.el 第 740-745 行（fcitx 集成）

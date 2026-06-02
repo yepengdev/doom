@@ -1,0 +1,38 @@
+#+TITLE: Deft 快速笔记
+
+* 用途
+
+Deft 是独立的快速笔记浏览工具。与 Denote 互补：
+- Denote：严谨的文件命名、关键词分类、链接体系
+- Deft：随意创建、快速搜索、适合 fleeting notes
+
+Deft 目录：~/org/deft/
+
+* 配置
+
+#+BEGIN_SRC emacs-lisp
+(after! deft
+  (setq deft-directory "~/org/deft"
+        deft-recursive t)
+  (defun my/deft-parse-title (file contents)
+    (if (string-match "^#\\+[tT][iI][tT][lL][Ee]:\\s-*\\(.*\\)" contents)
+        (match-string 1 contents)
+      (deft-base-filename file)))
+  (advice-add 'deft-parse-title :override #'my/deft-parse-title)
+  (setq deft-strip-summary-regexp
+        (concat "\\("
+                "[\n\t]"
+                "\\|^#\\+[[:alpha:]_]+:.*$"
+                "\\|^:PROPERTIES:\n\\(.+\n\\)+:END:\n"
+                "\\)")))
+#+END_SRC
+
+* 自定义解析
+
+| 自定义 | 默认行为 | 我改成了 |
+|--------+----------+----------|
+| ~deft-parse-title~ | 只认 ~#+TITLE~（大写 T） | 认 ~#+title~ ~#+TITLE~ ~#+Title~ 等大小写变体 |
+| 标题 fallback | 无 | 使用文件名（~deft-base-filename~）——去掉扩展名 |
+| ~deft-strip-summary-regexp~ | 不清理 | 移除 ~#+KEY: value~ 行和 ~:PROPERTIES:~ ~:END:~ drawer |
+
+清理后的摘要更干净——只显示笔记正文，不包含 Org metadata。

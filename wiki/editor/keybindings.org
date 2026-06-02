@@ -1,0 +1,81 @@
+#+TITLE: map! 键位一览
+
+* 全局键
+
+| 键 | 命令 | 说明 |
+|-----+---------+-------------|
+| ~M-!~ | ~eshell-command~ | 执行单行 shell 命令并回显 |
+
+实现使用 ~map! :g~：
+
+#+BEGIN_SRC emacs-lisp
+(map! :g "M-!" #'eshell-command)
+#+END_SRC
+
+* Denote 前缀 (~SPC r d~)
+
+使用 ~:prefix-map~ 声明嵌套前缀：
+
+#+BEGIN_SRC emacs-lisp
+(map! :leader
+      (:prefix-map ("r d" . "Denote")
+       :desc "New note"  "n" #'denote
+       ...))
+#+END_SRC
+
+~SPC r d~ 的完整键位见 [[file:../notes/denote-keybindings.org][notes/denote-keybindings]]。
+
+* Palimpsest 本地 leader (~SPC m P~)
+
+使用 ~:localleader~ + ~:prefix~ 在 org-mode-map 内注册：
+
+#+BEGIN_SRC emacs-lisp
+(map! :localleader
+      :map org-mode-map
+      :prefix ("P" . "Palimpsest")
+      :desc "Move to top"    "t" #'palimpsest-move-region-to-top
+      :desc "Move to bottom" "b" #'palimpsest-move-region-to-bottom
+      :desc "Move to trash"  "T" #'palimpsest-move-region-to-trash)
+#+END_SRC
+
+* PDF 模式 (~g z~)
+
+#+BEGIN_SRC emacs-lisp
+(map! :map pdf-view-mode-map
+      :n "g z" (cmd! (when-let ((f (buffer-file-name)))
+                       (start-process "zathura" nil "zathura" f))))
+#+END_SRC
+
+* 中文计数 (~SPC r n c~)
+
+#+BEGIN_SRC emacs-lisp
+(map! :leader
+      (:prefix-map ("r n" . "Count")
+       :desc "Chinese chars" "c" #'my/count-chinese-chars))
+#+END_SRC
+
+* Denote org-mode 本地 leader (~SPC m D~)
+
+#+BEGIN_SRC emacs-lisp
+(map! :localleader
+      :map org-mode-map
+      :prefix ("D" . "Denote")
+      :desc "Link to heading"     "h" #'denote-org-link-to-heading
+      :desc "Heading backlinks"   "b" #'denote-org-backlinks-for-heading
+      :desc "Extract subtree"     "x" #'denote-org-extract-org-subtree)
+#+END_SRC
+
+* ~map!~ 语法参考
+
+| 关键字 | 含义 |
+|--------+------|
+| ~:g~ | global（所有模式） |
+| ~:n~ | normal state |
+| ~:v~ | visual state |
+| ~:i~ | insert state |
+| ~:leader~ | ~SPC~ 前缀 |
+| ~:localleader~ | ~SPC m~ 前缀 |
+| ~:map~ | 指定 mode map |
+| ~:prefix~ | 子前缀 |
+| ~:prefix-map~ | 声明 leader 前缀菜单 |
+| ~:desc~ | which-key 显示的描述 |

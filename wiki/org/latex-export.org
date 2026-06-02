@@ -1,0 +1,103 @@
+#+TITLE: LaTeX 导出
+#+STARTUP: overview
+
+* 引擎选择
+
+#+BEGIN_SRC emacs-lisp
+(setq-default TeX-engine 'xetex)
+#+END_SRC
+
+XeLaTeX 是唯一能原生处理中文 + OpenType 字体的 LaTeX 引擎。
+PDFTeX 需要 ~CJKutf8~ 宏包，且无法直接使用 TTF/OTF 字体。
+
+* 构建系统
+
+#+BEGIN_SRC emacs-lisp
+(setq org-latex-pdf-process
+      '("latexmk -xelatex -shell-escape -interaction=nonstopmode -f -output-directory=%o %f"))
+#+END_SRC
+
+见 [[file:../adr/07-latexmk.org][ADR-07]] 了解选择理由。
+
+* LaTeX 类：ctexbook
+
+自定义类模板，针对中文书籍/笔记排版。
+
+** 类定义基础
+
+~"ctexbook"~ 类继承自 ctexbook 文档类，覆盖以下部分：
+
+| 部分 | 内容 |
+|------+------|
+| 引擎 | XeLaTeX + UTF-8 |
+| 字体 | Fandol（CTeX 自带中文字体） |
+| 纸张 | 11pt, a4paper, twoside |
+| 页码 | ~secnumdepth{0}~（正文不编号，PDF 书签保留编号） |
+| 间距 | geometry: top=2.5cm, bottom=2.5cm, inner=3cm, outer=2cm |
+
+** 宏包
+
+| 宏包 | 用途 |
+|------+------|
+| ~xcolor~ | 标题/TODO 关键词着色 |
+| ~microtype~ | 微排版（XeLaTeX 下仅 protrusion） |
+| ~fancyhdr~ | 页眉页脚（左页章名、右页节名） |
+| ~hyperref~ | 彩色超链接（link=blue, cite=teal） |
+| ~xurl~ | URL 折行 |
+| ~minted~ | 代码高亮（pygments 后端） |
+| ~fvextra~ | Verbatim 环境折行 |
+| ~booktabs~ | 三线表 |
+| ~caption~ | 图表标题格式化 |
+| ~enumitem~ | 列表间距（nosep） |
+
+** 标题格式化：~my/org-latex-format-headline~
+
+#+BEGIN_SRC emacs-lisp
+(defun my/org-latex-format-headline (todo todo-type priority text tags _info)
+  (concat
+   (and todo ...)      ;; TODO/DONE → 红/绿加粗无衬线
+   (and priority ...)  ;; [#A] → 橙色
+   text
+   (and tags ...)))    ;; :tag: → 右对齐灰色
+#+END_SRC
+
+关键技巧：使用 ~\texorpdfstring{}{}~ 包裹所有 LaTeX 命令。
+- 第一参数：PDF 正文中显示的格式化文本（含 ~\color~ 等命令）
+- 第二参数：PDF 书签中显示的纯文本（无格式）
+- 没有这个，书签中会显示 ~{\color{red!65!black}DRAFT}~ 的原始代码
+
+** 移除的默认包
+
+#+BEGIN_SRC emacs-lisp
+(org-latex-default-packages-alist
+ (cl-remove '("" "hyperref" t)
+            (cl-remove '("T1" "fontenc" t)
+                       (cl-remove '("AUTO" "inputenc" t)
+                                  org-latex-default-packages-alist
+                                  :test #'equal)
+                       :test #'equal)
+            :test #'equal))
+#+END_SRC
+
+| 移除的包 | 原因 |
+|----------+------|
+| ~inputenc~ | XeLaTeX 原生 UTF-8，~inputenc~ 会破坏编码检测 |
+| ~fontenc~ | OpenType 字体不需要 T1 编码 |
+| ~hyperref~ | 在模板中手动加载（放在 color 之后、metalink 之前，顺序重要） |
+
+* 日志清理
+
+#+BEGIN_SRC emacs-lisp
+(setq org-latex-logfiles-extensions
+      '("lof" "lot" "tex~" "aux" "idx" "log" "out" "toc" "nav" "snm"
+        "vrb" "dvi" "fdb_latexmk" "blg" "brf" "fls" "entoc" "ps" "spl" "bbl" "tex" "bcf"))
+#+END_SRC
+
+编译完成后自动删除这些中间文件，保持工作目录干净。
+
+* 注意事项
+
+- 需要安装 ~minted~ 包（`pip install pygments`）
+- 需要 Fandol 字体（CTeX 自带，但某些发行版需要单独安装 ~texlive-lang-chinese~）
+- ~shell-escape~ 开启可能带来安全风险——只在信任的文档中使用
+- 模板中的 ~[DEFAULT-PACKAGES]~ 和 ~[PACKAGES]~ 占位符由 Org 在导出时替换

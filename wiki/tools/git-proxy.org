@@ -1,0 +1,44 @@
+#+TITLE: Git 代理
+
+* 用途
+
+通过 gh-proxy.com 代理 GitHub HTTPS 请求，解决 GFW 导致的 ~doom sync~
+拉取失败（超时/SSL 错误）。
+
+* 配置
+
+#+BEGIN_SRC emacs-lisp
+(setenv "DOOMGITCONFIG"
+        (expand-file-name "doom-gitconfig" doom-user-dir))
+#+END_SRC
+
+~doom-gitconfig~ 内容：
+
+#+BEGIN_SRC gitconfig
+[url "https://gh-proxy.com/github.com/"]
+	insteadOf = https://github.com/
+#+END_SRC
+
+* 工作原理
+
+1. ~config.el~ 设置 ~DOOMGITCONFIG~ 环境变量指向 ~doom-gitconfig~
+2. Doom 的 git wrapper 读取 ~DOOMGITCONFIG~ 作为 ~GIT_CONFIG_GLOBAL~
+3. Git 遇到 ~https://github.com/...~ 时自动替换为 ~https://gh-proxy.com/github.com/...~
+4. 所有包下载和 ~doom sync~ 都走代理
+
+* 影响范围
+
+| 操作 | 是否受影响 |
+|------+-----------|
+| ~doom sync~ | 是（拉取 straight/包） |
+| ~doom upgrade~ | 是（拉取 Doom 更新） |
+| ~doom install~ | 是（安装新包） |
+| 系统 Git 操作 | 否（普通 ~git clone/push~ 不受影响，~DOOMGITCONFIG~ 仅对 Doom 生效） |
+
+* 故障排除
+
+| 问题 | 检查点 |
+|------+--------|
+| ~doom sync~ 域名解析失败 | ~DOOMGITCONFIG~ 是否设置？~GIT_CONFIG_GLOBAL~ 是否覆盖？ |
+| gh-proxy.com 本身被墙 | 换其他代理（jsdelivr、fastgit） |
+| SSL 证书错误 | ~git config --global http.sslVerify false~（不推荐，仅临时方案） |

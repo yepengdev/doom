@@ -1,0 +1,60 @@
+#+TITLE: my/doom-full-reload
+
+* 用途
+
+比 ~doom/reload~ 更彻底的配置重载。适用于 ~config.el~ 修改后快速应用。
+注意：不适用于 ~init.el~ / ~packages.el~ 修改（那些需要 ~doom sync~）。
+
+* 绑定
+
+~SPC h r R~
+
+* 实现
+
+#+BEGIN_SRC emacs-lisp
+(defun my/doom-full-reload--apply (&rest _)
+  (my/theme-apply (my/theme-for-hour))
+  (when (fboundp 'doom/reload-font)
+    (doom/reload-font))
+  (when (daemonp)
+    (dolist (frame (frame-list))
+      (when (display-graphic-p frame)
+        (with-selected-frame frame
+          (run-hooks 'server-after-make-frame-hook)))))
+  (when (fboundp 'doom--startup-loaddefs-doom)
+    (ignore-errors (doom--startup-loaddefs-doom)))
+  (message "Full reload complete (config + theme + font + frames)"))
+
+(defun my/doom-full-reload ()
+  (interactive)
+  (when (fboundp 'doom/reload-autoloads)
+    (ignore-errors (doom/reload-autoloads)))
+  (when (fboundp 'doom/reload-packages)
+    (ignore-errors (doom/reload-packages)))
+  (when (fboundp 'doom/reload)
+    (ignore-errors
+      (add-hook 'doom-after-reload-hook #'my/doom-full-reload--apply)
+      (doom/reload))))
+#+END_SRC
+
+* 步骤分解
+
+| 步骤 | 函数 | 作用 |
+|------+------+------|
+| 1 | ~doom/reload-autoloads~ | 重新扫描 autoloads（检测新增文件） |
+| 2 | ~doom/reload-packages~ | 重新加载 ~packages.el~（检测新包） |
+| 3 | ~doom/reload~ | 重新加载 ~config.el~ |
+| 4a | ~my/theme-apply~ | 重新应用主题（~doom/reload~ 不会自动做） |
+| 4b | ~doom/reload-font~ | 重新应用字体 |
+| 4c | ~server-after-make-frame-hook~ | 重新运行 frame 初始化钩子 |
+| 4d | ~doom--startup-loaddefs-doom~ | 重新加载模块的 autoloads |
+
+* 为什么需要这个
+
+~doom/reload~ 只重新 evaluate ~config.el~，但：
+- 不会重载 autoloads（新模块命令不识别）
+- 不会重载 packages（新包不加载）
+- 不会重新触发 ~doom-switch-frame-hook~（主题、字体、spacious-padding 不生效）
+- 不会重新运行 frame 初始化（daemon 模式下 frame 相关设置丢失）
+
+~my/doom-full-reload~ 填补所有这些缺口。

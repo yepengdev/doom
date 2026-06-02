@@ -1,0 +1,44 @@
+#+TITLE: Pinyin 模糊搜索 (evil-pinyin)
+
+* 用途
+
+在 Vertico/Consult/Orderless 搜索中输入拼音（如 ~zhongwen~）即可匹配中文
+文件名和内容（~中文~ ~重要文件~ 等）。
+
+* 原理
+
+~evil-pinyin~ 的核心机制是：
+
+1. ~evil-pinyin--build-regexp-string~ 接收输入字符串
+2. 将每个拼音音节（~zhong~ ~wen~）转换为正则 ~[^一-魕]*中[^一-魕]*文~
+3. 转换为正则后交给 ~orderless-regexp~ 进行匹配
+
+* 配置
+
+#+BEGIN_SRC emacs-lisp
+(use-package! evil-pinyin
+  :defer t
+  :commands (evil-pinyin--build-regexp-string)
+  :init
+  (after! orderless
+    (advice-add #'orderless-regexp :filter-return #'evil-pinyin--build-regexp-string))
+  :config (evil-pinyin-mode 1))
+#+END_SRC
+
+* Orderless 集成
+
+~advice-add :filter-return~ 在 ~orderless-regexp~ 返回的正则结果上再次过滤——
+
+输入 ~xie zhu~：
+1. ~orderless-regexp~ → 拆分为两个 pattern 分别匹配
+2. ~evil-pinyin--build-regexp-string~ 覆盖每个 pattern → 同时匹配拼音和字面
+
+所以 ~xie~ 匹配 ~写~ ~些~ ~谢~ 等。
+
+* 影响范围
+
+- ~M-x~ / ~SPC :~（命令搜索）——中文描述的命令可搜
+- ~SPC f f~（文件搜索）——中文文件名可搜
+- ~SPC n f~（笔记搜索）——中文标题可搜
+- ~consult-notes~ / ~denote-grep~ ——同上
+- 所有使用 orderless 的完成 UI

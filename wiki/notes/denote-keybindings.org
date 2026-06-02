@@ -1,0 +1,68 @@
+#+TITLE: Denote 键位参考 (~SPC r d~)
+
+* 创建
+
+| 按键 | 命令 | 说明 |
+|------+------+------|
+| ~SPC r d n~ | ~denote~ | 新建笔记（提示标题→关键词） |
+| ~SPC r d d~ | ~denote-date~ | 指定日期创建 |
+| ~SPC r d t~ | ~denote-type~ | 选择文件类型创建（org/md/txt） |
+| ~SPC r d o~ | ~denote-open-or-create~ | 输入存在的笔记名→打开；不存在→创建 |
+| ~SPC r d s~ | ~denote-sequence~ | 新建序列笔记（带 SIGNATURE 字段） |
+| ~SPC r d j~ | ~denote-journal-new-or-existing-entry~ | 打开或创建今日日记 |
+
+* 链接
+
+| 按键 | 命令 | 说明 |
+|------+------+------|
+| ~SPC r d l~ | ~denote-find-link~ | 查找已存在的链接并跳转 |
+| ~SPC r d i~ | ~denote-link-or-create~ | 输入目标→已存在则插入链接，不存在则创建 |
+| ~SPC r d h~ | ~denote-org-link-to-heading~ | 链接到 Org 文件内的某个标题 |
+| ~SPC r d b~ | ~denote-find-backlink~ | 查找当前笔记的反向链接 |
+| ~SPC r d H~ | ~denote-org-backlinks-for-heading~ | 查找当前标题的反向链接 |
+
+* 重命名
+
+| 按键 | 命令 | 说明 |
+|------+------+------|
+| ~SPC r d k~ | ~denote-rename-file-keywords~ | 只修改关键词 |
+| ~SPC r d r~ | ~denote-rename-file~ | 重命名（改标题和关键词） |
+| ~SPC r d R~ | ~denote-rename-file-using-front-matter~ | 根据文件内 ~#+title~ 和 ~#+filetags~ 重命名 |
+| ~SPC r d x~ | ~denote-org-extract-org-subtree~ | 将当前子标题提取为新笔记 |
+
+* 查看与搜索
+
+| 按键 | 命令 | 说明 |
+|------+------+------|
+| ~SPC r d f~ | ~consult-notes~ | 搜索笔记（标题+关键词） |
+| ~SPC r d D~ | ~denote-dired~ | 在 Dired 中浏览笔记目录 |
+| ~SPC r d g~ | ~denote-grep~ | 搜索笔记内容（ripgrep） |
+| ~SPC r d m~ | ~list-denotes~ | 表格视图 |
+
+* 探索（~e~ 子前缀）
+
+| 按键 | 命令 | 说明 |
+|------+------+------|
+| ~SPC r d e c~ | ~denote-explore-count-notes~ | 统计笔记数量 |
+| ~SPC r d e C~ | ~denote-explore-count-keywords~ | 统计关键词频次 |
+| ~SPC r d e r~ | ~denote-explore-random-note~ | 随机打开一篇笔记 |
+| ~SPC r d e l~ | ~denote-explore-random-link~ | 随机打开一个有入链的笔记 |
+| ~SPC r d e n~ | ~denote-explore-network~ | 生成交互式 d3.js 网络图 |
+
+* Denote Menu 模式
+
+| 按键 | 说明 |
+|------+------|
+| ~c~ | 清除筛选 |
+| ~/ r~ | 正则筛选 |
+| ~/ k~ | 关键词筛选 |
+| ~/ o~ | 排除关键词 |
+| ~e~ | 导出到 Dired（批量操作） |
+
+* Org 模式 localleader (~SPC m D~)
+
+| 按键 | 命令 | 说明 |
+|------+------+------|
+| ~SPC m D h~ | ~denote-org-link-to-heading~ | 链接到 Org 标题 |
+| ~SPC m D b~ | ~denote-org-backlinks-for-heading~ | 标题反向链接 |
+| ~SPC m D x~ | ~denote-org-extract-org-subtree~ | 提取子树为新笔记 |

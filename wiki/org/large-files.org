@@ -1,0 +1,67 @@
+#+TITLE: 大文件处理 (≥1 MiB)
+#+STARTUP: overview
+
+* 问题
+
+Org 文件超过 ~1 MiB 后，org-modern、org-appear、org-indent、fontification、prettify-symbols、variable-pitch 等美化的叠加成本导致明显的 UI 卡顿（滚动延迟、输入延迟）。
+
+* 方案
+
+文件打开时检测大小，超过阈值则关闭所有装饰。
+
+#+BEGIN_SRC emacs-lisp
+(defvar my/org-large-file-size-threshold (* 1024 1024))
+
+(defun my/org-maybe-disable-prettification ()
+  (when-let ((attrs (and buffer-file-name
+                         (file-attributes buffer-file-name))))
+    (when (> (file-attribute-size attrs) my/org-large-file-size-threshold)
+      (when (bound-and-true-p org-modern-mode) (org-modern-mode -1))
+      (when (bound-and-true-p org-appear-mode) (org-appear-mode -1))
+      (when (bound-and-true-p org-indent-mode) (org-indent-mode -1))
+      (setq-local org-hide-leading-stars nil
+                  org-fontify-done-headline nil
+                  org-fontify-quote-and-verse-blocks nil
+                  org-fontify-whole-heading-line nil
+                  org-priority-faces nil
+                  org-todo-keyword-faces nil
+                  org-pretty-entities nil
+                  org-hide-emphasis-markers nil
+                  org-ellipsis "...")
+      (when (bound-and-true-p prettify-symbols-mode) (prettify-symbols-mode -1))
+      (setq-local prettify-symbols-alist nil)
+      (when (bound-and-true-p variable-pitch-mode) (variable-pitch-mode -1))
+      (font-lock-flush))))
+
+(add-hook 'org-mode-hook #'my/org-maybe-disable-prettification)
+#+END_SRC
+
+* 具体关闭了什么
+
+| 功能 | 关闭方式 | 影响 |
+|------+----------+------|
+| ~org-modern-mode~ | ~-1~ | 不再美化表格/标题/列表 |
+| ~org-appear-mode~ | ~-1~ | 不再悬停展示 emphasis |
+| ~org-indent-mode~ | ~-1~ | 标题不再动态缩进 |
+| ~org-hide-leading-stars~ | nil | 显示全文的星号 → ~* 标题~ |
+| ~org-fontify-done-headline~ | nil | DONE 标题不再变灰 |
+| ~org-fontify-whole-heading-line~ | nil | 标题颜色只应用于文本区域 |
+| ~org-priority-faces~ | nil | ~[#A]~ 不再高亮 |
+| ~org-todo-keyword-faces~ | nil | TODO/DONE 不染色 |
+| ~org-pretty-entities~ | nil | ~\alpha~ 不渲染为 α |
+| ~org-hide-emphasis-markers~ | nil | ~*bold*~ 显示原始标记 |
+| ~prettify-symbols-mode~ | -1 | ~lambda~ 不显示为 λ |
+| ~variable-pitch-mode~ | -1 | 使用等宽字体（vs 比例字体） |
+| ~font-lock-flush~ | 调用 | 刷新字体化，移除上述更改的效果 |
+
+* so-long 冲突处理
+
+#+BEGIN_SRC emacs-lisp
+(after! so-long
+  (setq so-long-predicate
+        (lambda () (and (not (derived-mode-p 'org-mode))
+                        (doom-so-long-p)))))
+#+END_SRC
+
+~so-long~ 是 Emacs 内置的大文件优化（关闭 font-lock）。但已经有自定义 ~my/org-maybe-disable-prettification~
+做更精细的控制，所以禁止 ~so-long~ 在 org-mode 中触发，避免两者打架。

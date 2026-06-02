@@ -1,0 +1,56 @@
+#+TITLE: 笔记系统全景图
+#+STARTUP: overview
+
+* 全景
+
+Denote 生态 + 辅助工具的关系：
+
+#+BEGIN_SRC text
+  consult-notes     Deft
+      |               |
+      +-------+-------+
+              |
+         denote (核心)
+        /   |    |    \
+       /    |    |     \
+  journal org sequence explore
+      |
+   menu
+#+END_SRC
+
+* 各包分工
+
+| 包 | 核心职责 |
+|-----+----------|
+| ~denote~ | 文件命名、创建、重命名、链接、搜索 |
+| ~denote-org~ | Org 深度集成：链接到标题、提取子树、动态块 |
+| ~denote-sequence~ | 层次编号（Folgezettel）、父子兄弟关系 |
+| ~denote-explore~ | 统计、随机、网络图、关键词维护 |
+| ~denote-journal~ | 日记工作流、日历集成 |
+| ~denote-menu~ | 表格视图、筛选、导出到 Dired |
+| ~consult-notes~ | Consult 搜索 Denote 笔记 |
+| ~deft~ | 快速笔记浏览（独立于 Denote） |
+
+* 目录约定
+
+| 目录 | 用途 |
+|------+------|
+| ~/org/denote/~ | Denote 主笔记目录 |
+| ~/org/denote/journal/~ | 日记 |
+| ~/org/deft/~ | Deft 笔记目录（与 Denote 独立） |
+| ~/org/deft/annotations/~ | org-noter PDF 批注 |
+
+* Denote 文件命名规范
+
+#+BEGIN_SRC text
+IDENTIFIER--TITLE__KEYWORDS.EXT
+#+END_SRC
+
+示例：
+~20240322T131856--读书笔记__思考.org~
+~20240322T142301--项目启动方案__工作_技术.org~
+
+- ~IDENTIFIER~ = 时间戳 (ISO 8601, 精确到秒)
+- ~TITLE~ = 标题（~--~ 分隔符前）
+- ~KEYWORDS~ = 分类关键词（~__~ 分隔符后，~_~ 分隔多个）
+- ~EXT~ = ~.org~（默认）或 ~.md~ ~.txt~

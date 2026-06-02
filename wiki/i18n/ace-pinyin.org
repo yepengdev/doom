@@ -1,0 +1,27 @@
+#+TITLE: Pinyin 字符跳转 (ace-pinyin)
+
+* 用途
+
+Avy 是 Emacs 的视觉导航工具（~avy-goto-char-timer~，默认按 ~f~ ~F~ ~t~ ~T~）。
+ace-pinyin 扩展 Avy，使其支持拼音输入——输入拼音即可跳转到对应的中文字符位置。
+
+* 配置
+
+#+BEGIN_SRC emacs-lisp
+(use-package! ace-pinyin
+  :commands ace-pinyin-global-mode
+  :after-call avy-goto-char-timer
+  :init (setq ace-pinyin-use-avy t)
+  :config (ace-pinyin-global-mode t))
+#+END_SRC
+
+* 使用场景
+
+- 中文文本中按 ~f~（~avy-goto-char-timer~）→ 输入 ~xie~ → 提示标记出现在所有匹配 ~xie~ 音节的汉字上
+- 按 ~t~（~avy-goto-char-timer~）→ 同样支持拼音
+- 不需要切换到英文输入法来导航中文文本
+
+* 原理
+
+~ace-pinyin~ 维护一个拼音到汉字的映射表。~ace-pinyin-use-avy~ = t 表示
+将 ace-pinyin 的映射集成到 Avy 的字符提示中，而非替代 Avy。

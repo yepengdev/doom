@@ -1,0 +1,42 @@
+#+TITLE: 写作工作流
+
+* 阶段 1：灵感捕捉
+
+**方法 A：Org Capture**
+
+~SPC X w~（~M-x org-capture~ → 选择 ~w~ 模板）
+- 弹出迷你编辑窗口
+- 填写标题、来源、人物、情绪、备注
+- ~C-c C-c~ 保存 → 存入 ~/org/novel-inbox.org~
+
+**方法 B：Denote Fleeting Note**
+
+~SPC r d n~（~M-x denote~）
+- 输入标题
+- 选择关键词
+- Denote 自动命名文件、存入 ~/org/denote/~
+
+* 阶段 2：展开与写作
+
+1. 在 ~/org/novel-inbox.org~ 中打开一条灵感 → ~C-c C-w~ 归档到 Denote 笔记
+2. 或者用 ~denote-org-extract-org-subtree~（~SPC m D x~）将子标题拆为独立笔记
+3. 正式写作：
+
+- **专注模式**：Olivetti 自动开启（~org-mode-hook~），居中 + 隐藏 mode-line + 隐藏行号
+- **自动保存**：Super-save idle 时自动保存
+- **搬移文本**：选中 → ~SPC m P t/b/T~
+- **字数统计**：~SPC r n c~
+
+* 阶段 3：导出
+
+| 目标格式 | 方法 | 配置 |
+|----------+------+------|
+| PDF (LaTeX) | ~SPC m e l p~ | ctexbook 类、XeLaTeX、latexmk |
+| docx (Word) | ~SPC m e p d~ | Pandoc、参考模板、Lua filter |
+| HTML | ~SPC m e h h~ | Minimal CSS 主题 |
+| Markdown | ~SPC m e m m~ | Pandoc Markdown |
+
+* 阶段 4：版本管理
+
+~SPC g g~ → ~magit-status~ → 编写 commit → ~C-c C-c~ 提交。
+~my/denote-git-auto-commit~ 确保新笔记即使忘了手动提交也保留历史。

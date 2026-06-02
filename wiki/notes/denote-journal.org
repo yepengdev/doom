@@ -1,0 +1,32 @@
+#+TITLE: 日记 (denote-journal)
+
+* 配置
+
+#+BEGIN_SRC emacs-lisp
+(use-package! denote-journal
+  :after denote
+  :hook (calendar-mode . denote-journal-calendar-mode)
+  :custom
+  (denote-journal-directory "journal")
+  (denote-journal-keyword '("日记"))
+  (denote-journal-title-format 'day-date-month-year))
+#+END_SRC
+
+* 参数
+
+| 选项 | 值 | 说明 |
+|------+-----+------|
+| ~denote-journal-directory~ | ~"journal"~ | 相对于 ~denote-directory~ 的子目录 |
+| ~denote-journal-keyword~ | ~'("日记")~ | 日记笔记的关键词 |
+| ~denote-journal-title-format~ | ~'day-date-month-year~ | 标题格式：~Friday 22 March 2024~ |
+
+* 操作
+
+- ~SPC r d j~ — 打开或创建今日日记
+- ~C-u SPC r d j~ — 指定日期（补写/预写）
+- ~calendar-mode~ 中，有日记的日期自动高亮
+
+* 文件位置
+
+日记写入 ~/org/denote/journal/~，遵循 Denote 命名规范：
+~20240322T131856--Friday-22-March-2024__日记.org~

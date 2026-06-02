@@ -1,0 +1,40 @@
+#+TITLE: Super-save 空闲保存
+
+* 用途
+
+空闲时自动保存缓冲区，替代手动 ~C-x C-s~，避免在 flow 状态中被保存动作打断。
+
+* 配置
+
+#+BEGIN_SRC emacs-lisp
+(use-package! super-save
+  :hook (doom-first-file . super-save-mode)
+  :custom
+  (super-save-auto-save-when-idle t)
+  (super-save-silent t)
+  (super-save-when-focus-lost nil)
+  (super-save-when-buffer-switched nil)
+  (super-save-delete-trailing-whitespace 'except-current-line)
+  :config
+  (add-to-list 'super-save-predicates
+               (lambda () (not buffer-read-only))))
+#+END_SRC
+
+* 设计选择
+
+| 选项 | 值 | 理由 |
+|------+-----+------|
+| ~doom-first-file~ | hook 触发点 | 用户打开第一个文件后才启用，不影响启动时性能 |
+| ~auto-save-when-idle~ | t | 空闲时自动保存，而非切换 buffer/焦点时 |
+| ~silent~ | t | 不在 minibuffer 中显示 "Saved" 消息 |
+| ~when-focus-lost~ | nil | 离开 Emacs 时不触发（避免在 emacsclient 中意外状态） |
+| ~when-buffer-switched~ | nil | 切换 buffer 时不触发 |
+| ~delete-trailing-whitespace~ | except-current-line | 保存时清理，但保留当前行（防止移动光标到行末的挫败感） |
+| ~super-save-predicates~ | + not buffer-read-only | 只读文件（如 magit 中的文件）不触发 |
+
+* 与原生 auto-save 的关系
+
+- ~auto-save-timeout~ = 30（原生 auto-save 在 30s 无操作后触发）
+- ~auto-save-interval~ = 300（原生 auto-save 在 300 次击键后触发）
+- super-save 在 idle 时触发 ~save-buffer~（而非 ~auto-save-buffer~），保存到原文件
+- 两者互补：原生负责 crash 恢复（~#file#~），super-save 负责日常持久化

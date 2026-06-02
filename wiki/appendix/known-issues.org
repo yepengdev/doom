@@ -1,0 +1,44 @@
+#+TITLE: 已知问题与 Workaround
+
+* PDF org-noter arrow timer 错误
+
+**现象**：org-noter 使用中不定期报错 ~org-noter-pdf--show-arrow~
+
+**原因**：~pdf-view-roll-minor-mode~ 改变了 PDF 页面的 overlay 机制，
+~org-noter-pdf--show-arrow~ 在页边界处访问了不正确的 overlay。
+
+**Workaround**：~:around~ advice 静默捕获错误（config.el 第 691-693 行）。
+
+* so-long 与 Org 大文件处理冲突
+
+**现象**：大 Org 文件打开后仍然卡顿，或者 so-long 意外触发。
+
+**原因**：~so-long~ 是 Emacs 内置的大文件优化，但自定义的 ~my/org-maybe-disable-prettification~
+做了更精细的控制。
+
+**Workaround**：禁用 so-long 在 org-mode 的触发（config.el 第 308-311 行）。
+
+* denote-org-link-to-heading 绑定位置
+
+**现象**：将 ~denote-org-link-to-heading~ 绑定到 ~SPC r d h~ 时报错 "Symbol's function definition is void"。
+
+**原因**：~denote-org-link-to-heading~ 在 ~denote-org.el~ 定义，如果绑定放在 ~use-package! denote~ 的 ~:init~
+中，此时 ~denote-org~ 尚未加载。
+
+**Workaround**：将绑定移到 ~use-package! denote-org~ 的 ~:init~ 中（config.el 第 609-614 行）。
+
+* corfu child frame 在 tty 中退化
+
+**现象**：终端 Emacs 中 corfu 弹窗不是浮动 child frame，而是 overlay。
+
+**原因**：终端不支持 child frame。这是 corfu 的设计限制，属于正常退化行为。
+
+**Workaround**：无需处理，功能正常。如果在意视觉效果，可在终端中使用 company 而非 corfu。
+
+* LaTeX 导出 inputenc 警告
+
+**现象**：Org → LaTeX 导出时日志中出现 "inputenc 包不存在" 的警告。
+
+**原因**：主动移除了 ~inputenc~（XeLaTeX 不需要）。这是正常行为。
+
+**Workaround**：无需处理。参见 [[file:../org/latex-export.org][org/latex-export]] 了解移除理由。

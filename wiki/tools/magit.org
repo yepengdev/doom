@@ -1,0 +1,39 @@
+#+TITLE: Magit 配置
+
+* 配置
+
+#+BEGIN_SRC emacs-lisp
+(after! magit
+  (setq magit-diff-refine-hunk nil))
+#+END_SRC
+
+* ~magit-diff-refine-hunk~
+
+| 选项 | 效果 | 代价 |
+|------+------+------|
+| ~nil~ | 不进行行内差异高亮 | 快速、大 diff 不卡顿 |
+| ~'all~ | 所有文件都行内高亮 | 大 diff 显著延迟 |
+| ~'region~ | 仅选中区域高亮 | 平衡模式 |
+
+设置为 ~nil~ 是因为大 diff 中 word-level 高亮需要额外的 diff 计算
+（逐字对比），对于 ~magit-status~ 中频繁展开/折叠的操作影响明显。
+如果需要查看某段的具体变化，可以用 visual selection + ~magit-diff-refine-region~。
+
+* Denote 集成
+
+~my/denote-git-auto-commit~ 在笔记目录自动提交（见 [[file:../notes/denote-git.org][notes/denote-git]]），
+与 Magit 互补：
+- Magit：手动精细控制 commit
+- 自动 commit：安全网，确保笔记不丢失
+
+* 常用操作
+
+| 按键 | 操作 |
+|------+------|
+| ~SPC g g~ | ~magit-status~ |
+| ~SPC g G~ | ~magit-status-here~ |
+| ~SPC g b~ | 切换分支 |
+| ~SPC g B~ | Blame |
+| ~SPC g F~ | Fetch |
+| ~SPC g c c~ | Commit |
+| ~SPC g o o~ | 在浏览器打开远程仓库 |

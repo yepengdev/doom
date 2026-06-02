@@ -1,0 +1,33 @@
+#+TITLE: Olivetti 写作专注
+
+* 用途
+
+写作时居中正文、减少视觉宽度、隐藏 mode-line 噪音。
+
+* 配置
+
+#+BEGIN_SRC emacs-lisp
+(use-package! olivetti
+  :hook (org-mode . olivetti-mode)
+  :custom
+  (olivetti-body-width 100)
+  (olivetti-hide-mode-line t)
+  :config
+  (define-key olivetti-mode-map (kbd "C-c |") nil)
+  (defun +olivetti-toggle-line-numbers-h ()
+    (display-line-numbers-mode (if olivetti-mode -1 1)))
+  (add-hook 'olivetti-mode-hook #'+olivetti-toggle-line-numbers-h))
+#+END_SRC
+
+* 细节说明
+
+| 项目 | 值 | 理由 |
+|------+-----+------|
+| ~olivetti-body-width~ | 100 | 宽屏显示器上≈舒适阅读宽度（类似 60-80 的 1.5 倍，中文需要更宽） |
+| ~olivetti-hide-mode-line~ | t | 写作时不需要 mode-line 信息 |
+| ~C-c |~ 取消 | 默认绑定到 ~olivetti-expand~，容易误触 |
+| 行号切换 | olivetti 启用时关闭 | 减少视觉干扰，退出时恢复 |
+
+* Hook 链
+
+~org-mode→olivetti-mode→行号关闭→writing~

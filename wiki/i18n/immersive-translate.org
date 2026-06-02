@@ -1,0 +1,45 @@
+#+TITLE: 沉浸式翻译 (immersive-translate)
+
+* 用途
+
+在 Emacs 中实现双语对照翻译——原文和译文交错显示，类似沉浸式翻译浏览器扩展。
+
+* 配置
+
+#+BEGIN_SRC emacs-lisp
+(use-package! immersive-translate
+  :defer t
+  :commands (...)
+  :custom
+  (immersive-translate-backend 'baidu)
+  (immersive-translate-baidu-appid (getenv "BAIDU_TRANSLATE_APPID"))
+  (immersive-translate-auto-idle 0.5)
+  :hook (nov-pre-html-render-hook . immersive-translate-setup)
+        (org-mode-hook . immersive-translate-setup))
+#+END_SRC
+
+* 后端选择
+
+百度翻译 API：
+- **优势**：中英翻译质量好（vs Google 需要翻墙，vs DeepL 对中文支持一般）
+- **代价**：需要申请 API key（~BAIDU_TRANSLATE_APPID~ 从环境变量读取，不写死在配置中）
+- 免费额度：标准版每月 100 万字符（个人写作阅读足够）
+
+* 使用
+
+| 命令 | 用途 |
+|------+------|
+| ~immersive-translate-buffer~ | 翻译整个 buffer |
+| ~immersive-translate-paragraph~ | 翻译当前段落 |
+| ~immersive-translate-clear~ | 清除翻译显示 |
+| ~immersive-translate-toggle~ | 切换翻译开关 |
+
+* 自动场景
+
+| 场景 | 触发点 |
+|------+--------|
+| 打开 EPUB | ~nov-pre-html-render-hook~ → 自动翻译 |
+| 打开 Org 文件 | ~org-mode-hook~ → 设置后手动 ~M-x immersive-translate-toggle~ |
+
+EPUB 的自动翻译是重点——阅读外文书籍时直接呈现双语对照。
+Org 文件选择手动触发，因为很多 Org 文件是中文写的。

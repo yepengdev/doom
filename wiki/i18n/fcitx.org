@@ -1,0 +1,42 @@
+#+TITLE: fcitx5 + Evil 集成
+
+* 用途
+
+在 Evil 模式切换时自动管理 fcitx5 输入法状态。
+
+* 原理
+
+标准的 Vim Insert state 切换会触发 IME 状态错乱（进入 Normal 时还开着中文，
+进入 Insert 时却关着中文）。Evil 没有原生的 fcitx 集成。
+
+方案：用 ~add-transient-hook!~ 延迟加载 ~fcitx~ 包 + 配合 Emacs state。
+
+#+BEGIN_SRC emacs-lisp
+(add-transient-hook! 'doom-first-input-hook
+  (when-let ((cmd (or (executable-find "fcitx5-remote")
+                      (executable-find "fcitx-remote"))))
+    (setq fcitx-remote-command cmd)
+    (require 'fcitx)
+    (fcitx-evil-turn-on)))
+#+END_SRC
+
+* 流程
+
+1. 用户第一次输入（~doom-first-input-hook~）
+2. 检测 ~fcitx5-remote~ 或 ~fcitx-remote~ 是否存在
+3. 设置 ~fcitx-remote-command~ 为检测到的命令
+4. ~require 'fcitx~ 加载 ~fcitx.el~ 包
+5. ~fcitx-evil-turn-on~ 注册 Evil 状态转换钩子
+
+* 配合 Emacs state
+
+见 [[file:../adr/02-emacs-state-vs-insert.org][ADR-02]]。Emacs state 替代 Insert state 后，
+~fcitx-evil-turn-on~ 只管理 Normal → Emacs state 的转换，减少了约一半的 IME 切换事件。
+
+* 诊断
+
+| 命令 | 用途 |
+|------+------|
+| ~fcitx5-remote~ | 无参数：返回当前状态（0=关闭,1=开启,2=未知） |
+| ~fcitx5-remote -o~ | 开启输入法 |
+| ~fcitx5-remote -c~ | 关闭输入法 |

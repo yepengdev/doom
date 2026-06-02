@@ -1,0 +1,82 @@
+#+TITLE: Org 基础设置与 Capture
+#+STARTUP: overview
+
+* 目录
+
+#+BEGIN_SRC emacs-lisp
+(setq org-directory "~/org/")
+(setq org-noter-notes-search-path '("~/org/deft/annotations"))
+#+END_SRC
+
+| 目录 | 用途 |
+|------+------|
+| ~/org/ | Org 文件根目录（含 agenda 文件） |
+| ~/org/denote/ | Denote 笔记 |
+| ~/org/denote/journal/ | 日记 |
+| ~/org/deft/ | Deft 快速笔记 |
+| ~/org/deft/annotations/ | org-noter 批注 |
+
+* TODO 关键词序列
+
+#+BEGIN_SRC emacs-lisp
+(add-to-list 'org-todo-keywords
+             '(sequence "DRAFT(R)" "REVIEW(r)" "|" "CANCELLED(C)") t)
+#+END_SRC
+
+流程：~DRAFT~(R) → ~REVIEW~(r) → ~DONE~（默认） / ~CANCELLED~(c)
+
+~|~ 是分隔标记，右侧的关键词（~CANCELLED~）不可直接转为 ~DONE~。
+
+~R~ / ~r~ / ~C~ 是快捷键字母。
+
+* Capture 模板：小说灵感
+
+#+BEGIN_SRC emacs-lisp
+(add-to-list 'org-capture-templates
+             '("w" "Novel idea" entry
+               (file+headline "~/org/novel-inbox.org" "Inspiration inbox")
+               "* %^{Title} :%^g\n
+  :PROPERTIES:\n
+  :CREATED: %U\n
+  :Source: %^{Source}\n
+  :Character: %^{Character}\n
+  :Mood: %^{Mood}\n
+  :Notes: %^{Notes}\n
+  :END:\n\n
+  %?\n
+  - From: %a"
+               :prepend t
+               :empty-lines 1))
+#+END_SRC
+
+- 按键 ~w~ → ~SPC X w~
+- 目标：~/org/novel-inbox.org~ 的 ~Inspiration inbox~ 标题下
+- ~:prepend t~ → 新条目插在顶部（最新最前）
+- 字段：Title、Source、Character、Mood、Notes
+- ~%U~ → 创建时间戳（带时区）
+- ~%a~ → 来源上下文（调用 capture 时的 buffer/位置）
+- ~%?~ → capture 后光标位置
+
+* 辅助函数：~org-capture-goto-target~
+
+#+BEGIN_SRC emacs-lisp
+(defun org-capture-goto-target (&optional template-key)
+  (interactive)
+  (require 'org-capture)
+  (let ((entry (org-capture-select-template template-key)))
+    (unless entry (error "No capture template selected"))
+    (org-capture-set-plist entry)
+    (org-capture-set-target-location)
+    (pop-to-buffer-same-window (org-capture-get :buffer))
+    (goto-char (org-capture-get :pos))))
+#+END_SRC
+
+~org-capture-goto-target~ 模拟 capture 的定位过程但不创建条目，用于：
+- 预览 capture 目标位置
+- 在目标文件追加内容
+- 调试 capture 模板路径
+
+* 其他设置
+
+- ~org-hide-emphasis-markers~ = t（~*bold*~ 等标记隐藏，只显示效果）
+- ~.html~ / ~.xhtml~ 关联 ~xdg-open~（外部浏览器打开）

@@ -1,0 +1,44 @@
+#+TITLE: Denote 核心配置
+
+* 配置
+
+#+BEGIN_SRC emacs-lisp
+(use-package! denote
+  :after-call doom-first-buffer-hook
+  :hook
+  (dired-mode . denote-dired-mode-in-directories)
+  (text-mode . denote-fontify-links-mode)
+  :custom
+  (denote-directory (expand-file-name "~/org/denote"))
+  (denote-dired-directories (list denote-directory))
+  (denote-dired-directories-include-subdirectories t)
+  (denote-known-keywords '("创作" "学习" "工作" "生活" "技术" "思考" "索引"))
+  (denote-infer-keywords t)
+  (denote-sort-keywords t)
+  (denote-prompts '(title keywords))
+  (denote-date-prompt-use-org-read-date t)
+  (denote-save-buffers nil)
+  (denote-rename-confirmations '(rewrite-front-matter modify-file-name))
+  (denote-link-description-format "%t")
+  ;; ...
+  )
+#+END_SRC
+
+* 配置项详解
+
+| 选项 | 值 | 说明 |
+|------+-----+------|
+| ~denote-directory~ | ~/org/denote/ | 笔记根目录 |
+| ~denote-known-keywords~ | ~'("创作" "学习" "工作" "生活" "技术" "思考" "索引")~ | 预定义关键词，minibuffer 补全用 |
+| ~denote-infer-keywords~ | t | 从文件名推断关键词（如果文件名含 ~__思考~，自动添加思考标签） |
+| ~denote-sort-keywords~ | t | 关键词按字母排序（多关键词文件命名一致） |
+| ~denote-prompts~ | ~'(title keywords)~ | 新建笔记时提示顺序：先输标题，再选关键词 |
+| ~denote-date-prompt-use-org-read-date~ | t | 指定日期时使用 Org 的日历选择 |
+| ~denote-save-buffers~ | nil | 创建后不自动 ~save-buffer~（由 super-save 负责） |
+| ~denote-rename-confirmations~ | ~'(rewrite-front-matter modify-file-name)~ | 重命名时确认修改 front-matter 和文件名两部分 |
+| ~denote-link-description-format~ | ~"%t"~ | 链接的描述格式：~%t~ = 笔记标题，~%i~ = identifier，~%k~ = keywords |
+
+* RENAME BUFFER
+
+~denote-rename-buffer-mode 1~ 让 Denote 文件的 buffer 名显示为笔记标题而非文件名，
+在多笔记打开时更容易识别。

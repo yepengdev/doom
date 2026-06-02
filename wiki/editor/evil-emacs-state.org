@@ -1,0 +1,30 @@
+#+TITLE: Evil Emacs state 替换 Insert state
+
+参见 [[file:../adr/02-emacs-state-vs-insert.org][ADR-02]] 了解决策理由。
+
+* 实现细节
+
+#+BEGIN_SRC emacs-lisp
+(after! evil
+  (defalias 'evil-insert-state 'evil-emacs-state)
+  (setq evil-emacs-state-cursor 'bar)
+  (define-key evil-emacs-state-map (kbd "<escape>") 'evil-normal-state))
+#+END_SRC
+
+- ~defalias~ 将 ~evil-insert-state~ 函数指针永久重定向到 ~evil-emacs-state~
+- ~evil-emacs-state-cursor 'bar~ 竖线光标，与标准 GUI 编辑器一致
+- ~<escape>~ 退出到 Normal state（Emacs state 默认不绑定 ~<escape>~）
+
+* 影响
+
+| 行为 | 是否受影响 |
+|------+-----------|
+| ~i~ / ~a~ / ~o~ 等进入 → 实际进入 Emacs state | 功能正常 |
+| ~C-w~ / ~C-h~ 插入模式快捷键 | 丢失（需要在 ~evil-emacs-state-map~ 中恢复） |
+| ~C-o~ 临时进入 Normal state | 正常（Elisp 逻辑未变） |
+| ~M-x evil-insert-state~ | 进入 Emacs state |
+| 其他使用 ~evil-insert-state-p~ 的包 | 需要测试兼容性 |
+
+* 配合 fcitx5
+
+见 [[file:../i18n/fcitx.org][i18n/fcitx]]。

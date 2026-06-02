@@ -1,0 +1,22 @@
+#+TITLE: Doom Emacs 配置 Wiki
+#+STARTUP: overview
+
+本目录是详细的 Wiki 文档。入口在 [[file:../docs/wiki-index.org][docs/wiki-index.org]]：
+
+- 详细文档分 10 个区块，共 51 篇 Org 文件
+- 与 [[file:../doom-handbook.org][doom-handbook.org]] 互补（手册=what/how, wiki=why/workflow）
+
+* 目录结构
+
+| 区块 | 目录 | 文件数 |
+|------+------+--------|
+| ADR | wiki/adr/ | 7 |
+| UI | wiki/ui/ | 3 |
+| Editor | wiki/editor/ | 5 |
+| Org | wiki/org/ | 5 |
+| Notes | wiki/notes/ | 11 |
+| Reading | wiki/reading/ | 4 |
+| i18n | wiki/i18n/ | 5 |
+| Tools | wiki/tools/ | 3 |
+| Workflows | wiki/workflows/ | 3 |
+| Appendix | wiki/appendix/ | 4 |

@@ -1,0 +1,35 @@
+#+TITLE: Dired 外部打开
+
+* 用途
+
+Dired 中按 ~E~（Normal 模式）用系统默认程序打开文件。
+
+#+BEGIN_SRC emacs-lisp
+(after! dired
+  (defun my/dired-open-externally ()
+    (interactive)
+    (let* ((files (dired-get-marked-files))
+           (cmd (pcase system-type
+                  ('darwin "open")
+                  ('windows-nt "start")
+                  (_ "xdg-open"))))
+      (dolist (f files)
+        (start-process cmd nil cmd f))))
+  (map! :map dired-mode-map
+        :n "E" #'my/dired-open-externally))
+#+END_SRC
+
+* 跨平台
+
+| 系统 | 命令 | 说明 |
+|------+------+------|
+| Linux | ~xdg-open~ | 根据文件类型关联打开 |
+| macOS | ~open~ | 同上 |
+| Windows | ~start~ | 同上 |
+
+* 与 Doom 默认的 ~Z~ 的区别
+
+Doom 默认 ~Z~ 是 ~dired-do-compress~（压缩/解压）。~E~ 是 ~my/dired-open-externally~
+的外部打开。
+
+支持标记多个文件同时打开（~V~ 标记后 ~E~）。

@@ -1,0 +1,29 @@
+#+TITLE: 性能数据
+
+* 启动时间
+
+Gentoo Linux 上测量，热缓存后平均值（所有包已编译）：
+
+| 条件 | 时间 |
+|------+------|
+| ~emacs --fg-daemon~（无 GUI） | ~0.54s |
+| ~emacs --eval '(kill-emacs)'~（含加载配置） | ~0.77s |
+
+* 优化措施
+
+| 措施 | 位置 | 收益 |
+|------+------+------|
+| ~gc-cons-threshold~ 设为 ~most-positive-fixnum~ | Doom early-init.el | 启动时不触发 GC |
+| ~load-prefer-newer~ nil | Doom early-init.el | 不检查 .elc 和 .el 的时间戳 |
+| ~file-name-handler-alist~ nil | Doom early-init.el | 启动时跳过文件 handler 检查 |
+| ~gcmh-mode~ | packages.el（gcmh） | 空闲时 GC，活动时不 GC |
+| ~add-transient-hook!~ | config.el | fcitx、denote 等延迟到真正使用时加载 |
+| ~:defer t~ / ~:after-call~ | config.el | 包延迟加载 |
+| ~after!~ / ~with-eval-after-load~ | config.el | 设置推迟到包加载后 |
+
+* 大文件性能
+
+| 文件大小 | 行为 | 预期效果 |
+|----------+------+----------|
+| <1 MiB | 所有美化开启 | 正常体验 |
+| ≥1 MiB | 关闭 org-modern/org-appear/org-indent/fontification/prettify-symbols/variable-pitch | 无卡顿滚动和输入 |

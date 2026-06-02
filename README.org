@@ -1,285 +1,163 @@
-#+TITLE: Doom Emacs Config
+#+TITLE: Doom Emacs 个人配置
 #+AUTHOR: Peng Yepeng
 #+EMAIL: yepeng@hey.com
 #+STARTUP: indent
 
-Personal Doom Emacs configuration optimized for bilingual (Chinese/English)
-writing, note-taking (Denote), and LaTeX publishing (xelatex + CJK).
+个人 Doom Emacs 配置，针对中英双语写作、笔记管理（Denote）和 LaTeX 排版
+（XeLaTeX + CJK）场景深度优化。
 
-- Remote: [[https://github.com/yepengdev/doom][yepengdev/doom]] ([[git@github.com:yepengdev/doom.git][SSH]])
-- Platform: Gentoo Linux
-- Emacs: ~app-editors/emacs-30.2-r3~
+- 文档：[[file:doom-handbook.org][参考手册]] + [[file:docs/wiki-index.org][Wiki 设计文档]]（50 篇深度解析，#+INCLUDE 聚合）
+- 仓库：[[https://github.com/yepengdev/doom][yepengdev/doom]]（[[git@github.com:yepengdev/doom.git][SSH]]）
+- 平台：Gentoo Linux
+- Emacs：~app-editors/emacs-30.2-r3~
   USE="cairo dbus gif gmp gpm gtk gui gzip-el inotify jpeg lcms libxml2 mailutils png sound sqlite ssl svg systemd threads tiff tree-sitter webp wide-int xattr xft xpm zlib"
   USE="-X -Xaw3d -athena -games -gfile -gsettings -harfbuzz -imagemagick -jit -kerberos -livecd -m17n-lib -motif -source -toolkit-scroll-bars -valgrind"
-- Doom: 2.1.0
-- Fonts: Monaspace Neon + LXGW WenKai Mono Screen
+- Doom：2.1.0
+- 字体：Monaspace Neon + LXGW WenKai Mono Screen
 
-* Quick start
+* 文档体系
 
-| Command          | When to run                          |
-|------------------+--------------------------------------|
-| ~doom sync~        | After editing ~init.el~ or ~packages.el~ |
-| ~doom doctor~      | Check for config issues              |
-| ~doom upgrade~     | Update Doom Emacs framework          |
-| ~doom clean~       | Remove compiled / elpa cache         |
-| ~doom env~         | Regenerate env file for GUI Emacs    |
-| ~doom/reload-font~ | Re-apply font settings (M-x)         |
+本配置有三层文档：
 
-* File structure
+| 文档 | 定位 | 入口 |
+|------+------+------|
+| [[file:README.org][README.org]] | 首页概览 & 快速参考（本文件） | 见下方 |
+| [[file:doom-handbook.org][doom-handbook.org]] | 综合参考手册（键绑定大全 + 配置清单） | ~SPC f f doom-handbook.org~ |
+| [[file:docs/wiki-index.org][docs/wiki-index.org]] | Wiki 主索引（设计决策 + 工作流 + 深度解析，#+INCLUDE 聚合 50 篇） | ~SPC f f docs/wiki-index.org~ |
 
-| Path                | Purpose                                     | Need ~doom sync~? |
-|---------------------+---------------------------------------------+-----------------|
-| ~init.el~             | Doom module list (~doom!~ block)              | Yes             |
-| ~packages.el~         | Third-party package declarations (~package!~) | Yes             |
-| ~config.el~           | Single-file config (replaces former ~config/*.el~ split) | No   |
-| ~doom-handbook.org~   | Comprehensive reference (replaces former ~docs/~) | —        |
-| ~pandoc/~             | Pandoc docx templates & Lua filters         | —               |
-| ~org-export/minimal/~ | Org HTML export CSS (local, no CDN)         | —               |
-| ~README.org~          | This file                                   | —               |
+* 快速上手
 
-* Active modules
+| 命令               | 何时使用                       |
+|---------------------+--------------------------------|
+| ~doom sync~          | 编辑 ~init.el~ 或 ~packages.el~ 后必须执行 |
+| ~doom doctor~        | 检查配置问题                    |
+| ~doom upgrade~       | 更新 Doom Emacs 框架           |
+| ~doom clean~         | 清除编译缓存 / elpa 目录        |
+| ~doom env~           | 为 GUI Emacs 重新生成环境变量文件 |
+| ~M-x doom/reload-font~ | 重新应用字体设置              |
+| ~M-x my/doom-full-reload~ | 完整重载配置（~SPC h r R~） |
 
-Modules enabled in ~init.el~ (commented-out ones omitted):
+* 目录结构
 
-** Completion
-- ~(corfu +orderless)~ — inline completion UI with fuzzy filtering via Orderless
-- ~vertico~ — vertical search/find UI (modern replacement for ivy/helm)
+| 路径                     | 用途                              | 需 ~doom sync~？ |
+|--------------------------+-----------------------------------+------------------|
+| ~init.el~                  | Doom 模块清单（~doom!~ 声明）       | 是               |
+| ~packages.el~              | 第三方包声明（~package!~）          | 是               |
+| ~config.el~                | 单文件配置（替代旧 ~config/*.el~ 拆分结构） | 否               |
+| ~doom-handbook.org~        | 综合参考手册（键绑定大全 + 详细配置）| —                |
+| ~docs/wiki-index.org~      | Wiki 主索引（#+INCLUDE 聚合 50 篇）  | —                |
+| ~wiki/~                    | Wiki 详细文档（10 区块 51 篇）       | —                |
+| ~pandoc/~                  | Pandoc docx 模板与 Lua 过滤器       | —                |
+| ~org-export/minimal/~      | Org HTML 导出 CSS（本地无 CDN）     | —                |
+| ~snippets/~                | Yasnippet 代码片段                 | —                |
+| ~README.org~               | 本文件                             | —                |
+| ~AGENTS.md~                | AI 助手操作指引（gitignore）        | —                |
+| ~REASONIX.md~              | 运维与约定备忘（gitignore）         | —                |
+| ~doom-gitconfig~           | Git 代理配置（GitHub 镜像）         | —                |
+| ~opencode.json~            | opencode AI 配置（gitignore）      | —                |
 
-** UI
-- ~deft~ — fast note browsing, title extracted from ~#+title~, org metadata stripped
-- ~doom~ — Doom Emacs theme framework
-- ~hl-todo~ — highlight ~TODO~, ~FIXME~, ~NOTE~, ~HACK~, ~REVIEW~, ~DEPRECATED~
-- ~modeline~ — doom-modeline with detailed info
-- ~(popup +defaults)~ — rule-based window popping for temporary buffers
-- ~(vc-gutter +pretty)~ — diff indicators in fringe with icons
-- ~workspaces~ — persp-mode workspace tabs
+* 已启用的 Doom 模块
 
-** Editor
-- ~(evil +everywhere)~ — Vim emulation in all buffers
-- ~file-templates~ — auto-insert snippets for new empty files
-- ~fold~ — universal code folding
-- ~(format +onsave)~ — auto-format buffer on save
-- ~multiple-cursors~ — edit in many places at once
-- ~snippets~ — yasnippet-based snippet expansion
-- ~(whitespace +guess +trim)~ — detect & clean trailing whitespace
+源自 ~init.el~，省略注释掉的模块。
 
-** Emacs built-ins
-- ~dired~ — file manager (Doom-styled)
-- ~electric~ — smarter keyword-based electric-indent
-- ~tramp~ — transparent remote file editing
-- ~undo~ — persistent, smarter undo tree
-- ~vc~ — built-in version control integration
+** 补全
+- ~(corfu +orderless)~ — 行内补全弹窗 + Orderless 模糊过滤
+- ~vertico~ — 垂直搜索/选择界面（ivy/helm 的现代替代）
 
-** Terminal
-- ~eshell~ — Elisp shell
-- ~vterm~ — terminal emulator with full ANSI support
+** 界面
+- ~deft~ — 快速笔记浏览，从 ~#+title~ 提取标题，清理 Org metadata
+- ~doom~ — Doom 主题框架
+- ~hl-todo~ — 高亮 ~TODO~ ~FIXME~ ~NOTE~ ~HACK~ ~REVIEW~ ~DEPRECATED~
+- ~modeline~ — doom-modeline 模式行
+- ~(popup +defaults)~ — 临时缓冲区的弹出规则
+- ~(vc-gutter +pretty)~ — 边缘显示版本控制差异指示器（图标版）
+- ~workspaces~ — persp-mode 工作区
 
-** Tools
-- ~(eval +overlay)~ — inline eval results
-- ~lookup~ — documentation / definition lookup
-- ~magit~ — full Git porcelain
-- ~pdf~ — PDF viewer enhancements (pdf-tools)
+** 编辑器
+- ~(evil +everywhere)~ — 全缓冲区 Vim 按键模拟
+- ~file-templates~ — 空文件自动插入模板
+- ~fold~ — 通用代码折叠
+- ~(format +onsave)~ — 保存时自动格式化
+- ~multiple-cursors~ — 多点同时编辑
+- ~snippets~ — yasnippet 片段展开
+- ~(whitespace +guess +trim)~ — 检测并清理尾部空白
 
-** Lang
-- ~emacs-lisp~ — Elisp development support
-- ~(latex +cdlatex +fold)~ — LaTeX with cdlatex math/tab inserts and code folding
-- ~markdown~ — Markdown editing
-- ~(org +journal +noter +pretty +pandoc)~ — Org mode with journaling, noter, pretty bullets, and pandoc export
+** Emacs 内置
+- ~dired~ — 文件管理器（Doom 美化版）
+- ~electric~ — 智能缩进
+- ~tramp~ — 透明远程文件编辑
+- ~undo~ — 持久化撤销树
+- ~vc~ — 内置版本控制集成
 
-* Custom packages
+** 终端
+- ~eshell~ — Elisp Shell
+- ~vterm~ — 完整 ANSI 终端模拟
 
-Packages declared in ~packages.el~:
+** 工具
+- ~(eval +overlay)~ — 行内求值结果显示
+- ~lookup~ — 文档/定义查找
+- ~magit~ — Git 完整前端
+- ~pdf~ — PDF 阅读器增强（pdf-tools）
 
-| Package              | Purpose                                               |
-|----------------------+-------------------------------------------------------|
-| ~fcitx~              | Chinese input method integration with Evil            |
-| ~ace-pinyin~         | Pinyin-based avy jumps for Chinese text               |
-| ~evil-pinyin~        | Pinyin-based fuzzy file search in Vertico/Orderless   |
-| ~spacious-padding~   | More breathing room in UI (line-spacing, padding)     |
-| ~denote~             | File-naming note system                               |
-| ~denote-org~         | Org-link to heading for Denote                        |
-| ~denote-sequence~    | Sequential note series for Denote                     |
-| ~denote-explore~     | Note network visualization & exploration              |
-| ~denote-journal~     | Daily journal for Denote                              |
-| ~denote-menu~        | Sidebar menu for Denote navigation                    |
-| ~consult-notes~      | Consult integration for Denote notes                  |
-| ~super-save~         | Auto-save on idle, trim trailing whitespace           |
-| ~palimpsest~         | Revisions inlay / undo history sidebar                |
-| ~nov~                | EPUB reader                                           |
-| ~org-pdftools~       | Org links to PDF locations                            |
-| ~gcmh~               | Dynamic runtime GC management                         |
-| ~immersive-translate~| Bilingual reading (nov.el ePub + Org)                 |
+** 语言
+- ~emacs-lisp~ — Elisp 开发支持
+- ~(latex +cdlatex +fold)~ — LaTeX 编辑（数学/表格快速输入 + 折叠）
+- ~markdown~ — Markdown 编辑
+- ~(org +journal +noter +pretty +pandoc)~ — Org mode（日记 + 批注 + 美化 + Pandoc 导出）
 
-* Notable configurations
+** 操作系统
+- ~tty~ — 终端 Emacs 体验优化
 
-** Fonts
-Set declaratively inside ~(after! doom-ui ...)~:
+** 配置
+- ~(default +bindings +smartparens)~ — 默认键绑定 + 智能括号
 
-- ~doom-font~ — Monaspace Neon 16
-- ~doom-variable-pitch-font~ — Monaspace Neon 16
-- ~set-fontset-font~ for CJK — LXGW WenKai Mono Screen 16
-- Reload with ~M-x doom/reload-font~ or ~SPC h r R~ (full reload)
+* 自定义包
 
-** Theme
-Auto-switches between ~doom-one-light~ (07:00–17:59) and ~doom-tokyo-night~ (18:00–06:59),
-checked on frame focus (~doom-switch-frame-hook~).
+通过 ~packages.el~ 声明的第三方包：
 
-** Line numbers
-~relative~ style — display relative line numbers for Evil motion efficiency.
+| 包                    | 用途                                     |
+|-----------------------+------------------------------------------|
+| ~fcitx~               | 中文输入法与 Evil 状态集成                |
+| ~spacious-padding~    | 界面内边距与呼吸感                        |
+| ~denote~              | 文件命名笔记系统                          |
+| ~denote-org~          | Org 模式深度集成（链接到标题等）           |
+| ~denote-sequence~     | 序列/层级笔记                             |
+| ~denote-explore~      | 笔记探索与可视化网络图                     |
+| ~denote-journal~      | 日记工作流                                |
+| ~denote-menu~         | 表格列表视图与筛选                        |
+| ~consult-notes~       | Consult 集成 Denote 笔记搜索              |
+| ~nov~                 | EPUB 阅读器                               |
+| ~org-pdftools~        | Org 链接到 PDF 位置                       |
+| ~super-save~          | 空闲时自动保存，清理尾部空白              |
+| ~palimpsest~          | 搬移文本而非删除（写作辅助）              |
+| ~ace-pinyin~          | 基于 Avy 的拼音字符跳转                   |
+| ~evil-pinyin~         | 基于拼音的模糊搜索（Orderless 集成）       |
+| ~immersive-translate~ | 沉浸式双语翻译（EPUB + Org）              |
+| ~gcmh~                | 动态运行时 GC 管理                        |
 
-** Chinese input method
-Fcitx5 integration via ~fcitx~ package:
-- Auto-detects ~fcitx5-remote~ / ~fcitx-remote~ binary via ~doom-first-input-hook~
-- Integrates with Evil: automatically toggles Chinese IM on insert-mode entry
-- Pinyin fuzzy matching for Vertico/Orderless via ~evil-pinyin~ and Avy via ~ace-pinyin~
+* 深入阅读
 
-** Denote notes (~SPC r d~)
-Note-taking system at ~~/Documents/notes/~ (configured via ~denote-directory~).
-Keywords: =创作= =学习= =工作= =生活= =技术= =思考= =索引=
+以下内容已移至 Wiki 文档（[[file:docs/wiki-index.org][docs/wiki-index.org]]，#+INCLUDE 聚合 50 篇）：
 
-| Key             | Command                              |
-|-----------------+--------------------------------------|
-| ~SPC r d n~     | ~denote~ — new note                  |
-| ~SPC r d d~     | ~denote-date~ — note with date       |
-| ~SPC r d l~     | ~denote-find-link~                   |
-| ~SPC r d i~     | ~denote-link-or-create~              |
-| ~SPC r d k~     | ~denote-rename-file-keywords~        |
-| ~SPC r d r~     | ~denote-rename-file~                 |
-| ~SPC r d R~     | ~denote-rename-file-using-front-matter~ |
-| ~SPC r d f~     | ~consult-notes~ — search notes       |
-| ~SPC r d b~     | ~denote-find-backlink~               |
-| ~SPC r d h~     | ~denote-org-link-to-heading~         |
-| ~SPC r d s~     | ~denote-sequence~ — new sequence     |
-| ~SPC r d e c~   | ~denote-explore-count-notes~         |
-| ~SPC r d e C~   | ~denote-explore-count-keywords~      |
-| ~SPC r d e r~   | ~denote-explore-random-note~         |
-| ~SPC r d e l~   | ~denote-explore-random-link~         |
-| ~SPC r d e n~   | ~denote-explore-network~             |
+| 主题 | Wiki 位置 |
+|------+-----------|
+| 配置决策记录（Denote vs Roam、Emacs state、主题切换等） | wiki/adr/ |
+| UI 详解（字体、主题、spacious-padding） | wiki/ui/ |
+| 编辑器详解（Evil、键位、Olivetti、Super-save、Palimpsest） | wiki/editor/ |
+| Org Mode（capture、大文件、LaTeX/Pandoc/HTML 导出） | wiki/org/ |
+| 笔记系统（Denote 全家族 11 篇） | wiki/notes/ |
+| 阅读（Dired、EPUB、PDF、org-noter） | wiki/reading/ |
+| 国际化（fcitx、pinyin、翻译、字数） | wiki/i18n/ |
+| 工具（full-reload、Git 代理、Magit） | wiki/tools/ |
+| 端到端工作流（写作、阅读、笔记） | wiki/workflows/ |
+| 附录（函数索引、已知问题、性能、Gentoo） | wiki/appendix/ |
 
-** Org mode
-- TODO keywords extended: ~DRAFT~ (R) → ~REVIEW~ (r) → ~CANCELLED~ (C)
-- Capture template for novel-writing ideas (~SPC X x~):
-  - File: ~~/org/novel-inbox.org~ under "灵感收件箱" heading
-  - Fields: title, source, character, emotional tone, notes
-- ~org-capture-goto-target~ overridden (adds ~(require 'org-capture)~ for reliable autoloading)
-- ~SPC n N~ — go to capture target location
-- ~org-directory~: ~~/org/~
+* 参考资料
 
-** LaTeX (ox-latex via ~config.el~)
-
-Org → LaTeX / PDF publishing configured for Chinese typesetting.
-
-*** Build system
-
-Uses ~latexmk~ instead of manual xelatex multi-pass:
-
-- Compiler: ~latexmk -xelatex -shell-escape -interaction=nonstopmode -f~
-- Handles bibtex/makeindex/multiple xelatex passes automatically
-- Org's ~org-latex-logfiles-extensions~ cleans auxiliary files on each export
-
-*** Default class: ~ctexbook~
-
-Custom ~ctexbook~ template tailored for Chinese books/notes:
-
-- **No section numbering** (~secnumdepth{0}~), preserves PDF bookmarks
-- XeLaTeX-native (no ~inputenc~/~fontenc~, ~hyperref~ loaded manually after ~xcolor~)
-- ~minted~ + ~fvextra~ for code listings (breaklines, footnotesize, line numbers)
-- ~fancyhdr~ headers/footers, ~geometry~ margins, ~booktabs~ tables
-- ~microtype~ (protrusion only), ~caption~, ~enumitem~ (nosep)
-- ~\linespread{1.3}~ for comfortable CJK line spacing
-
-*** Custom headline formatting
-
-~org-latex-format-headline-function~ override in ~config.el~:
-
-- TODO keywords rendered in red/green bold sans-serif via ~\texorpdfstring~
-- Priority cookies (~[#A]~) shown in orange
-- Tags pushed to the right margin in gray
-- PDF bookmarks remain clean (raw LaTeX stripped by ~\texorpdfstring~)
-
-*** LaTeX module flags
-
-~init.el~ enables ~(latex +cdlatex +fold)~:
-
-- ~+cdlatex~ — quick LaTeX math/tab snippets (e.g. ~=>~ → ~\Rightarrow~)
-- ~+fold~ — TeX environment folding (hide ~\begin~...~\end~ blocks)
-
-*** Removed default packages
-
-- ~inputenc~ — conflicts with XeLaTeX (native UTF-8)
-- ~fontenc~ — not needed with OpenType fonts
-- ~hyperref~ — loaded manually after ~xcolor~ in template (precise placement)
-
-** Pandoc docx export
-- Reference docx template & Lua filters in ~pandoc/~ (version-controlled)
-- Default reference: ~template_标题不编号-列表第二行顶格.docx~
-- Custom Lua filter: ~markdown-to-docx.lua~ (processed before pandoc's native writer)
-
-** PDF (pdf-tools)
-- Default: fit-page display, roll (continuous) scrolling, Evil emacs state
-- ~pdf-annot-activate-created-annotations~ — auto-activate new annotations
-- Imagemagick scaling disabled
-
-** EPUB (nov.el)
-- Auto-major-mode for ~.epub~ files (~nov-mode~)
-- Variable-pitch font, visual-line-mode, and olivetti-mode auto-enabled
-- hl-line-mode disabled (distracting for prose)
-- Reading progress saved to Doom cache dir
-
-** Writing (olivetti)
-- Auto-enabled in all Org buffers and nov EPUB buffers
-- 100-char width (~olivetti-body-width~)
-- Hides mode-line (~olivetti-hide-mode-line~ t) and line numbers
-- Toggle manually with ~M-x olivetti-mode~
-
-** Super-save
-- Auto-save on idle (~super-save-auto-save-when-idle~)
-- Trim trailing whitespace on save (except current line)
-- No auto-save on buffer/window switch
-
-** Ace-pinyin
-- Global minor mode enabled, integrated with Avy
-- Jump to Chinese characters by pinyin initials with ~avy-goto-char-timer~
-
-** Spacious-padding
-- Adds padding and breathing room around Emacs frames
-- ~line-spacing~: 3
-- Daemon-safe: enabled once on first graphical frame (~doom-switch-frame-hook~ with flag)
-
-** Large Org file handling
-- Threshold: 1 MiB
-- Disables ~org-modern~, ~org-appear~, ~org-indent~, prettify symbols, variable-pitch, and all fontification for files exceeding threshold
-- Registered via ~find-file-hook~; non-Org files skipped (short-circuits before ~file-attributes~)
-
-** Startup optimisation
-- ~vc-handled-backends~ limited to ~'(Git)~ to skip unnecessary VCS backend stats on file open
-- ~auto-mode-case-fold~ set to ~nil~ to avoid per-mode ~file-exists-p~ probing
-- ~native-comp-async-jobs-number~ set to 4 with ~native-comp-speed~ 3 for parallel .eln compilation
-- ~gcmh~ manages GC dynamically to avoid startup jank from aggressive GC
-- ~recentf~ and ~save-place~ entry limits kept modest (100 each)
-- Run ~doom compile~ after config changes for byte-compiled load speed
-
-* Startup performance
-
-Measured on Gentoo Linux, average of 3 runs after warm cache (all packages compiled):
-
-| Condition                        | Time    |
-|----------------------------------+---------|
-| ~emacs --fg-daemon~ (no GUI)     | ~0.54s~ |
-| ~emacs --eval '(kill-emacs)'~    | ~0.77s~ |
-
-* Gentoo notes
-
-Emacs and some packages (e.g. ~nov~, ~olivetti~, ~org-mode~) are installed
-from Portage. After emerging a new ~app-emacs/*~, declare it in ~packages.el~
-via ~(package! <name>)~ — Doom picks it up from the site-lisp dir automatically.
-
-
-
-* See also
-- [[file:REASONIX.md]] — operational notes and conventions
-- [[file:AGENTS.md]] — AI assistant instructions for this repo
-- [[file:doom-handbook.org]] — comprehensive reference (replaces former ~docs/~)
-- [[file:init.el]] — module declarations
-- [[file:config.el]] — full user configuration
-- [[file:packages.el]] — package declarations
+- [[file:REASONIX.md]] — 运维与约定备忘
+- [[file:AGENTS.md]] — AI 助手操作指引
+- [[file:doom-handbook.org]] — 综合参考手册（键绑定大全 + 详细配置）
+- [[file:docs/wiki-index.org]] — Wiki 主索引（设计决策 + 工作流 + 深度解析，#+INCLUDE 聚合 50 篇）
+- [[file:init.el]] — 模块声明
+- [[file:config.el]] — 完整用户配置
+- [[file:packages.el]] — 包声明

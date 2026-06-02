@@ -1,0 +1,31 @@
+#+TITLE: ADR-06: 单文件 config.el 而非分裂结构
+#+DATE: 2024
+#+STATUS: accepted
+
+* Context
+
+Doom 传统上支持 ~config.el~ 或 ~config/~
+（~config/foo.el~ ~config/bar.el~ 分裂到多个文件）两种写法。
+
+* Decision
+
+选择单文件 ~config.el~，拒绝分裂结构。
+
+* Consequences
+
+**正面**
+
+- **搜索成本低**：需要查某配置时，只有 ~config.el~ 一个目标。`SPC s f config.el` 打开即可
+- **修改成本低**：不需要想"这个设置放在哪个文件"。所有配置在同一个 buffer 中编辑
+- **心智模型简单**：~init.el~（模块）+ ~packages.el~（包）+ ~config.el~（配置）= 3 文件系统
+- **重载可靠**：~doom/reload~ 只加载 ~config.el~，分裂结构需要手动 ~load~ 每个子文件
+- **diff 可读**：Git 历史中一个文件的变化比多个文件更容易追踪
+
+**负面**
+
+- 文件变大：当前 853 行，未来可能到 1500+ 行（比分裂结构大，但仍在合理范围内）
+- 缺乏模块化：不能按主题禁用某个 ~config/foo.el~（只能注释掉对应段落）
+
+* 参考
+
+- ~/.config/doom/config.el

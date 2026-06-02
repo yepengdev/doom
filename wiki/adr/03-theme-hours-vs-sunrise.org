@@ -1,0 +1,58 @@
+#+TITLE: ADR-03: 用 hours 而非 sunrise 切换主题
+#+DATE: 2024
+#+STATUS: accepted
+
+* Context
+
+需要自动切换 Emacs 主题：白天用浅色 (doom-one-light)，夜间用深色 (doom-tokyo-night)。
+两种方案：
+- **Sunrise/sunset** — 根据地理坐标计算日出日落时间，动态切换
+- **Fixed hours** — 写死切换时间点 (7:00/19:00)
+
+* Decision
+
+选择 fixed hours 方案：
+
+#+BEGIN_SRC emacs-lisp
+(defconst my/theme-day-start 7)
+(defconst my/theme-night-start 19)
+
+(defun my/theme-for-hour (&optional hour)
+  (let ((h (or hour (string-to-number (format-time-string "%H")))))
+    (if (and (>= h my/theme-day-start) (< h my/theme-night-start))
+        my/theme-day
+      my/theme-night)))
+#+END_SRC
+
+切换时机在 `doom-switch-frame-hook`，首次触发后自卸（one-shot）：
+
+#+BEGIN_SRC emacs-lisp
+(defun my/theme-switch-maybe ()
+  (let ((theme (my/theme-for-hour)))
+    (unless (eq doom-theme theme)
+      (my/theme-apply theme)
+      (remove-hook 'doom-switch-frame-hook #'my/theme-switch-maybe))))
+#+END_SRC
+
+* Consequences
+
+**正面**
+
+- 零网络依赖：sunrise API 需要网络请求 + 地理定位
+- 配置幂等：同一台机器任何时候结果一致
+- 可预测：7:01 亮、18:59 亮、19:01 暗
+- 无外部依赖：不需要 `calendrical` 或 `sunrise-sunset` 包
+
+**负面**
+
+- 不随季节变化：夏季太阳 5 点升起时仍用暗色，冬季 17 点天黑时仍用亮色
+- 固定时间不适合高纬度地区（极昼/极夜）
+
+* 权衡
+
+开发者作息固定在桌前 → 7-19 覆盖典型工作日。如果需要在旅途/异地使用，可改为 sunrise 方案，
+但复杂性增加不值——大不了手动 `M-x load-theme`。
+
+* 参考
+
+- ~/.config/doom/config.el 第 39-74 行

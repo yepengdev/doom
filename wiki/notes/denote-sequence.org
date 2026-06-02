@@ -1,0 +1,36 @@
+#+TITLE: 序列笔记 (denote-sequence)
+
+* 用途
+
+Folgezettel（德语："序列卡片"）——一种在纯层级（目录树）和纯平铺（tag 系统）之间的中间方案，
+通过 SIGNATURE 字段建立笔记的父子兄弟关系：
+
+#+BEGIN_SRC text
+1                                   项目
+├── 1.1                             架构设计
+│   ├── 1.1.a                       数据库选型
+│   └── 1.1.b                       API 设计
+└── 1.2                             部署方案
+    └── 1.2.a                       Docker 配置
+#+END_SRC
+
+* 配置
+
+#+BEGIN_SRC emacs-lisp
+(use-package! denote-sequence
+  :after denote)
+#+END_SRC
+
+* 操作
+
+- ~SPC r d s~ — 创建时输入父笔记和签名（如 ~1.1.a~）
+- ~SPC r d e n~（网络图）可切换至 "sequence" 视图，显示层级树
+- 动态块：~C-c C-x x~ 选择 ~denote-sequence~ 插入层级列表
+
+* 签名方案
+
+| 方案 | 格式 | 示例 |
+|------+------+------|
+| numeric | 1, 1.1, 1.1.1 | 适合严格层级 |
+| alphanumeric | A, A1, A1a | 适合章节 |
+| alphanumeric-delimited | A-1, A-1-a | 可读性更好 |

@@ -1,0 +1,43 @@
+#+TITLE: Gentoo 注意事项
+
+* Emacs 安装
+
+#+BEGIN_SRC shell
+emerge -a app-editors/emacs-30.2-r3
+#+END_SRC
+
+USE flags（当前）：
+
+#+BEGIN_SRC shell
+cairo dbus gif gmp gpm gtk gui gzip-el inotify jpeg lcms libxml2 mailutils png sound sqlite ssl svg systemd threads tiff tree-sitter webp wide-int xattr xft xpm zlib
+
+# 以下未启用
+# -X -Xaw3d -athena -games -gfile -gsettings -harfbuzz -imagemagick -jit -kerberos -livecd -m17n-lib -motif -source -toolkit-scroll-bars -valgrind
+#+END_SRC
+
+- gtk 启用 → 原生 GTK 支持，更好的 font rendering
+- cairo + xft + xpm → 图形渲染
+- tree-sitter → 语法解析（未来切换 +tree-sitter 时需要）
+- dbus → Emacs 作为 daemon 运行需要
+
+* Portage 安装的包
+
+某些 Emacs 包通过 Portage 安装，而不是 straight.el：
+
+| 包 | Portage 名称 |
+|-----+--------------|
+| nov-el | ~app-emacs/nov-el~ |
+| olivetti | ~app-emacs/olivetti~ |
+| org-mode | ~app-emacs/org-mode~（如果覆盖 Doom 内置的 Org） |
+
+安装后，在 ~packages.el~ 中声明 ~(package! <name>)~，Doom 会自动从 site-lisp 目录加载。
+
+* LaTeX 依赖
+
+| 依赖 | Portage 包 |
+|------+-----------|
+| TeX Live | ~app-text/texlive~ |
+| XeLaTeX | ~dev-texlive/texlive-xetex~ |
+| CTeX 中文支持 | ~dev-texlive/texlive-langchinese~ |
+| minted | ~dev-python/pygments~ |
+| latexmk | ~dev-tex/latexmk~ |

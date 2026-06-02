@@ -1,0 +1,36 @@
+#+TITLE: org-noter 集成
+
+* 用途
+
+在 PDF 阅读时做批注笔记——选中段落 → ~SPC m n t~ 插入引用，批注内容保存在
+~/org/deft/annotations/~。
+
+* 配置
+
+#+BEGIN_SRC emacs-lisp
+(after! org-noter-pdf
+  (defun pdf-view-current-overlay (&optional window)
+    (or (image-mode-window-get 'overlay window)
+        (when (and (bound-and-true-p pdf-view-roll-minor-mode)
+                   (fboundp 'pdf-roll-page-overlay))
+          (condition-case nil
+              (pdf-roll-page-overlay (pdf-view-current-page) window)
+            (error nil)))))
+  (defadvice! +org-noter-pdf--show-arrow-a (orig-fn)
+    :around #'org-noter-pdf--show-arrow
+    (condition-case nil (funcall orig-fn) (error nil))))
+#+END_SRC
+
+* 已知问题：Arrow timer 错误
+
+~org-noter-pdf--show-arrow~ 在 ~pdf-view-roll-minor-mode~ 启用时偶发错误。
+原因是 roll mode 改变了页面 overlay 机制，~org-noter~ 的箭头显示函数
+在页边界处访问了不正确的 overlay。
+
+#+BEGIN_SRC emacs-lisp
+(defadvice! +org-noter-pdf--show-arrow-a (orig-fn)
+  :around #'org-noter-pdf--show-arrow
+  (condition-case nil (funcall orig-fn) (error nil)))
+#+END_SRC
+
+~:around~ advice 包裹原函数，任何错误静默吞掉。不影响其他 org-noter 功能。

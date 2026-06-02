@@ -1,0 +1,44 @@
+#+TITLE: EPUB 阅读 (nov.el)
+
+* 用途
+
+在 Emacs 中阅读 EPUB 文件，无需离开编辑器。
+
+* 配置
+
+#+BEGIN_SRC emacs-lisp
+(use-package! nov
+  :mode ("\\.epub\\'" . nov-mode)
+  :hook ((nov-mode . visual-line-mode)
+         (nov-mode . variable-pitch-mode)
+         (nov-mode . (lambda () (hl-line-mode -1))))
+  :custom
+  (nov-text-width t)
+  (nov-variable-pitch-mode t)
+  (nov-save-place-file (concat doom-cache-dir "nov-places"))
+  :config
+  (add-hook 'nov-mode-hook #'olivetti-mode)
+  (add-hook 'nov-mode-hook #'(lambda () (setq-local adaptive-fill-mode nil))))
+#+END_SRC
+
+* Hook 链
+
+EPUB 打开触发：~nov-mode → visual-line-mode → variable-pitch-mode → hl-line-mode -1 → olivetti-mode~
+
+| Hook | 用途 |
+|------+------|
+| ~visual-line-mode~ | 软折行（按窗口宽度自动换行） |
+| ~variable-pitch-mode~ | 比例字体（阅读更舒适 vs 等宽） |
+| ~hl-line-mode -1~ | 阅读时不需要高亮当前行 |
+| ~olivetti-mode~ | 居中正文（width=100，隐藏 mode-line） |
+
+* 阅读进度
+
+~nov-save-place-file~ 保存到 ~doom-cache-dir/nov-places~，下次打开同一 EPUB 时
+自动跳转到上次位置。
+
+* 沉浸式翻译集成
+
+nov.el 与 immersive-translate 通过 ~nov-pre-html-render-hook~ 集成：
+每次渲染 EPUB 章节时自动调用 ~immersive-translate-setup~。
+见 [[file:../i18n/immersive-translate.org][i18n/immersive-translate]]。

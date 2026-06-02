@@ -1,0 +1,25 @@
+#+TITLE: 阅读研究流
+
+* 场景 1：PDF 学术论文
+
+1. 打开 PDF → ~pdf-tools~ 自动加载
+2. ~i~ 进入 Emacs state → 连续滚动浏览
+3. 遇到关键段落 → ~SPC m n t~（org-noter）插入批注
+4. 批注自动关联页面位置
+5. 需要引用时 → ~SPC r d h~（~denote-org-link-to-heading~）链接到批注
+6. pdf-tools 渲染不佳时 → ~g z~ 用 Zathura 打开
+
+* 场景 2：EPUB 外文书籍
+
+1. 打开 EPUB → ~nov-mode~ 自动加载
+2. ~visual-line-mode~ + ~variable-pitch-mode~ + ~olivetti-mode~ 自动启用
+3. ~immersive-translate~ 自动翻译章节
+4. 阅读进度自动保存
+5. 想做笔记 → ~SPC r d n~ 走 Denote
+
+* 场景 3：快速查找资料
+
+1. ~SPC n s~（~+default/org-notes-search~）→ 搜索 ~/org/~ 目录
+2. ~SPC n f~（~+default/find-in-notes~）→ 按文件名搜索
+3. ~SPC r d f~（~consult-notes~）→ 搜索 Denote 笔记标题
+4. ~SPC r d g~（~denote-grep~）→ 搜索 Denote 笔记内容

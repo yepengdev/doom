@@ -13,8 +13,7 @@
 
 1. 打开 EPUB → ~nov-mode~ 自动加载
 2. ~visual-line-mode~ + ~variable-pitch-mode~ + ~olivetti-mode~ 自动启用
-3. ~immersive-translate~ 自动翻译章节
-4. 阅读进度自动保存
+3. 阅读进度自动保存
 5. 想做笔记 → ~SPC r d n~ 走 Denote
 
 * 场景 3：快速查找资料

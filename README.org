@@ -132,7 +132,6 @@
 | ~palimpsest~          | 搬移文本而非删除（写作辅助）              |
 | ~ace-pinyin~          | 基于 Avy 的拼音字符跳转                   |
 | ~evil-pinyin~         | 基于拼音的模糊搜索（Orderless 集成）       |
-| ~immersive-translate~ | 沉浸式双语翻译（EPUB + Org）              |
 | ~gcmh~                | 动态运行时 GC 管理                        |
 
 * 深入阅读

@@ -30,8 +30,6 @@
 (package! ace-pinyin)
 (package! evil-pinyin)
 
-;; Immersive bilingual translation
-(package! immersive-translate)
 
 
 

@@ -36,9 +36,3 @@ EPUB 打开触发：~nov-mode → visual-line-mode → variable-pitch-mode → h
 
 ~nov-save-place-file~ 保存到 ~doom-cache-dir/nov-places~，下次打开同一 EPUB 时
 自动跳转到上次位置。
-
-* 沉浸式翻译集成
-
-nov.el 与 immersive-translate 通过 ~nov-pre-html-render-hook~ 集成：
-每次渲染 EPUB 章节时自动调用 ~immersive-translate-setup~。
-见 [[file:../i18n/immersive-translate.org][i18n/immersive-translate]]。

@@ -708,28 +708,6 @@
 ;; i18n / Chinese support
 ;; ═══════════════════════════════════════════════════════════════════════════
 
-;; ─── Immersive bilingual translation ──────────────────────────────────────
-;;
-;; Baidu backend is chosen for its strong Chinese-English pair quality.
-;; API credentials come from the environment (not hardcoded).  Auto-idle
-;; triggers translation after 0.5 s of inactivity — short enough to feel
-;; responsive, long enough to batch edits.
-;;
-(use-package! immersive-translate
-  :defer t
-  :commands (immersive-translate-setup
-             immersive-translate-buffer
-             immersive-translate-paragraph
-             immersive-translate-clear
-             immersive-translate-auto-mode
-             immersive-translate-abort)
-  :custom
-  (immersive-translate-backend 'baidu)
-  (immersive-translate-baidu-appid (getenv "BAIDU_TRANSLATE_APPID"))
-  (immersive-translate-auto-idle 0.5)
-  :hook (nov-pre-html-render-hook . immersive-translate-setup)
-        (org-mode-hook . immersive-translate-setup))
-
 ;; ─── Chinese input method (fcitx5) ────────────────────────────────────────
 ;;
 ;; `doom-first-input-hook` defers loading until the user actually types —

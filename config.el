@@ -1091,6 +1091,16 @@ Bound to `SPC h r R`."
   (interactive)
   (cnotify-timer-stop))
 
+(defun my/password-gen (&optional length)
+  "Generate a strong password and copy to clipboard."
+  (interactive "P")
+  (let* ((len (or length 24))
+         (pw (password-gen len)))
+    (if (fboundp 'clipboard-set)
+        (clipboard-set "text/plain" pw)
+      (kill-new pw))
+    (message "🔑 Password (%d chars) copied to clipboard" len)))
+
 (defun my/word-count (&optional beg end)
   "Count CJK/English chars and words in region (or whole buffer)."
   (interactive "r")
@@ -1109,7 +1119,8 @@ Bound to `SPC h r R`."
        :desc "Start pomodoro"           "s" #'my/pomodoro-start
        :desc "Stop pomodoro"            "S" #'my/pomodoro-stop
        :desc "Word count"               "w" #'my/word-count
-       :desc "Pomodoro stats"           "v" #'my/pomodoro-show-stats))
+       :desc "Pomodoro stats"           "v" #'my/pomodoro-show-stats
+       :desc "Generate password"         "p" #'my/password-gen))
 
 ;; ── Modeline: timer / pomodoro countdown ───────────────────────
 (defvar my/cnotify-indicator nil "Mode-line string for timer/pomodoro.")

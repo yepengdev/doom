@@ -17,6 +17,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/stat.h>
+#include <sys/random.h>
 #include <wayland-client.h>
 
 int plugin_is_GPL_compatible;
@@ -295,6 +296,46 @@ Fget(emacs_env *env, ptrdiff_t nargs, emacs_value args[], void *data)
 }
 
 /* ════════════════════════════════════════════════════════════
+ * Password generator
+ * ════════════════════════════════════════════════════════════ */
+
+static const char pw_chars[] =
+    "abcdefghijklmnopqrstuvwxyz"
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    "0123456789"
+    "!@#$%^&*()-_=+[]{}|;:,.<>?";
+static const int pw_chars_len = sizeof(pw_chars) - 1;
+
+static emacs_value
+Fgen_password(emacs_env *env, ptrdiff_t nargs, emacs_value args[], void *data)
+{
+    (void)data;
+    int len = 24;  /* default length */
+    if (nargs >= 1)
+        len = env->extract_integer(env, args[0]);
+    if (len < 4) len = 4;
+    if (len > 256) len = 256;
+
+    char *buf = malloc(len + 1);
+    if (!buf) return env->intern(env, "nil");
+
+    /* Fill with random bytes from kernel entropy pool */
+    unsigned char randbuf[256];
+    size_t total = 0;
+    while (total < (size_t)len) {
+        ssize_t r = getrandom(randbuf, sizeof(randbuf), 0);
+        if (r < 0) { free(buf); return env->intern(env, "nil"); }
+        for (ssize_t i = 0; i < r && total < (size_t)len; i++)
+            buf[total++] = pw_chars[randbuf[i] % pw_chars_len];
+    }
+    buf[len] = '\0';
+
+    emacs_value result = env->make_string(env, buf, len);
+    free(buf);
+    return result;
+}
+
+/* ════════════════════════════════════════════════════════════
  * Module init
  * ════════════════════════════════════════════════════════════ */
 
@@ -323,6 +364,15 @@ emacs_module_init(struct emacs_runtime *ert)
             "List MIME types on clipboard: (clipboard-mime-types)", NULL);
         env->funcall(env, env->intern(env, "defalias"), 2,
             (emacs_value[]){ env->intern(env, "clipboard-mime-types"), fn });
+    }
+    {
+        emacs_value fn = env->make_function(env, 0, 1, Fgen_password,
+            "Generate strong password: (password-gen &optional LENGTH).\n"
+            "Uses getrandom() — kernel entropy, not a PRNG.\n"
+            "Default length 24, max 256. Chars: a-zA-Z0-9 + symbols.",
+            NULL);
+        env->funcall(env, env->intern(env, "defalias"), 2,
+            (emacs_value[]){ env->intern(env, "password-gen"), fn });
     }
 
     env->funcall(env, env->intern(env, "provide"), 1,

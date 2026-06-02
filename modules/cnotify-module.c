@@ -1,18 +1,17 @@
 /* cnotify-module.c — Emacs dynamic module (.so)
  *
  * Provides:
- *   Desktop notifications (libnotify) with click-to-focus-Emacs
+ *   Desktop notifications (libnotify) with click-to-callback
  *   Countdown timer + pomodoro clock (pthread background)
  *
  * API:
- *   (cnotify-notify TITLE BODY)                      → t
+ *   (cnotify-notify TITLE BODY &optional CALLBACK)
+ *                  → t  (CALLBACK is called on click, from Emacs main thread)
  *   (cnotify-timer-start MINUTES MSG)                → t
  *   (cnotify-timer-stop)                             → t
  *   (cnotify-pomodoro-start WORK-MIN BREAK-MIN)      → t
  *   (cnotify-pomodoro-stop)                          → t
- *   (cnotify-status)  → (TIMER-REMAINING POMODORO-PHASE)
- *     TIMER-REMAINING: seconds left (0 = not running)
- *     POMODORO-PHASE:  0=idle, 1=work, 2=break
+ *   (cnotify-status)  → (TIMER-REMAINING . POMODORO-PHASE)
  *   (cnotify-poll-action) → t if notification was clicked, nil otherwise
  */
 
@@ -32,7 +31,8 @@ static volatile int timer_remaining   = 0;
 static volatile int pomodoro_phase    = 0;  /* 0=idle, 1=work, 2=break */
 static volatile int timer_stop        = 0;
 static volatile int pomodoro_stop     = 0;
-static volatile int notification_clicked = 0;  /* set by GLib callback */
+static volatile int callback_pending  = 0;
+static emacs_value callback_fn        = NULL;   /* global ref to Emacs lambda */
 static pthread_t timer_tid    = 0;
 static pthread_t pomodoro_tid = 0;
 
@@ -74,15 +74,15 @@ static gboolean click_timeout_cb(gpointer loop)
 static void click_action_cb(NotifyNotification *n, char *action, gpointer data)
 {
     (void)n; (void)action;
-    notification_clicked = 1;
+    callback_pending = 1;
     g_main_loop_quit((GMainLoop *)data);
 }
 
-/* Send notification with a "Focus Emacs" action. Blocks up to 5s
-   in a GLib main loop waiting for a click. Called from background threads. */
+/* Send notification with action. Blocks up to 5s in GLib main loop.
+   If the user clicks, callback_pending is set (consumed by poll-action
+   in the Emacs main thread). Runs in background threads. */
 static void notify_send_clickable(const char *title, const char *body)
 {
-    /* Use per-thread GMainContext so libnotify signals route here */
     GMainContext *ctx = g_main_context_new();
     g_main_context_push_thread_default(ctx);
     GMainLoop *loop = g_main_loop_new(ctx, FALSE);
@@ -93,7 +93,6 @@ static void notify_send_clickable(const char *title, const char *body)
                                    click_action_cb, loop, NULL);
     notify_notification_show(n, NULL);
 
-    /* Auto-quit after 5s */
     GSource *src = g_timeout_source_new(5000);
     g_source_set_callback(src, click_timeout_cb, loop, NULL);
     g_source_attach(src, ctx);
@@ -142,7 +141,6 @@ pomodoro_thread(void *arg)
     struct pomodoro_arg *pa = arg;
 
     while (!pomodoro_stop) {
-        /* Work phase */
         pomodoro_phase = 1;
         timer_remaining = pa->work_sec;
         notify_send_clickable("🍅 Pomodoro", "Work phase started");
@@ -154,7 +152,6 @@ pomodoro_thread(void *arg)
         if (pomodoro_stop) break;
         notify_send_clickable("🍅 Pomodoro", "Work finished — take a break!");
 
-        /* Break phase */
         pomodoro_phase = 2;
         timer_remaining = pa->break_sec;
         for (int i = 0; i < pa->break_sec; i++) {
@@ -175,18 +172,71 @@ done:
 
 /* ── Emacs-callable functions ────────────────────────────── */
 
+/* Thread wrapper for notify_send_clickable — prevents blocking Emacs */
+struct notify_arg { char *title; char *body; };
+
+static void *
+notify_thread(void *arg)
+{
+    struct notify_arg *na = arg;
+    notify_send_clickable(na->title, na->body);
+    free(na->title);
+    free(na->body);
+    free(na);
+    return NULL;
+}
+
 static emacs_value
 Fnotify_notify(emacs_env *env, ptrdiff_t nargs,
                emacs_value args[], void *data)
 {
-    (void)nargs; (void)data;
+    (void)data;
     char *title = extract_string(env, args[0]);
     char *body  = extract_string(env, args[1]);
-    if (title && body)
-        notify_send_clickable(title, body);
-    free(title);
-    free(body);
+    if (!title || !body) { free(title); free(body); return env->intern(env, "nil"); }
+
+    /* Clear previous callback */
+    if (callback_fn) {
+        env->free_global_ref(env, callback_fn);
+        callback_fn = NULL;
+    }
+    callback_pending = 0;
+
+    /* Store optional 3rd arg (lambda callback) */
+    if (nargs >= 3)
+        callback_fn = env->make_global_ref(env, args[2]);
+
+    /* Launch notification in background thread — don't block Emacs */
+    struct notify_arg *na = malloc(sizeof(*na));
+    if (na) {
+        na->title = title;
+        na->body  = body;
+        pthread_t tid;
+        if (pthread_create(&tid, NULL, notify_thread, na) == 0)
+            pthread_detach(tid);
+        else
+            { free(title); free(body); free(na); }
+    } else {
+        free(title); free(body);
+    }
+
     return intern_t(env);
+}
+
+static emacs_value
+Fpoll_action(emacs_env *env, ptrdiff_t nargs,
+             emacs_value args[], void *data)
+{
+    (void)nargs; (void)args; (void)data;
+    if (callback_pending && callback_fn) {
+        callback_pending = 0;
+        /* Invoke the stored lambda. Runs in Emacs main thread — safe. */
+        env->funcall(env, callback_fn, 0, NULL);
+        env->free_global_ref(env, callback_fn);
+        callback_fn = NULL;
+        return intern_t(env);
+    }
+    return env->intern(env, "nil");
 }
 
 static emacs_value
@@ -253,6 +303,7 @@ Fpomodoro_stop(emacs_env *env, ptrdiff_t nargs,
     pomodoro_stop = 1;
     if (pomodoro_tid) { pthread_join(pomodoro_tid, NULL); pomodoro_tid = 0; }
     pomodoro_phase = 0;
+    timer_remaining = 0;
     return intern_t(env);
 }
 
@@ -269,18 +320,6 @@ Fstatus(emacs_env *env, ptrdiff_t nargs,
            });
 }
 
-static emacs_value
-Fpoll_action(emacs_env *env, ptrdiff_t nargs,
-             emacs_value args[], void *data)
-{
-    (void)nargs; (void)args; (void)data;
-    if (notification_clicked) {
-        notification_clicked = 0;
-        return intern_t(env);
-    }
-    return env->intern(env, "nil");
-}
-
 /* ── Module entry point ──────────────────────────────────── */
 
 int
@@ -293,27 +332,30 @@ emacs_module_init(struct emacs_runtime *ert)
         return 1;
 
     register_fn(env, "cnotify-notify",
-                Fnotify_notify, 2, 2,
-                "Send a clickable desktop notification.");
+                Fnotify_notify, 2, 3,
+                "Send a clickable notification.\n"
+                "(cnotify-notify TITLE BODY &optional CALLBACK)\n"
+                "CALLBACK is a function (no args) called on click, from\n"
+                "the Emacs main thread (via poll-action).");
     register_fn(env, "cnotify-timer-start",
                 Ftimer_start, 2, 2,
-                "Start countdown timer (MINUTES), notify with MSG on finish.");
+                "Start countdown: (cnotify-timer-start MINUTES MSG).");
     register_fn(env, "cnotify-timer-stop",
                 Ftimer_stop, 0, 0,
-                "Stop the running countdown timer.");
+                "Stop running timer.");
     register_fn(env, "cnotify-pomodoro-start",
                 Fpomodoro_start, 2, 2,
-                "Start pomodoro: WORK-MIN focus / BREAK-MIN rest cycles.");
+                "Start pomodoro: WORK-MIN / BREAK-MIN cycles.");
     register_fn(env, "cnotify-pomodoro-stop",
                 Fpomodoro_stop, 0, 0,
-                "Stop the running pomodoro.");
+                "Stop running pomodoro.");
     register_fn(env, "cnotify-status",
                 Fstatus, 0, 0,
                 "Return (TIMER-REMAINING . POMODORO-PHASE).");
     register_fn(env, "cnotify-poll-action",
                 Fpoll_action, 0, 0,
-                "Return t if a notification was clicked since last poll, nil otherwise.\n"
-                "Also clears the flag — call once per action.");
+                "Return t if notification clicked since last poll.\n"
+                "Also invokes the stored callback lambda.  Call once per frame.");
 
     env->funcall(env, env->intern(env, "provide"), 1,
                  (emacs_value[]){ env->intern(env, "cnotify-module") });

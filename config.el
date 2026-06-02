@@ -998,7 +998,12 @@ Bound to `SPC h r R`."
 (defvar my/cnotify-update-timer nil "Internal 1s timer for modeline refresh.")
 
 (defun my/cnotify-refresh ()
-  "Refresh modeline from C module status."
+  "Refresh modeline from C module status. Called every 1s."
+  ;; Handle notification clicks — focus Emacs if user clicked a popup
+  (when (cnotify-poll-action)
+    (select-frame-set-input-focus (selected-frame)))
+
+  ;; Update modeline indicator
   (pcase-let ((`(,remaining . ,phase) (cnotify-status)))
     (if (and (= remaining 0) (= phase 0))
         (progn (setq my/cnotify-indicator nil)

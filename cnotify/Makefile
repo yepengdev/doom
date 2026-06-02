@@ -1,13 +1,13 @@
 CC = gcc
-CFLAGS = -Wall -Wextra -std=c99 -O2
-LIBS = $(shell pkg-config --cflags --libs libnotify glib-2.0)
+CFLAGS = -Wall -Wextra -std=c99 -O2 -fPIC
+LIBS = $(shell pkg-config --cflags --libs libnotify glib-2.0) -lpthread
 
-all: cnotify
+all: cnotify-module.so
 
-cnotify: cnotify.c notify.c timer.c pomodoro.c notify.h timer.h pomodoro.h
-	$(CC) $(CFLAGS) -o $@ cnotify.c notify.c timer.c pomodoro.c $(LIBS)
+cnotify-module.so: cnotify-module.c
+	$(CC) $(CFLAGS) -shared -o $@ $^ $(LIBS)
 
 clean:
-	rm -f cnotify
+	rm -f cnotify-module.so
 
 .PHONY: all clean

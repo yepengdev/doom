@@ -1,1 +1,2 @@
-cnotify/cnotify
+cnotify/cnotify-module.so
+cnotify/*.o

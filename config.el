@@ -961,26 +961,33 @@ Bound to `SPC h r R`."
 (map! :leader
       :desc "Full reload" "h r R" #'my/doom-full-reload)
 
-;; ── Pomodoro via cnotify ──────────────────────────────────────────
-(defvar my/cnotify-path (expand-file-name "cnotify/cnotify" doom-user-dir)
-  "Path to the cnotify binary.")
+;; ── cnotify: C dynamic module (libnotify + timer + pomodoro) ─────
+(module-load (expand-file-name "cnotify/cnotify-module.so" doom-user-dir))
 
 (defun my/pomodoro-start (&optional work-min break-min)
-  "Start a pomodoro with WORK-MIN work and BREAK-MIN break.
-Defaults: 25min work, 5min break."
+  "Start pomodoro: WORK-MIN focus / BREAK-MIN rest (default 25/5)."
   (interactive)
-  (let ((w (or work-min 25))
-        (b (or break-min 5)))
-    (start-process "pomodoro" nil my/cnotify-path "pomodoro"
-                   "-w" (number-to-string w)
-                   "-b" (number-to-string b))))
+  (cnotify-pomodoro-start (or work-min 25) (or break-min 5)))
 
 (defun my/pomodoro-stop ()
-  "Stop the running pomodoro."
+  "Stop running pomodoro."
   (interactive)
-  (call-process my/cnotify-path nil nil nil "stop"))
+  (cnotify-pomodoro-stop))
+
+(defun my/timer-start (seconds &optional message)
+  "Start countdown timer for SECONDS, notify with MESSAGE."
+  (interactive "nSeconds: \nsMessage: ")
+  (cnotify-timer-start seconds (or message "Timer finished")))
+
+(defun my/timer-stop ()
+  "Stop running timer."
+  (interactive)
+  (cnotify-timer-stop))
 
 (map! :leader
+      (:prefix-map ("m t" . "Timer")
+       :desc "Start countdown"  "t" #'my/timer-start
+       :desc "Stop"             "T" #'my/timer-stop)
       (:prefix-map ("m p" . "Pomodoro")
-       :desc "Start"  "s" #'my/pomodoro-start
-       :desc "Stop"   "S" #'my/pomodoro-stop))
+       :desc "Start"            "s" #'my/pomodoro-start
+       :desc "Stop"             "S" #'my/pomodoro-stop))

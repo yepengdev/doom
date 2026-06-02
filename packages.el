@@ -19,7 +19,6 @@
 ;; Reading
 (package! nov)
 (package! org-pdftools)
-;; (package! org-noter-pdftools)  ; disabled for testing
 
 
 ;; Writing
@@ -29,7 +28,4 @@
 ;; Chinese-aware navigation & completion
 (package! ace-pinyin)
 (package! evil-pinyin)
-
-
-
 

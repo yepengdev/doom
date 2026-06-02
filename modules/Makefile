@@ -2,9 +2,10 @@
 # Usage:  make          # build all .so files
 #         make clean    # remove all .so files
 
-EMACS_MODULE_INC = /usr/include/emacs-30
+EMACS_MODULE_INC = $(shell pkg-config --cflags emacs 2>/dev/null \
+  || echo "-I/usr/include/emacs-$(shell emacs --version | head -1 | sed 's/.*Emacs //; s/\..*//')")
 CC = gcc
-CFLAGS = -shared -fPIC -O2 -Wall -Wextra -I$(EMACS_MODULE_INC)
+CFLAGS = -shared -fPIC -O2 -Wall -Wextra -fstack-protector-strong -D_FORTIFY_SOURCE=2 $(EMACS_MODULE_INC)
 
 MODULES = count-cjk.so
 

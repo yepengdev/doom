@@ -38,9 +38,9 @@
 ;; screen real-estate (18pt wastes horizontal space).
 ;;
 (after! doom-ui
-  (setq doom-font (font-spec :family "Monaspace Neon" :size 16)
-        doom-variable-pitch-font (font-spec :family "Monaspace Neon" :size 16))
-  (set-fontset-font t 'han (font-spec :family "LXGW WenKai Mono Screen" :size 16)))
+  (setq doom-font (font-spec :family "Monaspace Neon" :size 15)
+        doom-variable-pitch-font (font-spec :family "Monaspace Neon" :size 15))
+  (set-fontset-font t 'han (font-spec :family "LXGW WenKai Mono Screen" :size 15)))
 
 ;; ─── Auto theme switch (day/night) ────────────────────────────────────────
 ;;
@@ -51,9 +51,10 @@
 ;;   - A developer's schedule is anchored to the desk; 7–19 covers the
 ;;     typical workday.  Adjust the constants for your latitude / preference.
 ;;
-;; The switch happens on the first `doom-switch-frame-hook` invocation (which
-;; fires once per daemon session) then unhooks itself — we don't need to
-;; re-check every frame switch.
+;; The switch runs on every frame switch, but the `unless (eq doom-theme ...)`
+;; guard makes it a near-zero-cost no-op outside transition hours (7:00/19:00).
+;; Persisting on the hook ensures the theme updates even during long-running
+;; sessions that cross the day/night boundary.
 ;;
 (defconst my/theme-day 'doom-one-light
   "Day theme (7:00–18:59, inclusive of start, exclusive of end).")
@@ -69,7 +70,7 @@ low-ambient-light environments.")
   "Hour (0–23) when night theme begins.  7–19 covers the common workday.")
 
 (defun my/theme-for-hour (&optional hour)
-  "Return the theme constant for the given HOUR (0–23, default: current UTC+8).
+  "Return the theme constant for the given HOUR (0–23, default: current local time).
 
 Pure function — no state, no side effects.  Extracted from
 `my/theme-switch-maybe' so callers can preview without applying."
@@ -87,15 +88,11 @@ Side effect: modifies the global `doom-theme' variable and calls
 
 (defun my/theme-switch-maybe ()
   "Check the hour and apply day/night theme if different from current.
-Installed on `doom-switch-frame-hook' and self-removes after first match
-(scenario: daemon started at night, user opens a frame in the morning —
-theme switches once, then sticks).  No-op if already correct."
+Persists on `doom-switch-frame-hook' so transitions (7:00/19:00) are
+picked up even during long-running sessions.  No-op if already correct."
   (let ((theme (my/theme-for-hour)))
     (unless (eq doom-theme theme)
-      (my/theme-apply theme)
-      ;; One-shot: after the first frame-switch the desired theme is locked;
-      ;; we don't need to poll every frame switch.
-      (remove-hook 'doom-switch-frame-hook #'my/theme-switch-maybe))))
+      (my/theme-apply theme))))
 
 (setq doom-theme (my/theme-for-hour))
 (add-hook 'doom-switch-frame-hook #'my/theme-switch-maybe 'append)
@@ -196,11 +193,17 @@ Emacs is in terminal mode (daemon started with emacsclient -t)."
   (olivetti-hide-mode-line t)
   :config
   (define-key olivetti-mode-map (kbd "C-c |") nil)
-  (defun +olivetti-toggle-line-numbers-h ()
-    "Disable line numbers in olivetti-mode; re-enable on exit.
-Line numbers are distracting in a centered prose view."
-    (display-line-numbers-mode (if olivetti-mode -1 1)))
-  (add-hook 'olivetti-mode-hook #'+olivetti-toggle-line-numbers-h))
+  (defvar-local my/olivetti--line-numbers-p nil
+    "Non-nil if line numbers were enabled before olivetti turned on.")
+
+  (defun my/olivetti-toggle-line-numbers-h ()
+    "Disable line numbers in olivetti-mode; restore original state on exit.
+Save original state in `my/olivetti--line-numbers-p' on entry, restore on exit."
+    (if olivetti-mode
+        (setq my/olivetti--line-numbers-p (display-line-numbers-mode -1))
+      (when my/olivetti--line-numbers-p
+        (display-line-numbers-mode 1))))
+  (add-hook 'olivetti-mode-hook #'my/olivetti-toggle-line-numbers-h))
 
 ;;
 ;; Super-save: auto-saves on idle rather than on focus/window-switch events,
@@ -241,22 +244,22 @@ Line numbers are distracting in a centered prose view."
         :desc "Move to bottom" "b" #'palimpsest-move-region-to-bottom
         :desc "Move to trash"  "T" #'palimpsest-move-region-to-trash))
 
-;; ─── Evil: Emacs state replaces Insert state ──────────────────────────────
+;; ─── Evil Insert → hybrid (Emacs keys + bar cursor) ──────────────────────
 ;;
-;; Vim insert mode fundamentally conflicts with Chinese IMEs (fcitx5):
-;;   - IME needs to track insertion state; Vim's mode transitions can leave
-;;     it in the wrong input method.
-;;   - Emacs state keeps the bar cursor (familiar to GUI users) while ESC
-;;     still returns to normal state.
-;;   - Trade-off: you lose Vim's insert-mode keybindings (C-w, C-h, etc.)
-;;     — undo-able via `evil-insert-state-map` if needed later.
+;; Goal: `i` enters insert state with bar cursor and *Emacs native keybindings*
+;; (C-w, C-a, C-e, etc.), while preserving `evil-insert-state-map` so that
+;; third-party packages (evil-surround, evil-commentary, etc.) can still
+;; register insert-mode bindings normally.
 ;;
-;; This is NOT standard Doom — the `defalias` permanently hijacks insert state.
+;; Mechanism: replace `evil-insert-state-map` with a sparse keymap containing
+;; only `<escape>` → normal state.  Every other key falls through to Emacs's
+;; global keybinding system.  This produces the same user experience as
+;; `evil-emacs-state` but keeps the `evil-insert-state` identity intact.
 ;;
 (after! evil
-  (defalias 'evil-insert-state 'evil-emacs-state)
-  (setq evil-emacs-state-cursor 'bar)
-  (define-key evil-emacs-state-map (kbd "<escape>") 'evil-normal-state))
+  (setq evil-insert-state-cursor 'bar)
+  (setcdr evil-insert-state-map nil)
+  (define-key evil-insert-state-map (kbd "<escape>") 'evil-normal-state))
 
 ;; ─── Global keybindings ──────────────────────────────────────────────────
 (map! :g "M-!" #'eshell-command)
@@ -306,7 +309,7 @@ Useful for preview where a capture would land before committing to it."
   (interactive)
   (require 'org-capture)
   (let ((entry (org-capture-select-template template-key)))
-    (unless entry (error "No capture template selected"))
+    (unless entry (error "No capture template selected — use C-u to specify a template key"))
     (org-capture-set-plist entry)
     (org-capture-set-target-location)
     (pop-to-buffer-same-window (org-capture-get :buffer))
@@ -331,11 +334,11 @@ Useful for preview where a capture would land before committing to it."
 ;; toward printing — for screen viewing it's heavy and hard to theme.
 ;;
 (defvar my/org-export-assets-dir
+  (expand-file-name "org-export/minimal" doom-user-dir)
   "Directory containing Org HTML export assets (CSS, no JS).
 Referenced by `ox-html' configuration below.  Structure:
   org-export/minimal/css/org.css
-  org-export/minimal/css/htmlize.css"
-  (expand-file-name "org-export/minimal" doom-user-dir))
+  org-export/minimal/css/htmlize.css")
 
 (after! ox-html
   (setq org-html-head-include-default-style nil)
@@ -379,6 +382,7 @@ is exceeded:
   - variable-pitch (slows redisplay with mixed fonts)
   - Fontification extras (TODO faces, priority faces, emphasis markers)"
   (when-let ((attrs (and buffer-file-name
+                         (not (file-remote-p buffer-file-name))
                          (file-attributes buffer-file-name))))
     (when (> (file-attribute-size attrs) my/org-large-file-size-threshold)
       (when (bound-and-true-p org-modern-mode) (org-modern-mode -1))
@@ -447,128 +451,25 @@ is exceeded:
   :custom
   (org-latex-format-headline-function #'my/org-latex-format-headline)
 
-  ;; Use latexmk (intelligent multi-pass) instead of the default 4-step
-  ;; (latex → bibtex → latex → latex).  latexmk detects when it needs
-  ;; additional runs and avoids wasted cycles.
-  (org-latex-pdf-process
-   '("latexmk -xelatex -shell-escape -interaction=nonstopmode -f -output-directory=%o %f"))
-
   (org-latex-logfiles-extensions
    '("lof" "lot" "tex~" "aux" "idx" "log" "out" "toc" "nav" "snm"
      "vrb" "dvi" "fdb_latexmk" "blg" "brf" "fls" "entoc" "ps" "spl" "bbl" "tex" "bcf"))
 
-  ;; Remove default packages that conflict with XeLaTeX or are handled
-  ;; differently in our custom class template:
-  ;;   - inputenc / fontenc — XeLaTeX natively handles UTF-8 and OpenType;
-  ;;     loading inputenc breaks XeLaTeX's encoding detection.
-  ;;   - hyperref — loaded manually in the class template for precise
-  ;;     placement (before metalink, after color definitions).
-  (org-latex-default-packages-alist
-   (cl-remove '("" "hyperref" t)
-              (cl-remove '("T1" "fontenc" t)
-                         (cl-remove '("AUTO" "inputenc" t)
-                                    org-latex-default-packages-alist
-                                    :test #'equal)
-                         :test #'equal)
-              :test #'equal))
-
   :config
+  ;; LaTeX compilation with TEXINPUTS to find ctexbook-org.cls
+  ;; in the modules/ directory.
+  (let* ((modules-dir (expand-file-name "modules" doom-user-dir))
+         (cmd (format "env TEXINPUTS=%s//: latexmk -xelatex -shell-escape -interaction=nonstopmode -f -output-directory=%%o %%f"
+                      modules-dir)))
+    (setq org-latex-pdf-process (list cmd)))
+
   ;; Custom LaTeX class for Chinese typesetting, based on ctexbook.
-  ;; Features: XeLaTeX-native CJK, no section numbering, minted code blocks,
-  ;; booktabs tables, microtype, fancyhdr headers, hyperref with color links.
+  ;; All packages are loaded from modules/ctexbook-org.cls.
   (add-to-list 'org-latex-classes
                '("ctexbook"
-                 "\\documentclass[UTF8,scheme=chinese,fontset=fandol,11pt,a4paper,twoside]{ctexbook}
-
-%% ─── 全部不编号（保留目录/PDF 书签）─────────────
-\\setcounter{secnumdepth}{0}
-
-%% ─── 颜色（TODO 关键词着色）────────────────────
-\\usepackage{xcolor}
-
-%% ─── 微排版（XeLaTeX 下仅支持 protrusion）─────
-\\usepackage[final]{microtype}
-
-%% ─── 现代排版：句末单空格 ───────────────────────
-\\frenchspacing
-
-%% ─── 页面布局 ───────────────────────────────────
-\\usepackage[top=2.5cm,bottom=2.5cm,inner=3cm,outer=2cm,headheight=14pt]{geometry}
-
-%% ─── 页眉页脚 ───────────────────────────────────
-\\usepackage{fancyhdr}
-\\pagestyle{fancy}
-\\fancyhf{}
-\\fancyhead[LE]{\\leftmark}
-\\fancyhead[RO]{\\rightmark}
-\\fancyfoot[LE,RO]{\\thepage}
-\\renewcommand{\\headrulewidth}{0.4pt}
-
-%% ─── 章节标题 ───────────────────────────────────
-\\ctexset{
-  chapter={
-    format={\\huge\\bfseries},
-    name={},
-    number={},
-    beforeskip=1.5em,
-    afterskip=1em,
-    fixskip=true,
-  },
-  section={
-    format={\\Large\\bfseries\\raggedright},
-    beforeskip=1em plus .2em minus .1em,
-    afterskip=.5em plus .1em,
-  },
-  subsection={
-    format={\\large\\bfseries\\raggedright},
-    beforeskip=.8em plus .2em minus .1em,
-    afterskip=.4em plus .1em,
-  },
-}
-
-[DEFAULT-PACKAGES]
+                 "\\documentclass{ctexbook-org}
 [PACKAGES]
-
-%% ─── 超链接 ─────────────────────────────────────
-\\usepackage{hyperref}
-\\hypersetup{
-  colorlinks=true,
-  linkcolor=blue!70!black,
-  citecolor=teal!80!black,
-  urlcolor=blue!70!black,
-}
-\\usepackage{xurl}
-
-%% ─── 代码环境 ──────────────────────────────────
-\\usepackage{fvextra}
-\\DefineVerbatimEnvironment{verbatim}{Verbatim}{
-  breaklines=true,
-  breakanywhere=true,
-  breaksymbol={},
-  breakautoindent=false
-}
-\\usepackage{minted}
-\\setminted{
-  fontsize=\\footnotesize,
-  linenos,
-  breaklines,
-  frame=leftline,
-  framesep=2mm,
-  bgcolor=lightgray!10,
-}
-
-%% ─── 表格 ───────────────────────────────────────
-\\usepackage{booktabs}
-
-%% ─── 图表标题 ───────────────────────────────────
-\\usepackage[font=small,labelfont=bf]{caption}
-
-%% ─── 列表间距 ──────────────────────────────────
-\\usepackage{enumitem}
-\\setlist{nosep}
-
-%% ─── 行距 ──────────────────────────────────────
-\\linespread{1.3}"
+[EXTRA]"
                  ("\\chapter{%s}" . "\\chapter*{%s}")
                  ("\\section{%s}" . "\\section*{%s}")
                  ("\\subsection{%s}" . "\\subsection*{%s}")))
@@ -624,7 +525,7 @@ Org Keywords."
   (dired-mode . denote-dired-mode-in-directories)
   (text-mode . denote-fontify-links-mode)
   :custom
-  (denote-directory (expand-file-name "~/org/denote"))
+  (denote-directory "~/org/denote")
   (denote-dired-directories (list denote-directory))
   (denote-dired-directories-include-subdirectories t)
   ;; Personal keyword taxonomy — adjust to your domain.
@@ -672,8 +573,12 @@ Silent no-op if the directory is not a git repository (no error signaled)."
       (let ((git-dir (expand-file-name ".git" dir)))
         (when (file-exists-p git-dir)
           (let ((default-directory dir))
-            (call-process "git" nil nil nil "add" "-A")
-            (call-process "git" nil nil nil "commit" "-m" "auto: note saved"))))))
+            (unless (zerop (call-process "git" nil nil nil "add" "-A"))
+              (message "WARN: denote git add failed"))
+            (unless (zerop (call-process "git" nil nil nil
+                                         "commit" "--allow-empty"
+                                         "-m" "auto: note saved"))
+              (message "WARN: denote git commit failed")))))))
   (add-hook 'denote-after-new-note-hook #'my/denote-git-auto-commit))
 
 (use-package! denote-journal
@@ -779,7 +684,9 @@ open from Dired."
   (nov-save-place-file (concat doom-cache-dir "nov-places"))
   :config
   (add-hook 'nov-mode-hook #'olivetti-mode)
-  (add-hook 'nov-mode-hook #'(lambda () (setq-local adaptive-fill-mode nil))))
+  (defun my/nov-disable-adaptive-fill ()
+    (setq-local adaptive-fill-mode nil))
+  (add-hook 'nov-mode-hook #'my/nov-disable-adaptive-fill))
 
 ;; ─── PDF (pdf-tools) ──────────────────────────────────────────────────────
 ;;
@@ -872,15 +779,17 @@ open from Dired."
 ;; ─── Text statistics (CJK + English, all-C module) ─────────────────────────
 ;;
 ;; C module (modules/count-cjk.so) does all counting in a single UTF-8
-;; scan.  No Elisp fallback — build with `make -C modules/` in $DOOMDIR.
+;; scan.  The loader auto-detects stale/missing .so and runs make(1);
+;; commands try on-demand rebuild if the module is absent at call time.
 ;;
 ;; Exported C functions:
 ;;   my/count-cjk  (STRING) → cons (CHARS . PUNCT)
 ;;   my/count-text (STRING) → vector [cjk punct en-words en-chars total-cp]
 ;;
 ;; Bindings:
-;;   M-=        — my/count-words (replaces `count-words-region')
-;;   SPC r n c  — my/count-chinese-chars (legacy CJK counter)
+;;   M-=         — my/count-words (replaces `count-words-region')
+;;   SPC r n c   — my/count-chinese-chars (legacy CJK counter)
+;;   SPC r n b   — my/build-cjk-module (rebuild & reload)
 ;;
 ;; Benchmark (Emacs 30, GCC 15, ~50/50 CJK/ASCII mix):
 ;;   Size    Original (Elisp)  C module  Speedup
@@ -892,11 +801,53 @@ open from Dired."
 ;; ─── C module loader ─────────────────────────────────────────────────────
 
 (defvar my/cjk-so (expand-file-name "modules/count-cjk.so" doom-user-dir))
+(defvar my/cjk-src (expand-file-name "modules/count-cjk.c" doom-user-dir))
 
-(when (and (file-exists-p my/cjk-so)
-           (fboundp 'module-load))
-  (with-demoted-errors "count-cjk.so load error: %s"
-    (module-load my/cjk-so)))
+(defun my/cjk-module-outdated-p ()
+  "Return t if .so is missing or older than .c source."
+  (let ((c-attrs (file-attributes my/cjk-src)))
+    (and c-attrs
+         (or (not (file-exists-p my/cjk-so))
+             (time-less-p (file-attribute-modification-time
+                           (file-attributes my/cjk-so))
+                          (file-attribute-modification-time c-attrs))))))
+
+(defun my/build-cjk-module ()
+  "Build count-cjk.so by running `make -C modules/'.
+Shows build log buffer on failure."
+  (interactive)
+  (let* ((build-dir (expand-file-name "modules" doom-user-dir))
+         (buf (get-buffer-create "*cjk-build*")))
+    (with-current-buffer buf (view-mode -1) (erase-buffer))
+    (if (zerop (call-process "make" nil buf nil "-C" build-dir))
+        (progn (message "count-cjk.so rebuilt") t)
+      (display-buffer buf)
+      (error "count-cjk.so build failed — see *cjk-build* buffer"))))
+
+(defun my/load-cjk-module ()
+  "Load CJK C module; auto-build if missing or stale.
+Safe no-op if module-load is unavailable."
+  (interactive)
+  (when (fboundp 'module-load)
+    (when (my/cjk-module-outdated-p)
+      (ignore-errors (my/build-cjk-module)))
+    (when (file-exists-p my/cjk-so)
+      (with-demoted-errors "count-cjk.so load: %s"
+        (module-load my/cjk-so)))))
+
+(my/load-cjk-module)
+
+;; ─── Helper ──────────────────────────────────────────────────────────────
+
+(defun my/ensure-cjk-module ()
+  "Ensure C module is loaded; build on demand if missing.
+Signals error if the module cannot be made available."
+  (unless (fboundp 'my/count-text)
+    (my/build-cjk-module)
+    (when (file-exists-p my/cjk-so)
+      (module-load my/cjk-so))
+    (unless (fboundp 'my/count-text)
+      (error "count-cjk.so still unavailable after rebuild"))))
 
 ;; ─── Commands ────────────────────────────────────────────────────────────
 
@@ -904,8 +855,7 @@ open from Dired."
 (defun my/count-chinese-chars (&optional beg end)
   "CJK char count (legacy).  Bound to `SPC r n c'."
   (interactive)
-  (unless (fboundp 'my/count-cjk)
-    (error "count-cjk.so not loaded — run `make -C modules/' in $DOOMDIR"))
+  (my/ensure-cjk-module)
   (let* ((beg (or beg (if (use-region-p) (region-beginning) (point-min))))
          (end (or end (if (use-region-p) (region-end) (point-max))))
          (result (my/count-cjk (buffer-substring-no-properties beg end)))
@@ -925,13 +875,12 @@ Replaces `count-words-region' (M-=).  Uses C module for all counting.
 
 Output:  中:42  英:18  标点:7  总:67
 
-  中       CJK ideographs (word-count equivalent for Chinese)
-  英       English words (letter/digit/apostrophe runs)
-  标点     CJK punctuation marks
-  总       total Unicode codepoints in the region"
+   中       CJK ideographs (word-count equivalent for Chinese)
+   英       English words (letter/digit/apostrophe runs)
+   标点     CJK punctuation marks
+   总       total Unicode codepoints in the region"
   (interactive)
-  (unless (fboundp 'my/count-text)
-    (error "count-cjk.so not loaded — run `make -C modules/' in $DOOMDIR"))
+  (my/ensure-cjk-module)
   (let* ((beg (or beg (if (use-region-p) (region-beginning) (point-min))))
          (end (or end (if (use-region-p) (region-end) (point-max))))
          (v (my/count-text (buffer-substring-no-properties beg end)))
@@ -945,9 +894,13 @@ Output:  中:42  英:18  标点:7  总:67
 
 (map! :leader
       (:prefix-map ("r n" . "Count")
-       :desc "Chinese chars" "c" #'my/count-chinese-chars))
+       :desc "Chinese chars"  "c" #'my/count-chinese-chars
+       :desc "Rebuild module" "b" #'my/build-cjk-module))
 
 (map! :g "M-=" #'my/count-words)
+
+
+
 
 
 ;; ═══════════════════════════════════════════════════════════════════════════
@@ -968,32 +921,29 @@ Output:  中:42  英:18  标点:7  总:67
 ;; Bound to `SPC h r R` (uppercase R = Full reload vs lowercase r = reload).
 ;;
 (defun my/doom-full-reload--apply (&rest _)
-  "Re-apply theme, font, and frame hooks after `doom/reload'.
+  "Re-apply theme and font after `doom/reload'.
 
-This runs via `doom-after-reload-hook` and is removed after execution.
-Each step guards against missing symbols (defensive for partial reload
-scenarios where some Doom internals haven't loaded yet)."
+Only reapplies theme + font — does NOT re-run `server-after-make-frame-hook'
+or other non-idempotent frame hooks.  Runs via `doom-after-reload-hook'."
   (my/theme-apply (my/theme-for-hour))
   (when (fboundp 'doom/reload-font)
     (doom/reload-font))
-  (when (daemonp)
-    (dolist (frame (frame-list))
-      (when (display-graphic-p frame)
-        (with-selected-frame frame
-          (run-hooks 'server-after-make-frame-hook)))))
-  (when (fboundp 'doom--startup-loaddefs-doom)
-    (ignore-errors (doom--startup-loaddefs-doom)))
-  (message "Full reload complete (config + theme + font + frames)"))
+  (message "Full reload complete (config + theme + font)"))
+
+;; Register once at top level (not inside `my/doom-full-reload') to prevent
+;; hook accumulation on repeated calls.
+(after! doom
+  (add-hook 'doom-after-reload-hook #'my/doom-full-reload--apply))
 
 (defun my/doom-full-reload ()
-  "Reload autoloads, packages, config, then re-apply theme/font/frame hooks.
+   "Reload autoloads, packages and config.
 
 Steps:
 1. `doom/reload-autoloads` — pick up new autoloaded commands/faces.
 2. `doom/reload-packages` — re-evaluate `packages.el` without `doom sync`.
 3. `doom/reload` — re-evaluate `config.el` (core).
-4. On `doom-after-reload-hook`: re-apply theme, font, and frame hooks
-   (`my/doom-full-reload--apply`).
+4. `doom-after-reload-hook` fires automatically, re-applying theme and font
+   via `my/doom-full-reload--apply` (registered at top level).
 
 Each step guards against missing fboundp (safe when called before Doom's
 reload machinery is fully initialized).
@@ -1006,7 +956,6 @@ Bound to `SPC h r R`."
     (ignore-errors (doom/reload-packages)))
   (when (fboundp 'doom/reload)
     (ignore-errors
-      (add-hook 'doom-after-reload-hook #'my/doom-full-reload--apply)
       (doom/reload))))
 
 (map! :leader

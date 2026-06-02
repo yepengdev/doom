@@ -961,10 +961,33 @@ Bound to `SPC h r R`."
 (map! :leader
       :desc "Full reload" "h r R" #'my/doom-full-reload)
 
-;; ── C dynamic modules: cnotify (notify/timer/pomodoro) + count-cjk ──
+;; ── C dynamic modules ─────────────────────────────────────────────────────
 (module-load (expand-file-name "modules/cnotify-module.so" doom-user-dir))
 (module-load (expand-file-name "modules/count-cjk.so" doom-user-dir))
-(module-load (expand-file-name "modules/clipboard-wl.so" doom-user-dir))
+
+;; Wayland clipboard (transparent — hooks into Emacs copy/paste)
+(when (and (getenv "WAYLAND_DISPLAY")
+           (file-exists-p (expand-file-name "modules/clipboard-wl.so" doom-user-dir)))
+  (module-load (expand-file-name "modules/clipboard-wl.so" doom-user-dir))
+
+  ;; Copy: M-w / C-w also set Wayland clipboard
+  (setq interprogram-cut-function
+        (lambda (text &optional push)
+          (ignore push)
+          (when (fboundp 'clipboard-set)
+            (condition-case nil
+                (clipboard-set "text/plain" text)
+              (error nil)))))
+
+  ;; Paste: C-y gets text from Wayland clipboard first
+  (setq interprogram-paste-function
+        (lambda ()
+          (when (fboundp 'clipboard-get)
+            (condition-case nil
+                (clipboard-get "text/plain")
+              (error nil)))))
+
+  (message "🔧 Wayland clipboard: loaded (multi-window copy/paste)"))
 
 ;; ─── Pomodoro log ────────────────────────────────────────────────────────
 (defvar my/pomodoro-log-file

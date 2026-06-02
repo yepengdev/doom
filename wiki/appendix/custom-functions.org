@@ -14,7 +14,13 @@
 | ~my/org-latex-format-headline~ | config.el | 带颜色 /texorpdfstring 的 LaTeX 标题格式 |
 | ~my/org-maybe-disable-prettification~ | config.el | ≥1 MiB Org 文件关闭美化 |
 | ~my/count-chinese-chars~ | config.el | 中文字数统计（~SPC r n c~，C 模块） |
-| ~my/count-words~ | config.el | 中英综合统计（~M-=~，C 模块） |
+| ~my/count-words~       | config.el | 中英综合统计（~M-=~，C 模块） |
+| ~my/word-count~        | config.el | 中英字数统计（~SPC r t w~，C 模块） |
+| ~my/timer-start~       | config.el | 倒计时器（~SPC r t t~） |
+| ~my/timer-stop~        | config.el | 停止计时器（~SPC r t T~） |
+| ~my/pomodoro-start~    | config.el | 开始番茄钟（~SPC r t s~） |
+| ~my/pomodoro-stop~     | config.el | 停止番茄钟（~SPC r t S~） |
+| ~my/pomodoro-show-stats~ | config.el | 番茄钟统计（~SPC r t v~） |
 | ~org-capture-goto-target~ | config.el | 跳转到 capture 模板目标位置 |
 
 * 变量
@@ -30,3 +36,8 @@
 | ~my/cjk-so~ | C 模块路径（~modules/count-cjk.so~） |
 | ~my/pandoc-dir~ | Pandoc 资源目录 |
 | ~my/org-export-assets-dir~ | HTML 导出资源目录 |
+| ~my/cnotify-so~ | cnotify 模块路径（~modules/cnotify-module.so~） |
+| ~my/pomodoro-log-file~ | 番茄钟日志文件路径 |
+| ~my/pomodoro-default-task~ | 默认番茄钟任务名 |
+| ~my/cnotify-indicator~ | 模式行计时器指示器字符串 |
+| ~my/cnotify-update-timer~ | 模式行刷新定时器 |

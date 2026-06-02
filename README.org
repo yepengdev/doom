@@ -55,7 +55,7 @@
 | ~REASONIX.md~              | 运维与约定备忘（gitignore）         | —                |
 | ~doom-gitconfig~           | Git 代理配置（GitHub 镜像）         | —                |
 | ~opencode.json~            | opencode AI 配置（gitignore）      | —                |
-| ~modules/~                 | C 动态模块源码 + Makefile           | —                |
+| ~modules/~                 | C 动态模块源码 + Makefile（惰性加载，首次调用时按需编译） | —                |
 
 * 已启用的 Doom 模块
 
@@ -133,7 +133,7 @@
 | ~palimpsest~          | 搬移文本而非删除（写作辅助）              |
 | ~ace-pinyin~          | 基于 Avy 的拼音字符跳转                   |
 | ~evil-pinyin~         | 基于拼音的模糊搜索（Orderless 集成）       |
-| ~gcmh~                | 动态运行时 GC 管理                        |
+
 
 * 深入阅读
 

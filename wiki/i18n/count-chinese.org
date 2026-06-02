@@ -38,9 +38,14 @@ Elisp 层只做 message 格式化，计算由 C 完成。
 
 * C 模块构建
 
+C 模块使用惰性加载策略：启动时不编译不加载，首次调用命令时按需编译并加载。
+也可手动触发构建：
+
 #+BEGIN_SRC sh
 cd ~/.config/doom && make -C modules/
 #+END_SRC
+
+或 Emacs 内 ~M-x my/build-cjk-module~（~SPC r n b~）。
 
 需 ~emacs-module.h~（Emacs 30 开发头文件）。
 

@@ -1,16 +1,16 @@
-/* count-cjk.c — Emacs dynamic module for mixed CJK + English counting
+/* count-cjk.c — Emacs 动态模块：混合 CJK（中日韩）与英文计数
  *
- * Build:  make -C modules/
+ * 编译：  make -C modules/
  *   (gcc -shared -fPIC -O2 -I/usr/include/emacs-30 ...)
  *
- * Load:   (module-load (expand-file-name "modules/count-cjk.so" doom-user-dir))
+ * 加载： (module-load (expand-file-name "modules/count-cjk.so" doom-user-dir))
  *
- * Exported:
+ * 导出函数：
  *   my/count-cjk  (STRING) → cons (CHARS . PUNCT)
  *   my/count-text (STRING) → vector [cjk punct en-words en-chars total-cp]
  *
- * Safety:  bounds-checked UTF-8 decoder, validates continuation bytes,
- *          rejects overlong / surrogate / truncated sequences.
+ * 安全性：边界检查的 UTF-8 解码器，验证后续字节，
+ *         拒绝过长/代理项/截断序列。
  */
 
 #include <emacs-module.h>
@@ -20,20 +20,21 @@
 int plugin_is_GPL_compatible;
 
 /* ═══════════════════════════════════════════════════════════════════
- * Character classification
+ * 字符分类
  * ═══════════════════════════════════════════════════════════════════ */
 
 static int is_cjk(uint32_t cp) {
-  return (cp >= 0x4E00  && cp <= 0x9FFF)
-      || (cp >= 0x3400  && cp <= 0x4DBF)
-      || (cp >= 0x20000 && cp <= 0x2A6DF)
-      || (cp >= 0x2A700 && cp <= 0x2B73F)
-      || (cp >= 0x2B740 && cp <= 0x2B81F)
-      || (cp >= 0x2B820 && cp <= 0x2CEAF)
-      || (cp >= 0x2CEB0 && cp <= 0x2EBE0)
-      || (cp >= 0x2F800 && cp <= 0x2FA1F);
+  return (cp >= 0x4E00  && cp <= 0x9FFF)   /* CJK 统一表意文字（常用区） */
+      || (cp >= 0x3400  && cp <= 0x4DBF)   /* CJK 统一表意文字扩展 A */
+      || (cp >= 0x20000 && cp <= 0x2A6DF)  /* CJK 统一表意文字扩展 B */
+      || (cp >= 0x2A700 && cp <= 0x2B73F)  /* CJK 统一表意文字扩展 C */
+      || (cp >= 0x2B740 && cp <= 0x2B81F)  /* CJK 统一表意文字扩展 D */
+      || (cp >= 0x2B820 && cp <= 0x2CEAF)  /* CJK 统一表意文字扩展 E */
+      || (cp >= 0x2CEB0 && cp <= 0x2EBE0)  /* CJK 统一表意文字扩展 F */
+      || (cp >= 0x2F800 && cp <= 0x2FA1F); /* CJK 兼容表意文字补充 */
 }
 
+/* CJK 标点符号（全角括号、引号、分隔符等） */
 static int is_cjk_punct(uint32_t cp) {
   return cp == 0x3001 || cp == 0x3002 || cp == 0xFF0C   /* 、。， */
       || cp == 0xFF1B || cp == 0xFF1A                   /* ；： */
@@ -50,7 +51,7 @@ static int is_cjk_punct(uint32_t cp) {
       || cp == 0x3014 || cp == 0x3015                   /* 〔〕 */
       || cp == 0x3016 || cp == 0x3017                   /* 〖〗 */
       || cp == 0x301A || cp == 0x301B                   /* 〚〛 */
-      || cp == 0x3000                                   /* fullwidth space */
+      || cp == 0x3000                                   /* 全角空格 */
       || cp == 0xFFE5 || cp == 0x203B;                  /* ￥ ※ */
 }
 
@@ -62,13 +63,12 @@ static int is_en_word_char(uint32_t cp) {
 }
 
 /* ═══════════════════════════════════════════════════════════════════
- * Bounds-checked UTF-8 decoder
+ * 带边界检查的 UTF-8 解码器
  * ═══════════════════════════════════════════════════════════════════
  *
- * Reads one codepoint from *sp (must be < end).  Advances *sp past
- * the consumed bytes.  Returns the codepoint on success, or 0xFFFFFFFF
- * on invalid/truncated input (overlong, surrogate, missing continuation,
- * bad start byte).
+ * 从 *sp 位置读取一个码点（必须 < end）。将 *sp 向前移动到已消耗的字节之后。
+ * 成功时返回码点，输入无效/截断时返回 0xFFFFFFFF
+ * （包括过长编码、代理项、缺少后续字节、错误的起始字节）。
  */
 
 static uint32_t decode_utf8_safe(const uint8_t **sp, const uint8_t *end) {
@@ -78,40 +78,40 @@ static uint32_t decode_utf8_safe(const uint8_t **sp, const uint8_t *end) {
   uint32_t cp;
   unsigned int len;
 
-  if (s[0] < 0x80) {
+  if (s[0] < 0x80) {              /* 单字节 ASCII (0xxxxxxx) */
     cp  = s[0];
     len = 1;
-  } else if ((s[0] & 0xE0) == 0xC0) {
+  } else if ((s[0] & 0xE0) == 0xC0) {  /* 双字节起始 (110xxxxx) */
     len = 2;
-    if ((ptrdiff_t)(end - s) < 2) return 0xFFFFFFFF;
-    if ((s[1] & 0xC0) != 0x80)    return 0xFFFFFFFF;
+    if ((ptrdiff_t)(end - s) < 2) return 0xFFFFFFFF;  /* 缺少后续字节 */
+    if ((s[1] & 0xC0) != 0x80)    return 0xFFFFFFFF;  /* 后续字节须以 10xxxxxx 开头 */
     cp = (s[0] & 0x1F) << 6;
     cp |= (s[1] & 0x3F);
-    if (cp < 0x80) return 0xFFFFFFFF;         /* overlong */
-  } else if ((s[0] & 0xF0) == 0xE0) {
+    if (cp < 0x80) return 0xFFFFFFFF;         /* 过长编码 */
+  } else if ((s[0] & 0xF0) == 0xE0) {  /* 三字节起始 (1110xxxx) */
     len = 3;
-    if ((ptrdiff_t)(end - s) < 3) return 0xFFFFFFFF;
-    if ((s[1] & 0xC0) != 0x80)    return 0xFFFFFFFF;
-    if ((s[2] & 0xC0) != 0x80)    return 0xFFFFFFFF;
+    if ((ptrdiff_t)(end - s) < 3) return 0xFFFFFFFF;  /* 缺少后续字节 */
+    if ((s[1] & 0xC0) != 0x80)    return 0xFFFFFFFF;  /* 后续字节须以 10xxxxxx 开头 */
+    if ((s[2] & 0xC0) != 0x80)    return 0xFFFFFFFF;  /* 后续字节须以 10xxxxxx 开头 */
     cp = (s[0] & 0x0F) << 12;
     cp |= (s[1] & 0x3F) << 6;
     cp |= (s[2] & 0x3F);
-    if (cp < 0x800)              return 0xFFFFFFFF;  /* overlong */
-    if (cp >= 0xD800 && cp <= 0xDFFF) return 0xFFFFFFFF;  /* surrogate */
-  } else if ((s[0] & 0xF8) == 0xF0) {
+    if (cp < 0x800)              return 0xFFFFFFFF;  /* 过长编码 */
+    if (cp >= 0xD800 && cp <= 0xDFFF) return 0xFFFFFFFF;  /* 代理项 */
+  } else if ((s[0] & 0xF8) == 0xF0) {  /* 四字节起始 (11110xxx) */
     len = 4;
-    if ((ptrdiff_t)(end - s) < 4) return 0xFFFFFFFF;
-    if ((s[1] & 0xC0) != 0x80)    return 0xFFFFFFFF;
-    if ((s[2] & 0xC0) != 0x80)    return 0xFFFFFFFF;
-    if ((s[3] & 0xC0) != 0x80)    return 0xFFFFFFFF;
+    if ((ptrdiff_t)(end - s) < 4) return 0xFFFFFFFF;  /* 缺少后续字节 */
+    if ((s[1] & 0xC0) != 0x80)    return 0xFFFFFFFF;  /* 后续字节须以 10xxxxxx 开头 */
+    if ((s[2] & 0xC0) != 0x80)    return 0xFFFFFFFF;  /* 后续字节须以 10xxxxxx 开头 */
+    if ((s[3] & 0xC0) != 0x80)    return 0xFFFFFFFF;  /* 后续字节须以 10xxxxxx 开头 */
     cp = (s[0] & 0x07) << 18;
     cp |= (s[1] & 0x3F) << 12;
     cp |= (s[2] & 0x3F) << 6;
     cp |= (s[3] & 0x3F);
-    if (cp < 0x10000)             return 0xFFFFFFFF;  /* overlong */
-    if (cp > 0x10FFFF)            return 0xFFFFFFFF;  /* exceeds Unicode max */
+    if (cp < 0x10000)             return 0xFFFFFFFF;  /* 过长编码 */
+    if (cp > 0x10FFFF)            return 0xFFFFFFFF;  /* 超出 Unicode 最大值 */
   } else {
-    return 0xFFFFFFFF;             /* bad start byte */
+    return 0xFFFFFFFF;             /* 错误的起始字节 */
   }
 
   *sp += len;
@@ -119,7 +119,7 @@ static uint32_t decode_utf8_safe(const uint8_t **sp, const uint8_t *end) {
 }
 
 /* ═══════════════════════════════════════════════════════════════════
- * Single-pass scan (length-bounded, no strlen dependency)
+ * 单次遍历扫描（基于长度边界，不依赖 strlen）
  * ═══════════════════════════════════════════════════════════════════ */
 
 static void scan_text(const uint8_t *data, size_t len,
@@ -134,7 +134,7 @@ static void scan_text(const uint8_t *data, size_t len,
   while (p < end) {
     uint32_t cp = decode_utf8_safe(&p, end);
     if (cp == 0xFFFFFFFF) {
-      /* Invalid byte — skip one byte to avoid infinite loop. */
+      /* 无效字节 — 跳过一字节以避免无限循环。 */
       p = (p < end) ? p + 1 : end;
       continue;
     }
@@ -160,7 +160,7 @@ static void scan_text(const uint8_t *data, size_t len,
 }
 
 /* ═══════════════════════════════════════════════════════════════════
- * Helper: extract string from Emacs, call scan_text
+ * 辅助函数：从 Emacs 提取字符串，调用 scan_text
  * ═══════════════════════════════════════════════════════════════════ */
 
 static int string_to_counts(emacs_env *env, emacs_value arg,
@@ -171,7 +171,7 @@ static int string_to_counts(emacs_env *env, emacs_value arg,
   if (!env->copy_string_contents(env, arg, NULL, &buf_size))
     return -1;
   if (buf_size <= 1) {
-    /* Empty string (just the null terminator). */
+    /* 空字符串（仅有空终止符）。 */
     *cjk = *punct = *en_words = *en_chars = *total_cp = 0;
     return 0;
   }
@@ -184,7 +184,7 @@ static int string_to_counts(emacs_env *env, emacs_value arg,
     return -1;
   }
 
-  /* buf_size includes the null terminator; actual content is buf_size-1 bytes. */
+  /* buf_size 包含空终止符；实际内容长度为 buf_size - 1 字节。 */
   scan_text((const uint8_t *)buf, buf_size - 1,
             cjk, punct, en_words, en_chars, total_cp);
 
@@ -193,7 +193,7 @@ static int string_to_counts(emacs_env *env, emacs_value arg,
 }
 
 /* ═══════════════════════════════════════════════════════════════════
- * Lisp function: my/count-cjk
+ * Lisp 函数：my/count-cjk
  * ═══════════════════════════════════════════════════════════════════ */
 
 static emacs_value Fcount_cjk(emacs_env *env, ptrdiff_t nargs,
@@ -219,7 +219,7 @@ static emacs_value Fcount_cjk(emacs_env *env, ptrdiff_t nargs,
 }
 
 /* ═══════════════════════════════════════════════════════════════════
- * Lisp function: my/count-text
+ * Lisp 函数：my/count-text
  * ═══════════════════════════════════════════════════════════════════ */
 
 static emacs_value Fcount_text(emacs_env *env, ptrdiff_t nargs,
@@ -248,7 +248,7 @@ static emacs_value Fcount_text(emacs_env *env, ptrdiff_t nargs,
 }
 
 /* ═══════════════════════════════════════════════════════════════════
- * Module init
+ * 模块初始化
  * ═══════════════════════════════════════════════════════════════════ */
 
 int emacs_module_init(struct emacs_runtime *ert) EMACS_NOEXCEPT {

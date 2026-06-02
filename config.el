@@ -1,19 +1,19 @@
 ;;; $DOOMDIR/config.el -*- lexical-binding: t; -*-
 ;;;
-;;; Doom Emacs personal configuration — loaded after modules (autoloads +
-;;; packages) are ready.  All changes here require only `M-x doom/reload`
-;;; (or `M-x my/doom-full-reload` for autoloads/packages/theme/font too);
-;;; no `doom sync` needed unless `packages.el` or `init.el` was touched.
+;;; Doom Emacs 个人配置 — 在模块（自动加载及包）就绪后加载。
+;;; 此处所有更改只需 `M-x doom/reload`（或 `M-x my/doom-full-reload`，
+;;; 后者还会重新加载自动加载/包/主题/字体）；无需 `doom sync`，
+;;; 除非修改了 `packages.el` 或 `init.el`。
 ;;;
 
 ;; ═══════════════════════════════════════════════════════════════════════════
-;; Git proxy for restrictive networks
+;; Git 代理（受限网络）
 ;; ═══════════════════════════════════════════════════════════════════════════
 ;;
-;; `doom-gitconfig` wraps git(1) to route all GitHub HTTPS fetches through
-;; gh-proxy.com.  Needed behind the GFW or any firewall that blocks raw
-;; github.com.  The env var is sourced by Doom's git wrapper; the actual
-;; gitconfig lives in `doom-gitconfig` in this directory.
+;; `doom-gitconfig` 包装 git(1)，将所有 GitHub HTTPS 请求路由到
+;; gh-proxy.com。在 GFW 或任何屏蔽原始 github.com 的防火墙后需要此配置。
+;; 环境变量由 Doom 的 git 包装器读取；实际的 gitconfig 文件存放在
+;; 本目录的 `doom-gitconfig` 中。
 ;;
 (setenv "DOOMGITCONFIG"
         (expand-file-name "doom-gitconfig" doom-user-dir))
@@ -23,73 +23,68 @@
 ;; UI
 ;; ═══════════════════════════════════════════════════════════════════════════
 
-;; ─── Fonts ────────────────────────────────────────────────────────────────
+;; ─── 字体 ────────────────────────────────────────────────────────────────
 ;;
-;; Primary: Monaspace Neon 16pt — designed for code readability with
-;; distinct letterforms (no ambiguous 1/l/I).  Same face for variable-pitch
-;; (Monaspace has a well-tuned italic/roman pair) so prose doesn't visually
-;; clash with code.
+;; 主字体：Monaspace Neon 16pt — 专为代码可读性设计，字母形状清晰
+;;（无混淆的 1/l/I）。变量宽字体也使用同一字体（Monaspace 有精心调校的
+;; 斜体/正体对），使散文与代码在视觉上不冲突。
 ;;
-;; CJK fallback: LXGW WenKai Mono Screen — a monospaced Chinese font whose
-;; x-height and weight approximate Monaspace Neon, keeping the visual rhythm
-;; when Latin and CJK glyphs interleave.
+;; CJK 后备字体：LXGW WenKai Mono Screen — 等宽中文字体，其 x 高度和
+;; 字重接近 Monaspace Neon，在拉丁字母与 CJK 字形交错时保持视觉节奏。
 ;;
-;; Size 16 balances modern high-DPI displays (14pt feels cramped) against
-;; screen real-estate (18pt wastes horizontal space).
+;; 字号 16 在现代高 DPI 显示器上平衡了舒适度（14pt 太挤）与屏幕空间
+;;（18pt 浪费水平空间）。
 ;;
 (after! doom-ui
   (setq doom-font (font-spec :family "Monaspace Neon" :size 15)
         doom-variable-pitch-font (font-spec :family "Monaspace Neon" :size 15))
   (set-fontset-font t 'han (font-spec :family "LXGW WenKai Mono Screen" :size 15)))
 
-;; ─── Auto theme switch (day/night) ────────────────────────────────────────
+;; ─── 自动切换主题（日/夜）─────────────────────────────────────────────
 ;;
-;; Switches between doom-one-light (day) and doom-tokyo-night (night) based
-;; on the current hour.  Why hours instead of sunrise/sunset:
-;;   - sunrise APIs require network + geolocation config; brittle for a
-;;     config file that must work everywhere.
-;;   - A developer's schedule is anchored to the desk; 7–19 covers the
-;;     typical workday.  Adjust the constants for your latitude / preference.
+;; 根据当前小时在 doom-one-light（日间）和 doom-tokyo-night（夜间）之间切换。
+;; 为何使用小时而非日出/日落：
+;;   - 日出 API 需要网络和地理位置配置；配置文件需要随处可用，这样做太脆弱。
+;;   - 开发者的日程以办公桌为中心；7–19 覆盖典型工作日。
+;;     可根据你的纬度/偏好调整这些常量。
 ;;
-;; The switch runs on every frame switch, but the `unless (eq doom-theme ...)`
-;; guard makes it a near-zero-cost no-op outside transition hours (7:00/19:00).
-;; Persisting on the hook ensures the theme updates even during long-running
-;; sessions that cross the day/night boundary.
+;; 切换在每次帧切换时执行，但 `unless (eq doom-theme ...)`
+;; guard 使其在非切换时间（7:00/19:00）近乎零开销。
+;; 持久挂在 hook 上确保即使在跨日夜边界的长时间会话中也能更新主题。
 ;;
 (defconst my/theme-day 'doom-one-light
-  "Day theme (7:00–18:59, inclusive of start, exclusive of end).")
+  "日间主题（7:00–18:59，包含起始，排除结束）。")
 
 (defconst my/theme-night 'doom-tokyo-night
-  "Night theme (19:00–6:59).  Dark-on-light switch reduces eye strain in
-low-ambient-light environments.")
+  "夜间主题（19:00–6:59）。深色背景减轻低光环境下的眼疲劳。")
 
 (defconst my/theme-day-start 7
-  "Hour (0–23) when day theme begins.  Tuned to a typical desk schedule.")
+  "日间主题开始的小时（0–23）。按典型办公时间调整。")
 
 (defconst my/theme-night-start 19
-  "Hour (0–23) when night theme begins.  7–19 covers the common workday.")
+  "夜间主题开始的小时（0–23）。7–19 覆盖普通工作日。")
 
 (defun my/theme-for-hour (&optional hour)
-  "Return the theme constant for the given HOUR (0–23, default: current local time).
+  "返回指定 HOUR（0–23，默认为当前本地时间）对应的主题常量。
 
-Pure function — no state, no side effects.  Extracted from
-`my/theme-switch-maybe' so callers can preview without applying."
+纯函数 — 无状态、无副作用。从 `my/theme-switch-maybe' 抽取，
+供调用者在不应用主题的情况下预览。"
   (let ((h (or hour (string-to-number (format-time-string "%H")))))
     (if (and (>= h my/theme-day-start) (< h my/theme-night-start))
         my/theme-day
       my/theme-night)))
 
 (defun my/theme-apply (theme)
-  "Switch `doom-theme' to THEME immediately, triggering a full UI redraw.
-Side effect: modifies the global `doom-theme' variable and calls
-`doom/reload-theme', which affects all frames."
+  "立即将 `doom-theme' 切换为 THEME，触发完整的 UI 重绘。
+副作用：修改全局 `doom-theme' 变量并调用 `doom/reload-theme'，
+会影响所有帧。"
   (setq doom-theme theme)
   (doom/reload-theme))
 
 (defun my/theme-switch-maybe ()
-  "Check the hour and apply day/night theme if different from current.
-Persists on `doom-switch-frame-hook' so transitions (7:00/19:00) are
-picked up even during long-running sessions.  No-op if already correct."
+  "检查当前小时，若与当前主题不同则切换日/夜主题。
+挂在 `doom-switch-frame-hook' 上，使过渡（7:00/19:00）
+即使在长时间运行的会话中也能被捕获。若主题已正确则为空操作。"
   (let ((theme (my/theme-for-hour)))
     (unless (eq doom-theme theme)
       (my/theme-apply theme))))
@@ -97,32 +92,32 @@ picked up even during long-running sessions.  No-op if already correct."
 (setq doom-theme (my/theme-for-hour))
 (add-hook 'doom-switch-frame-hook #'my/theme-switch-maybe 'append)
 
-;; ─── Line numbers & auto-save ─────────────────────────────────────────────
-;; Relative numbers are the Evil/Vim convention — `j`/`k` movement counts are
-;; visible at a glance.  Absolute on current line, relative on others is the
-;; Doom default; `'relative` keeps it.  For prose-heavy buffers, olivetti
-;; disables line-numbers entirely (see olivetti config below).
+;; ─── 行号与自动保存 ─────────────────────────────────────────────────
+;; 相对行号是 Evil/Vim 的惯例 — `j`/`k` 移动距离一目了然。
+;; 当前行显示绝对编号，其他行显示相对编号是 Doom 默认行为；
+;; `'relative` 保持此设置。散文为主的缓冲区中，olivetti 会完全禁用
+;; 行号（参见下方 olivetti 配置）。
 (setq display-line-numbers-type 'relative)
 
-;; auto-save-timeout: seconds of idle activity before saving.  30s is short
-;; enough to not lose much work on crash, long enough to batch rapid edits.
-;; auto-save-interval: key presses between saves (belt-and-suspenders).
+;; auto-save-timeout: 空闲活动秒数后自动保存。30s 足够短以防止崩溃时丢失大量工作，
+;; 也足够长以批量处理快速编辑。
+;; auto-save-interval: 按键次数间保存（双保险）。
 (setq auto-save-timeout 30
       auto-save-interval 300)
 
-;; ─── Spacious padding (UI breathing room) ─────────────────────────────────
+;; ─── 宽松内边距（UI 呼吸空间）─────────────────────────────────────────
 ;;
-;; Enables `spacious-padding-mode` on the first graphical frame only.
-;; The `doom-switch-frame-hook` + guard variable pattern ensures this works
-;; safely with the Emacs daemon: if Emacs starts in terminal, padding mode
-;; is never activated until a GUI frame appears.
+;; 仅在第一个图形帧上启用 `spacious-padding-mode`。
+;; `doom-switch-frame-hook` + 哨兵变量的模式确保此功能
+;; 在 Emacs 守护进程中安全运行：如果 Emacs 在终端中启动，
+;; 内边距模式在 GUI 帧出现前不会激活。
 ;;
 (defvar my/enable-spacious-padding--done nil)
 
 (defun my/enable-spacious-padding--fn (&optional _frame)
-  "Enable `spacious-padding-mode' on the first graphical frame only.
-Self-removes from `doom-switch-frame-hook' after activation.  No-op if
-Emacs is in terminal mode (daemon started with emacsclient -t)."
+  "仅在第一个图形帧上启用 `spacious-padding-mode'。
+激活后自动从 `doom-switch-frame-hook' 移除。若 Emacs 处于终端模式
+（守护进程通过 emacsclient -t 启动），则为空操作。"
   (when (and (display-graphic-p)
              (not my/enable-spacious-padding--done))
     (setq my/enable-spacious-padding--done t)
@@ -132,35 +127,33 @@ Emacs is in terminal mode (daemon started with emacsclient -t)."
 (use-package! spacious-padding
   :commands spacious-padding-mode
   :init
-  ;; line-spacing 3pt: enough visual breathing room on modern high-DPI LCDs
-  ;; without wasting vertical space (1pt looks cramped, 5pt+ wastes space).
+  ;; line-spacing 3pt: 在现代高 DPI LCD 上有足够视觉呼吸空间
+  ;; 而不浪费垂直空间（1pt 太挤，5pt+ 浪费空间）。
   (setq-default line-spacing 3)
   (add-hook 'doom-switch-frame-hook #'my/enable-spacious-padding--fn))
 
 
 ;; ═══════════════════════════════════════════════════════════════════════════
-;; Editor
+;; 编辑器
 ;; ═══════════════════════════════════════════════════════════════════════════
 
-;; ─── Shell & server basics ────────────────────────────────────────────────
+;; ─── Shell 与服务器基础 ────────────────────────────────────────────────
 ;;
-;; `shell-file-name` → bash (not the user's interactive shell, which may be
-;; zsh/fish).  Emacs `shell-command' and compile modes rely on POSIX sh
-;; syntax; fish in particular is incompatible.  By contrast `vterm-shell`
-;; and `explicit-shell-file-name' deliberately use fish — those are
-;; interactive and user-facing.
+;; `shell-file-name` → bash（而非用户的交互式 shell，可能为 zsh/fish）。
+;; Emacs 的 `shell-command' 和编译模式依赖 POSIX sh 语法；fish 尤其不兼容。
+;; 相比之下 `vterm-shell` 和 `explicit-shell-file-name' 特意使用 fish —
+;; 那些是交互式且面向用户的。
 ;;
-;; `confirm-kill-emacs`: In daemon mode `kill-emacs' just stops the daemon
-;; with no visible feedback to clients.  Users interact via `emacsclient`
-;; and should use `save-buffers-kill-emacs' (`C-x C-c') which prompts for
-;; unsaved buffers.  Nil is safe because the daemon's `kill-emacs' is rarely
-;; called directly in normal use.
+;; `confirm-kill-emacs`：守护模式下 `kill-emacs' 仅终止守护进程，
+;; 对客户端无可见反馈。用户通过 `emacsclient` 交互，
+;; 应使用 `save-buffers-kill-emacs'（`C-x C-c'）来提示未保存的缓冲区。
+;; 设为 nil 是安全的，因为守护进程的 `kill-emacs' 在正常使用中很少
+;; 被直接调用。
 ;;
-;; `server-raise-frame t': `emacsclient' frames raise the Emacs frame to the
-;; top of the window stack.  Without this, the frame is created but may
-;; remain *behind* other windows, causing confusion.
-;; `server-client-instructions nil': suppress the "When done, type C-x #"
-;; echo — noise for experienced users.
+;; `server-raise-frame t`：`emacsclient' 帧将 Emacs 窗口提升至
+;; 窗口堆栈顶部。否则帧会创建但可能位于其他窗口后方，造成困惑。
+;; `server-client-instructions nil`：抑制 "When done, type C-x #"
+;; 回显 — 对有经验的用户来说是噪音。
 ;;
 (setq confirm-kill-emacs nil)
 (setq shell-file-name (executable-find "bash"))
@@ -171,20 +164,19 @@ Emacs is in terminal mode (daemon started with emacsclient -t)."
 
 ;; ─── Magit ────────────────────────────────────────────────────────────────
 ;;
-;; Disable hunk refinement: for large diffs it adds noticeable latency with
-;; little practical benefit (word-level diff highlighting).
+;; 禁用 hunk 精炼：大型差异对比中会带来明显延迟，且实际收益很小
+;;（单词级差异高亮）。
 ;;
-;; magit-diff-highlight-trailing t is Doom's default; keep it (trailing
-;; whitespace is context-insensitive and cheap to highlight).
+;; magit-diff-highlight-trailing t 是 Doom 默认值；保留此设置
+;;（尾部空白不依赖上下文且高亮开销低）。
 ;;
 (after! magit
   (setq magit-diff-refine-hunk nil))
 
-;; ─── Writing tools ────────────────────────────────────────────────────────
+;; ─── 写作工具 ────────────────────────────────────────────────────────
 ;;
-;; Olivetti: centered writing with org-mode.  Width 100 (chars) keeps lines
-;; short enough for comfortable reading on a widescreen monitor.  Hide the
-;; mode-line to reduce visual noise in prose buffers.
+;; Olivetti：在 org-mode 中居中书写。宽度 100（字符数）使行长
+;; 在宽屏显示器上适合舒适阅读。隐藏模式行以减少散文缓冲区中的视觉噪音。
 ;;
 (use-package! olivetti
   :hook (org-mode . olivetti-mode)
@@ -194,11 +186,11 @@ Emacs is in terminal mode (daemon started with emacsclient -t)."
   :config
   (define-key olivetti-mode-map (kbd "C-c |") nil)
   (defvar-local my/olivetti--line-numbers-p nil
-    "Non-nil if line numbers were enabled before olivetti turned on.")
+    "若在 olivetti 开启前行号已启用，则为非 nil。")
 
   (defun my/olivetti-toggle-line-numbers-h ()
-    "Disable line numbers in olivetti-mode; restore original state on exit.
-Save original state in `my/olivetti--line-numbers-p' on entry, restore on exit."
+    "在 olivetti-mode 中禁用行号；退出时恢复原始状态。
+进入时将原始状态保存在 `my/olivetti--line-numbers-p' 中，退出时恢复。"
     (if olivetti-mode
         (setq my/olivetti--line-numbers-p (display-line-numbers-mode -1))
       (when my/olivetti--line-numbers-p
@@ -206,10 +198,9 @@ Save original state in `my/olivetti--line-numbers-p' on entry, restore on exit."
   (add-hook 'olivetti-mode-hook #'my/olivetti-toggle-line-numbers-h))
 
 ;;
-;; Super-save: auto-saves on idle rather than on focus/window-switch events,
-;; which is less jarring during flow.  Trims trailing whitespace on save
-;; (except current line — prevents fighting with point).  Silent mode avoids
-;; mini-buffer chatter.
+;; Super-save：在空闲时自动保存，而非在焦点/窗口切换事件时保存，
+;; 这样在流程中干扰较小。保存时修剪尾部空白（当前行除外 —
+;; 防止与光标位置冲突）。静默模式避免 mini-buffer 消息。
 ;;
 (use-package! super-save
   :hook (doom-first-file . super-save-mode)
@@ -223,16 +214,16 @@ Save original state in `my/olivetti--line-numbers-p' on entry, restore on exit."
   (add-to-list 'super-save-predicates
                (lambda () (not buffer-read-only))))
 
-;; ─── Palimpsest (move text without deleting) ──────────────────────────────
+;; ─── Palimpsest（移动文本而不删除）───────────────────────────────────
 ;;
-;; Moving text vs deleting: during drafting, text often needs to be set aside
-;; rather than discarded.  Palimpsest moves the region to top/bottom of buffer
-;; (out of sight, but still in context) or to a per-file trash file.
+;; 移动文本 vs 删除：草稿过程中，文本常需暂时搁置而非丢弃。
+;; Palimpsest 将区域移至缓冲区顶部/底部（在视野之外但仍在上下文中）
+;; 或移至每个文件的回收文件。
 ;;
-;; Bound under SPC m P in org-mode (P = Palimpsest):
-;;   t — move to top of buffer
-;;   b — move to bottom
-;;   T — move to trash file (<basename>.trash.<ext>)
+;; 在 org-mode 中绑定到 SPC m P（P = Palimpsest）：
+;;   t — 移至顶部
+;;   b — 移到底部
+;;   T — 移至回收文件（<basename>.trash.<ext>）
 ;;
 (use-package! palimpsest
   :hook (org-mode . palimpsest-mode)
@@ -244,24 +235,25 @@ Save original state in `my/olivetti--line-numbers-p' on entry, restore on exit."
         :desc "Move to bottom" "b" #'palimpsest-move-region-to-bottom
         :desc "Move to trash"  "T" #'palimpsest-move-region-to-trash))
 
-;; ─── Evil Insert → hybrid (Emacs keys + bar cursor) ──────────────────────
+;; ─── Evil Insert → 混合模式（Emacs 键位 + 竖线光标）───────────────
 ;;
-;; Goal: `i` enters insert state with bar cursor and *Emacs native keybindings*
-;; (C-w, C-a, C-e, etc.), while preserving `evil-insert-state-map` so that
-;; third-party packages (evil-surround, evil-commentary, etc.) can still
-;; register insert-mode bindings normally.
+;; 目标：`i` 进入插入状态，使用竖线光标和 Emacs 原生键位绑定
+;;（C-w、C-a、C-e 等），同时保留 `evil-insert-state-map` 以使
+;; 第三方包（evil-surround、evil-commentary 等）能正常注册
+;; 插入模式绑定。
 ;;
-;; Mechanism: replace `evil-insert-state-map` with a sparse keymap containing
-;; only `<escape>` → normal state.  Every other key falls through to Emacs's
-;; global keybinding system.  This produces the same user experience as
-;; `evil-emacs-state` but keeps the `evil-insert-state` identity intact.
+;; 机制：用仅有 `<escape>` → 正常状态的稀疏键映射替换
+;; `evil-insert-state-map`。其他所有按键回退到 Emacs 的
+;; 全局键绑定系统。这产生了与 `evil-emacs-state` 相同的用户体验，
+;; 但保持了 `evil-insert-state` 的身份不变。
 ;;
 (after! evil
   (setq evil-insert-state-cursor 'bar)
   (setcdr evil-insert-state-map nil)
   (define-key evil-insert-state-map (kbd "<escape>") 'evil-normal-state))
 
-;; ─── Global keybindings ──────────────────────────────────────────────────
+;; ─── 全局键绑定 ──────────────────────────────────────────────────
+;; M-! 运行 eshell 命令
 (map! :g "M-!" #'eshell-command)
 
 
@@ -269,24 +261,23 @@ Save original state in `my/olivetti--line-numbers-p' on entry, restore on exit."
 ;; Org mode
 ;; ═══════════════════════════════════════════════════════════════════════════
 
-;; All org-related content lives under a single top-level directory.
-;; This anchors org-capture, org-agenda, denote, deft, and org-noter —
-;; changing it requires updating all consumers.
+;; 所有 Org 相关内容位于单个顶级目录下。
+;; 这固定了 org-capture、org-agenda、denote、deft 和 org-noter 的路径 —
+;; 更改它需要更新所有使用者。
 (setq org-directory "~/org/")
 
-;; org-noter searches this path for annotation notes associated with PDF/DJVU
-;; documents.  Keeping annotations in a dedicated subdirectory avoids clutter
-;; in the main note pool.
+;; org-noter 在此路径中搜索与 PDF/DJVU 文档关联的注释笔记。
+;; 将注释放在专用子目录中避免主笔记池的混乱。
 (setq org-noter-notes-search-path '("~/org/deft/annotations"))
 
 (after! org
-  ;; Custom TODO workflow: DRAFT (write) → REVIEW (edit) → DONE / CANCELLED.
-  ;; The third pipe segment `|` separates active vs inactive keywords.
+  ;; 自定义 TODO 工作流：DRAFT（写作）→ REVIEW（编辑）→ DONE / CANCELLED。
+  ;; 第三个管道段 `|` 分隔激活与非激活关键词。
   (add-to-list 'org-todo-keywords
                '(sequence "DRAFT(R)" "REVIEW(r)" "|" "CANCELLED(C)") t)
 
-  ;; Capture template for novel ideas — metadata-rich entry with character,
-  ;; mood, and source tracking.  Prepend so newest are first.
+  ;; 小说创意捕获模板 — 包含角色、情绪和来源追踪的元数据丰富的条目。
+  ;; 使用 prepend 使最新的在最前面。
   (add-to-list 'org-capture-templates
                '("w" "Novel idea" entry
                  (file+headline "~/org/novel-inbox.org" "Inspiration inbox")
@@ -294,18 +285,18 @@ Save original state in `my/olivetti--line-numbers-p' on entry, restore on exit."
                  :prepend t
                  :empty-lines 1))
 
-  ;; Hide markers like `=`, `*`, `~` around text — the visual result reads like
-  ;; rendered markup, eliminating visual noise while composing.  Fontification
-  ;; (italic/bold/monospace) still applies, so the formatting remains visible.
+  ;; 隐藏 `=`、`*`、`~` 等标记 — 视觉上像渲染的标记，
+  ;; 在写作时消除视觉噪音。字体化（斜体/粗体/等宽）仍然生效，
+  ;; 因此格式仍然可见。
   (setq org-hide-emphasis-markers t)
-  ;; Open `.html` / `.xhtml` files externally via the OS handler, not inside
-  ;; Emacs (shr/eww).  HTML content is read in a browser for proper CSS/JS.
+  ;; 通过 OS 外部程序打开 `.html` / `.xhtml` 文件，而非 Emacs
+  ;;（shr/eww）。HTML 内容应在浏览器中查看以获得正确的 CSS/JS。
   (add-to-list 'org-file-apps '("\\.x?html?\\'" . "xdg-open %s")))
 
-;; ─── Org capture helper ───────────────────────────────────────────────────
+;; ─── Org 捕获辅助 ───────────────────────────────────────────────────
 (defun org-capture-goto-target (&optional template-key)
-  "Jump to the target location of a capture template without actually capturing.
-Useful for preview where a capture would land before committing to it."
+  "跳转到捕获模板的目标位置而不实际执行捕获。
+在提交前预览捕获会落在哪里时很有用。"
   (interactive)
   (require 'org-capture)
   (let ((entry (org-capture-select-template template-key)))
@@ -315,28 +306,29 @@ Useful for preview where a capture would land before committing to it."
     (pop-to-buffer-same-window (org-capture-get :buffer))
     (goto-char (org-capture-get :pos))))
 
-;; ─── Pandoc docx export ───────────────────────────────────────────────────
+;; ─── Pandoc docx 导出 ───────────────────────────────────────────────────
 (defvar my/pandoc-dir (expand-file-name "pandoc" doom-user-dir)
-  "Directory holding pandoc reference docx and Lua filters.")
+  "Pandoc 参考 docx 和 Lua 过滤器所在的目录。")
 
 (after! ox-pandoc
+  ;; 设置 docx 导出的 Pandoc 选项 — 使用自定义模板。
   (setq org-pandoc-options-for-docx
         `((reference-doc . ,(expand-file-name
                              "templates/template_标题不编号-列表第二行顶格.docx"
                              my/pandoc-dir))
           (lua-filter . ,(expand-file-name "markdown-to-docx.lua" my/pandoc-dir)))))
 
-;; ─── Org HTML export (local minimal theme) ────────────────────────────────
+;; ─── Org HTML 导出（本地极简主题）───────────────────────────────────
 ;;
-;; Custom CSS only — no default style include and zero JS.  The CSS files
-;; live in `org-export/minimal/css/` and provide a clean print-like layout.
-;; Rationale: the default org export HTML includes full-page styling geared
-;; toward printing — for screen viewing it's heavy and hard to theme.
+;; 自定义 CSS — 不包含默认样式，零 JavaScript。CSS 文件
+;; 位于 `org-export/minimal/css/` 中，提供干净的类打印布局。
+;; 理由：默认的 org 导出 HTML 包含面向打印的全页样式 —
+;; 在屏幕上查看时过于繁重且难以定制主题。
 ;;
 (defvar my/org-export-assets-dir
   (expand-file-name "org-export/minimal" doom-user-dir)
-  "Directory containing Org HTML export assets (CSS, no JS).
-Referenced by `ox-html' configuration below.  Structure:
+  "包含 Org HTML 导出资源（CSS，无 JS）的目录。
+由下方的 `ox-html' 配置引用。结构：
   org-export/minimal/css/org.css
   org-export/minimal/css/htmlize.css")
 
@@ -349,38 +341,37 @@ Referenced by `ox-html' configuration below.  Structure:
            "<link rel=\"stylesheet\" type=\"text/css\" href=\"" css-dir "/htmlize.css\"/>"))
     (setq org-html-head-extra "")))
 
-;; ─── External browser for links ──────────────────────────────────────────
-;; xdg-open delegates to the desktop environment's default handler
-;; (Firefox/Chrome/whatever the user configured system-wide).  Hard-coding
-;; a specific browser would break on headless terminals or non-XDG desktops.
+;; ─── 外部浏览器打开链接 ──────────────────────────────────────────
+;; xdg-open 委托给桌面环境的默认处理器
+;;（Firefox/Chrome/用户在系统范围内配置的任何浏览器）。
+;; 硬编码特定浏览器会在无头终端或非 XDG 桌面上失效。
 (setq browse-url-browser-function #'browse-url-xdg-open)
 
-;; ─── Large Org file handling (≥1 MiB) ────────────────────────────────────
+;; ─── 大型 Org 文件处理（≥1 MiB）────────────────────────────────────
 ;;
-;; Org-mode prettification (org-modern, org-appear, org-indent, fontification,
-;; prettify-symbols, variable-pitch) causes noticeable UI lag in files larger
-;; than ~1 MiB.  This hook detects oversized buffers at open time and strips
-;; all decoration — trading aesthetics for responsiveness.  The threshold is
-;; a heuristic; adjust MY/ORG-LARGE-FILE-SIZE-THRESHOLD for your machine.
+;; Org-mode 的装饰功能（org-modern、org-appear、org-indent、字体化、
+;; prettify-symbols、variable-pitch）在大于 ~1 MiB 的文件中
+;; 会导致明显的 UI 延迟。此 hook 在打开时检测过大的缓冲区，
+;; 并移除所有装饰 — 用美观换取响应速度。阈值是一个启发式值；
+;; 请根据你的机器调整 MY/ORG-LARGE-FILE-SIZE-THRESHOLD。
 ;;
 (defvar my/org-large-file-size-threshold (* 1024 1024)
-  "Files >= 1 MiB trigger `my/org-maybe-disable-prettification' to strip
-decoration.  1 MiB is a heuristic — Org's redisplay cost scales with file
-size and prettification complexity.  Adjust per-machine.
+  "文件 >= 1 MiB 触发 `my/org-maybe-disable-prettification' 移除装饰。
+1 MiB 是启发式值 — Org 的重绘成本随文件大小和美化复杂度扩展。
+请根据机器调整。
 
-Reference: a ~600 KiB Org file with ~5000 lines and ~50 headings can
-already show multi-second font-lock pauses on a 2022 laptop CPU.")
+参考：一个 ~600 KiB、约 5000 行、~50 个标题的 Org 文件在 2022 年
+笔记本 CPU 上已可能出现数秒的 font-lock 暂停。")
 
 (defun my/org-maybe-disable-prettification ()
-  "Disable Org decorative modes for buffers >= `my/org-large-file-size-threshold'.
+  "对缓冲区 >= `my/org-large-file-size-threshold' 的 Org 文件禁用装饰模式。
 
-Called from `org-mode-hook'.  Trading aesthetics for responsive scrolling
-and typing.  The following are disabled unconditionally when the threshold
-is exceeded:
-  - org-modern, org-appear, org-indent (structural overlays)
-  - prettify-symbols (composition regex on every insert)
-  - variable-pitch (slows redisplay with mixed fonts)
-  - Fontification extras (TODO faces, priority faces, emphasis markers)"
+从 `org-mode-hook' 调用。用美观换取滚动和输入的响应速度。
+当超过阈值时无条件禁用以下功能：
+  - org-modern、org-appear、org-indent（结构性覆盖层）
+  - prettify-symbols（每次插入时的组成正则）
+  - variable-pitch（混合字体拖慢重绘）
+  - 额外字体化（TODO 面、优先级面、强调标记）"
   (when-let ((attrs (and buffer-file-name
                          (not (file-remote-p buffer-file-name))
                          (file-attributes buffer-file-name))))
@@ -404,7 +395,7 @@ is exceeded:
 
 (add-hook 'org-mode-hook #'my/org-maybe-disable-prettification)
 
-;; Don't let so-long hijack org-mode (it has its own large-file handler above).
+;; 不让 so-long 劫持 org-mode（其有自己的大型文件处理器，见上）。
 (after! so-long
   (setq so-long-predicate
         (lambda () (and (not (derived-mode-p 'org-mode))
@@ -412,21 +403,21 @@ is exceeded:
 
 
 ;; ═══════════════════════════════════════════════════════════════════════════
-;; LaTeX (AUCTeX + Org → LaTeX export)
+;; LaTeX（AUCTeX + Org → LaTeX 导出）
 ;; ═══════════════════════════════════════════════════════════════════════════
 
-;; XeLaTeX as default engine — required for Chinese / OpenType font support.
-;; PDFTeX cannot handle CJK characters without intrusive packages (CJKutf8);
-;; LuaLaTeX is another option but slower for small docs.
+;; XeLaTeX 默认引擎 — 支持中文/OpenType 字体所需。
+;; PDFTeX 无法处理 CJK 字符（除非使用侵入性包如 CJKutf8）；
+;; LuaLaTeX 是另一个选项，但对小型文档较慢。
 ;;
 (setq-default TeX-engine 'xetex)
 
-;; ─── Org → LaTeX headline formatting ──────────────────────────────────────
+;; ─── Org → LaTeX 标题格式化 ──────────────────────────────────────
 ;;
-;; Custom `org-latex-format-headline-function` that wraps TODO keywords,
-;; priorities, and tags in `\texorpdfstring{}{}` so that PDF bookmarks
-;; (which cannot handle LaTeX color commands) get a plain-text fallback.
-;; Without this, bookmarks show raw code like `{\color{red!65!black}...}`.
+;; 自定义 `org-latex-format-headline-function`，将 TODO 关键字、
+;; 优先级和标签包装在 `\texorpdfstring{}{}` 中，使 PDF 书签
+;;（无法处理 LaTeX 颜色命令）有纯文本回退。
+;; 没有此函数时，书签会显示 `{\color{red!65!black}...}` 等原始代码。
 ;;
 (defun my/org-latex-format-headline (todo todo-type priority text tags _info)
   (concat
@@ -456,15 +447,15 @@ is exceeded:
      "vrb" "dvi" "fdb_latexmk" "blg" "brf" "fls" "entoc" "ps" "spl" "bbl" "tex" "bcf"))
 
   :config
-  ;; LaTeX compilation with TEXINPUTS to find ctexbook-org.cls
-  ;; in the modules/ directory.
+  ;; 使用 TEXINPUTS 查找 modules/ 目录中的 ctexbook-org.cls
+  ;; 的 LaTeX 编译命令。
   (let* ((modules-dir (expand-file-name "modules" doom-user-dir))
          (cmd (format "env TEXINPUTS=%s//: latexmk -xelatex -shell-escape -interaction=nonstopmode -f -output-directory=%%o %%f"
                       modules-dir)))
     (setq org-latex-pdf-process (list cmd)))
 
-  ;; Custom LaTeX class for Chinese typesetting, based on ctexbook.
-  ;; All packages are loaded from modules/ctexbook-org.cls.
+  ;; 基于 ctexbook 的中文排版自定义 LaTeX 类。
+  ;; 所有包从 modules/ctexbook-org.cls 加载。
   (add-to-list 'org-latex-classes
                '("ctexbook"
                  "\\documentclass{ctexbook-org}
@@ -477,27 +468,25 @@ is exceeded:
 
 
 ;; ═══════════════════════════════════════════════════════════════════════════
-;; Notes (Deft + Denote + Consult-notes)
+;; 笔记（Deft + Denote + Consult-notes）
 ;; ═══════════════════════════════════════════════════════════════════════════
 
-;; ─── Deft (file-browsing for plain-text notes) ────────────────────────────
+;; ─── Deft（纯文本笔记文件浏览）────────────────────────────────────
 ;;
-;; Override `deft-parse-title': the default expects an org-mode #+TITLE;
-;; but Deft also picks up non-org files where we still want title extraction.
-;; The custom regex matches both `#+title:` and Org `#+TITLE:` variants.
+;; 重写 `deft-parse-title'：默认实现期望 org-mode 的 #+TITLE；
+;; 但 Deft 也会选取非 org 文件，这些文件仍需提取标题。
+;; 自定义正则同时匹配 `#+title:` 和 Org 的 `#+TITLE:` 变体。
 ;;
-;; deft-strip-summary-regexp: removes metadata lines from the preview
-;; snippet shown in Deft's file list.  Without this, every file shows a
-;; wall of #+KEYWORD: ... and :PROPERTIES: drawers instead of the actual
-;; prose first paragraph.
+;; deft-strip-summary-regexp：从预览摘要中移除元数据行，
+;; 否则每个文件都会显示一排 #+KEYWORD: ... 和 :PROPERTIES:
+;; 抽屉，而非实际的散文首段。
 ;;
 (after! deft
   (setq deft-directory "~/org/deft"
         deft-recursive t)
   (defun my/deft-parse-title (file contents)
-    "Override `deft-parse-title' to accept case-insensitive #+TITLE lines.
-Default only matches `#+title' (lowercase); our Convention Capitalizes
-Org Keywords."
+    "重写 `deft-parse-title' 以接受大小写不敏感的 #+TITLE 行。
+默认只匹配 `#+title'（小写）；我们的约定是大写 Org 关键字。"
     (if (string-match "^#\\+[tT][iI][tT][lL][Ee]:\\s-*\\(.*\\)" contents)
         (match-string 1 contents)
       (deft-base-filename file)))
@@ -509,15 +498,13 @@ Org Keywords."
                 "\\|^:PROPERTIES:\n\\(.+\n\\)+:END:\n"
                 "\\)")))
 
-;; ─── Denote (file-naming Zettelkasten) ────────────────────────────────────
+;; ─── Denote（文件命名式 Zettelkasten）───────────────────────────────────
 ;;
-;; Denote generates file names from a timestamp + title + keywords, enabling
-;; discovery without a database.  Everything is plain files in
-;; `~/Documents/notes/`.
+;; Denote 通过时间戳 + 标题 + 关键字生成文件名，实现无数据库的发现。
+;; 所有文件为纯文本，位于 `~/Documents/notes/`。
 ;;
-;; `:after-call doom-first-buffer-hook` defers loading until Emacs is idle
-;; after startup — faster boot than `:defer t` (which blocks on first
-;; interactive command that triggers autoload).
+;; `:after-call doom-first-buffer-hook` 将加载推迟到 Emacs 启动后空闲时 —
+;; 比 `:defer t`（会在触发自动加载的第一个交互式命令时阻塞）启动更快。
 ;;
 (use-package! denote
   :after-call doom-first-buffer-hook
@@ -528,7 +515,7 @@ Org Keywords."
   (denote-directory "~/org/denote")
   (denote-dired-directories (list denote-directory))
   (denote-dired-directories-include-subdirectories t)
-  ;; Personal keyword taxonomy — adjust to your domain.
+  ;; 个人关键字分类法 — 根据你的领域调整。
   (denote-known-keywords '("创作" "学习" "工作" "生活" "技术" "思考" "索引"))
   (denote-infer-keywords t)
   (denote-sort-keywords t)
@@ -563,12 +550,12 @@ Org Keywords."
   :config
   (denote-rename-buffer-mode 1)
 
-  ;; Auto-commit notes to git after every new note.
-  ;; This is a simple safety net, not a full VCS workflow.
-  ;; If the notes directory isn't a git repo, this silently does nothing.
+  ;; 每次新建笔记后自动提交到 git。
+  ;; 这是一个简单的安全网，不是完整的 VCS 工作流。
+  ;; 如果笔记目录不是 git 仓库，则静默无操作。
   (defun my/denote-git-auto-commit ()
-    "Auto-add and commit all changes to the Denote directory via git.
-Silent no-op if the directory is not a git repository (no error signaled)."
+    "通过 git 自动添加并提交 Denote 目录的所有更改。
+如果目录不是 git 仓库，则为静默空操作（不报错）。"
     (when-let ((dir (denote-directory)))
       (let ((git-dir (expand-file-name ".git" dir)))
         (when (file-exists-p git-dir)
@@ -639,22 +626,21 @@ Silent no-op if the directory is not a git repository (no error signaled)."
 
 
 ;; ═══════════════════════════════════════════════════════════════════════════
-;; Reading (Dired, EPUB, PDF)
+;; 阅读（Dired、EPUB、PDF）
 ;; ═══════════════════════════════════════════════════════════════════════════
 
-;; ─── Dired: open files externally ─────────────────────────────────────────
+;; ─── Dired：外部程序打开文件 ─────────────────────────────────────────
 ;;
-;; `E` key in dired to open marked files with the OS handler (xdg-open on
-;; Linux, open on macOS, start on Windows).  Why `E` (uppercase): Doom's
-;; dired uses `e` for `dired-find-file` (inline), and `E` is mnemonic
-;; for "External".  Uses `start-process` (async, no waiting).
+;; Dired 中的 `E` 键使用 OS 处理器打开标记文件（Linux 上为 xdg-open，
+;; macOS 上为 open，Windows 上为 start）。为何用 `E`（大写）：Doom 的
+;; dired 使用 `e` 进行 `dired-find-file`（内联），而 `E` 可记忆为
+;; "External"。使用 `start-process`（异步，不等待）。
 ;;
 (after! dired
   (defun my/dired-open-externally ()
-    "Open each marked file with the OS default application (async).
-Uses `xdg-open` (Linux), `open` (macOS), or `start` (Windows).  Returns
-immediately without waiting for the child process — suitable for bulk
-open from Dired."
+    "使用 OS 默认应用程序打开每个标记文件（异步）。
+使用 `xdg-open`（Linux）、`open`（macOS）或 `start`（Windows）。
+立即返回而不等待子进程 — 适合从 Dired 批量打开。"
     (interactive)
     (let* ((files (dired-get-marked-files))
            (cmd (pcase system-type
@@ -666,12 +652,12 @@ open from Dired."
   (map! :map dired-mode-map
         :n "E" #'my/dired-open-externally))
 
-;; ─── EPUB (nov.el) ────────────────────────────────────────────────────────
+;; ─── EPUB（nov.el）─────────────────────────────────────────────────
 ;;
-;; nov.el renders EPUB as styled HTML in an Emacs buffer.  Enable
-;; visual-line-mode + variable-pitch-mode for a book-like reading experience.
-;; olivetti-mode centers text.  Disable hl-line (distracting for reading).
-;; Save place between sessions via `nov-save-place-file`.
+;; nov.el 将 EPUB 渲染为带样式的 HTML，在 Emacs 缓冲区中显示。
+;; 启用 visual-line-mode + variable-pitch-mode 以获得类图书阅读体验。
+;; olivetti-mode 居中文本。禁用 hl-line（阅读时分心）。
+;; 通过 `nov-save-place-file` 跨会话保存阅读位置。
 ;;
 (use-package! nov
   :mode ("\\.epub\\'" . nov-mode)
@@ -688,15 +674,15 @@ open from Dired."
     (setq-local adaptive-fill-mode nil))
   (add-hook 'nov-mode-hook #'my/nov-disable-adaptive-fill))
 
-;; ─── PDF (pdf-tools) ──────────────────────────────────────────────────────
+;; ─── PDF（pdf-tools）───────────────────────────────────────────────────
 ;;
-;; `fit-page` for whole-page view (like a real PDF reader).  Roll minor mode
-;; gives smooth scrolling.  The org-noter-pdf advice suppresses arrow-timer
-;; errors (a known bug when roll-mode and org-noter interact).
+;; `fit-page` 用于整页视图（像真正的 PDF 阅读器）。滚动次要模式
+;; 提供平滑滚动。org-noter-pdf 的 advice 抑制箭头定时器错误
+;;（滚动模式和 org-noter 交互时的一个已知 bug）。
 ;;
-;; pdf-view-resize-factor 1.1: zoom in/out steps (smaller than default 1.2
-;; for finer control).  pdf-view-selection-style 'glyph: select text by glyph
-;; boundaries rather than pixel — more accurate for copy-paste.
+;; pdf-view-resize-factor 1.1：缩放步长（比默认的 1.2 更精细控制）。
+;; pdf-view-selection-style 'glyph：按字形边界（而非像素）选择文本 —
+;; 复制粘贴更精确。
 ;;
 (after! pdf-tools
   (setq pdf-view-display-size 'fit-page
@@ -707,10 +693,10 @@ open from Dired."
         pdf-view-selection-style 'glyph)
   (add-hook! 'pdf-view-mode-hook #'pdf-view-roll-minor-mode #'evil-emacs-state))
 
-;; FIXME: workaround for `org-noter-pdf--show-arrow` error triggered when
-;; `pdf-view-roll-minor-mode` is active.  The error is non-fatal (the arrow
-;; simply doesn't show on rolled pages) but it pollutes `*Messages*`.
-;; Remove when org-noter-pdf upstream fixes the roll-mode interaction.
+;; FIXME: `org-noter-pdf--show-arrow` 错误的变通方案，在
+;; `pdf-view-roll-minor-mode` 激活时触发。错误非致命（箭头
+;; 仅在滚动页面上不显示），但会污染 `*Messages*`。
+;; 当 org-noter-pdf 上游修复了滚动模式交互后移除。
 (after! org-noter-pdf
   (defun pdf-view-current-overlay (&optional window)
     (or (image-mode-window-get 'overlay window)
@@ -728,23 +714,23 @@ open from Dired."
   :commands org-pdftools-setup-link
   :hook (org-load . org-pdftools-setup-link))
 
-;; Open current PDF in Zathura (external viewer) via `g z`.
-;; Useful when pdf-tools can't render something or you need Annotator.
+;; 通过 `g z` 在 Zathura（外部查看器）中打开当前 PDF。
+;; 当 pdf-tools 无法渲染某些内容或你需要注释器时有用。
 (map! :map pdf-view-mode-map
       :n "g z" (cmd! (when-let ((f (buffer-file-name)))
                        (start-process "zathura" nil "zathura" f))))
 
 
 ;; ═══════════════════════════════════════════════════════════════════════════
-;; i18n / Chinese support
+;; 国际化 / 中文支持
 ;; ═══════════════════════════════════════════════════════════════════════════
 
-;; ─── Chinese input method (fcitx5) ────────────────────────────────────────
+;; ─── 中文输入法（fcitx5）───────────────────────────────────────────
 ;;
-;; `doom-first-input-hook` defers loading until the user actually types —
-;; avoids starting fcitx5 at Emacs launch.  fcitx5-remote toggles the IME
-;; on Evil mode transitions; without this, you'd be stuck in Chinese input
-;; in normal state or unable to type Chinese in insert state.
+;; `doom-first-input-hook` 将加载推迟到用户实际输入时 —
+;; 避免在 Emacs 启动时启动 fcitx5。fcitx5-remote 在 Evil 模式切换时
+;; 切换输入法状态；没有这个，你会在正常状态卡在中文输入法，
+;; 或者在插入状态无法输入中文。
 ;;
 (add-transient-hook! 'doom-first-input-hook
   (when-let ((cmd (or (executable-find "fcitx5-remote")
@@ -753,14 +739,14 @@ open from Dired."
     (require 'fcitx)
     (fcitx-evil-turn-on)))
 
-;; ─── Pinyin fuzzy matching (search + navigation) ──────────────────────────
+;; ─── 拼音模糊匹配（搜索 + 导航）─────────────────────────────────────
 ;;
-;; Two complementary packages:
-;;   - evil-pinyin: advises `orderless-regexp` to return a pinyin-fuzzy regex
-;;     so that `M-x` / `consult` / `vertico` searches match Chinese via
-;;     pinyin initials (e.g. "xie" → "写作", "xiexie", etc.).
-;;   - ace-pinyin: extends Avy (character-jump) to accept pinyin input for
-;;     Chinese characters, so you can `avy-goto-char-timer` with pinyin.
+;; 两个互补包：
+;;   - evil-pinyin：advice `orderless-regexp` 返回拼音模糊正则，
+;;     使 `M-x` / `consult` / `vertico` 搜索能通过拼音首字母
+;;     匹配中文（例如 "xie" → "写作"、"xiexie" 等）。
+;;   - ace-pinyin：扩展 Avy（字符跳转）以接受拼音输入匹配中文字符，
+;;     因此你可以用拼音进行 `avy-goto-char-timer`。
 ;;
 (use-package! evil-pinyin
   :defer t
@@ -776,35 +762,36 @@ open from Dired."
   :init (setq ace-pinyin-use-avy t)
   :config (ace-pinyin-global-mode t))
 
-;; ─── Text statistics (CJK + English, all-C module) ─────────────────────────
+;; ─── 文本统计（CJK + 英文，纯 C 模块）────────────────────────────────
 ;;
-;; C module (modules/count-cjk.so) does all counting in a single UTF-8
-;; scan.  The loader auto-detects stale/missing .so and runs make(1);
-;; commands try on-demand rebuild if the module is absent at call time.
+;; C 模块（modules/count-cjk.so）在单次 UTF-8 扫描中完成所有计数。
+;; 加载器自动检测过期/缺失的 .so 并运行 make(1)；
+;; 如果调用时模块不存在，命令会尝试按需重建。
 ;;
-;; Exported C functions:
-;;   my/count-cjk  (STRING) → cons (CHARS . PUNCT)
-;;   my/count-text (STRING) → vector [cjk punct en-words en-chars total-cp]
+;; 导出的 C 函数：
+;;   my/count-cjk  （字符串）→ cons（汉字数 . 标点数）
+;;   my/count-text （字符串）→ vector [cjk punct en-words en-chars total-cp]
 ;;
-;; Bindings:
-;;   M-=         — my/count-words (replaces `count-words-region')
-;;   SPC r n c   — my/count-chinese-chars (legacy CJK counter)
-;;   SPC r n b   — my/build-cjk-module (rebuild & reload)
+;; 绑定：
+;;   M-=         — my/count-words（替换 `count-words-region'）
+;;   SPC r n c   — my/count-chinese-chars（传统 CJK 计数器）
+;;   SPC r n b   — my/build-cjk-module（重建并重新加载）
 ;;
-;; Benchmark (Emacs 30, GCC 15, ~50/50 CJK/ASCII mix):
-;;   Size    Original (Elisp)  C module  Speedup
-;;   1 KB        28 ms          0.7 ms    42×
-;;   10 KB      211 ms         21 ms      10×
-;;   100 KB   1926 ms         162 ms      12×
-;;   500 KB   9376 ms         613 ms      15×
+;; 基准测试（Emacs 30，GCC 15，约 50/50 CJK/ASCII 混合）：
+;;   大小     原始（Elisp）  C 模块  加速比
+;;   1 KB        28 ms       0.7 ms   42×
+;;   10 KB      211 ms       21 ms     10×
+;;   100 KB   1926 ms       162 ms     12×
+;;   500 KB   9376 ms       613 ms     15×
 
-;; ─── C module loader ─────────────────────────────────────────────────────
+;; ─── C 模块加载器 ─────────────────────────────────────────────────────
 
-(defvar my/cjk-so (expand-file-name "modules/count-cjk.so" doom-user-dir))
+(defvar my/cjk-so (expand-file-name "modules/count-cjk.so" doom-user-dir)
+  "count-cjk 模块的 .so 文件路径。首次使用时惰性加载。")
 (defvar my/cjk-src (expand-file-name "modules/count-cjk.c" doom-user-dir))
 
 (defun my/cjk-module-outdated-p ()
-  "Return t if .so is missing or older than .c source."
+  "如果 .so 缺失或比 .c 源文件旧，返回 t。"
   (let ((c-attrs (file-attributes my/cjk-src)))
     (and c-attrs
          (or (not (file-exists-p my/cjk-so))
@@ -813,8 +800,7 @@ open from Dired."
                           (file-attribute-modification-time c-attrs))))))
 
 (defun my/build-cjk-module ()
-  "Build count-cjk.so by running `make -C modules/'.
-Shows build log buffer on failure."
+  "通过运行 `make -C modules/' 编译 count-cjk.so。失败时显示构建日志缓冲区。"
   (interactive)
   (let* ((build-dir (expand-file-name "modules" doom-user-dir))
          (buf (get-buffer-create "*cjk-build*")))
@@ -825,35 +811,39 @@ Shows build log buffer on failure."
       (error "count-cjk.so build failed — see *cjk-build* buffer"))))
 
 (defun my/load-cjk-module ()
-  "Load CJK C module; auto-build if missing or stale.
-Safe no-op if module-load is unavailable."
+  "检查 CJK 模块状态，启动时仅提示不编译不加载。
+真正的编译/加载推迟到首次调用命令时由 my/ensure-cjk-module 处理。"
   (interactive)
   (when (fboundp 'module-load)
-    (when (my/cjk-module-outdated-p)
-      (ignore-errors (my/build-cjk-module)))
-    (when (file-exists-p my/cjk-so)
-      (with-demoted-errors "count-cjk.so load: %s"
-        (module-load my/cjk-so)))))
+    (cond
+     ((my/cjk-module-outdated-p)
+      (message "count-cjk.so 已过期 — 首次使用时会自动重新编译"))
+     ((not (file-exists-p my/cjk-so))
+      (message "count-cjk.so 缺失 — 首次使用时会自动编译"))
+     (t
+      ;; .so 存在且未过期，但不加载——留给 ensure 按需加载
+      nil))))
 
 (my/load-cjk-module)
 
-;; ─── Helper ──────────────────────────────────────────────────────────────
+;; ─── 辅助函数 ──────────────────────────────────────────────────────
 
 (defun my/ensure-cjk-module ()
-  "Ensure C module is loaded; build on demand if missing.
-Signals error if the module cannot be made available."
+  "确保 C 模块已加载；按需编译（仅在 .so 过期或缺失时）。
+如果模块仍不可用则报错。"
   (unless (fboundp 'my/count-text)
-    (my/build-cjk-module)
+    (when (my/cjk-module-outdated-p)
+      (my/build-cjk-module))
     (when (file-exists-p my/cjk-so)
       (module-load my/cjk-so))
     (unless (fboundp 'my/count-text)
-      (error "count-cjk.so still unavailable after rebuild"))))
+      (error "count-cjk.so 重建后仍不可用"))))
 
-;; ─── Commands ────────────────────────────────────────────────────────────
+;; ─── 命令 ────────────────────────────────────────────────────────────
 
 ;;;###autoload
 (defun my/count-chinese-chars (&optional beg end)
-  "CJK char count (legacy).  Bound to `SPC r n c'."
+  "CJK 字符计数（传统）。绑定到 `SPC r n c'。"
   (interactive)
   (my/ensure-cjk-module)
   (let* ((beg (or beg (if (use-region-p) (region-beginning) (point-min))))
@@ -869,16 +859,16 @@ Signals error if the module cannot be made available."
 
 ;;;###autoload
 (defun my/count-words (&optional beg end)
-  "Count CJK chars, English words, and punctuation in region or buffer.
+  "统计区域或缓冲区中的 CJK 字符、英文单词和标点符号。
 
-Replaces `count-words-region' (M-=).  Uses C module for all counting.
+替换 `count-words-region'（M-=）。使用 C 模块进行所有计数。
 
-Output:  中:42  英:18  标点:7  总:67
+输出：  中:42  英:18  标点:7  总:67
 
-   中       CJK ideographs (word-count equivalent for Chinese)
-   英       English words (letter/digit/apostrophe runs)
-   标点     CJK punctuation marks
-   总       total Unicode codepoints in the region"
+   中       CJK 表意文字（中文的词数等价物）
+   英       英文单词（字母/数字/撇号序列）
+   标点     CJK 标点符号
+   总       区域中的 Unicode 码点总数"
   (interactive)
   (my/ensure-cjk-module)
   (let* ((beg (or beg (if (use-region-p) (region-beginning) (point-min))))
@@ -890,7 +880,7 @@ Output:  中:42  英:18  标点:7  总:67
          (total (aref v 4)))
     (message "中:%d  英:%d  标点:%d  总:%d" cjk en-words punct total)))
 
-;; ─── Bindings ────────────────────────────────────────────────────────────
+;; ─── 绑定 ────────────────────────────────────────────────────────────
 
 (map! :leader
       (:prefix-map ("r n" . "Count")
@@ -904,51 +894,49 @@ Output:  中:42  英:18  标点:7  总:67
 
 
 ;; ═══════════════════════════════════════════════════════════════════════════
-;; Tools
+;; 工具
 ;; ═══════════════════════════════════════════════════════════════════════════
 
-;; ─── Full reload (config + autoloads + packages + theme + font + frames) ──
+;; ─── 完整重载（配置 + 自动加载 + 包 + 主题 + 字体 + 帧）───────────
 ;;
-;; Doom's built-in `doom/reload` only re-evaluates config files.  This
-;; custom command does a more thorough job for when you change theme, font,
-;; packages, or autoloaded files:
-;;   1. `doom/reload-autoloads` — re-scans autoloads (no `doom sync`)
-;;   2. `doom/reload-packages` — re-evaluates `packages.el`
-;;   3. `doom/reload` — re-evaluates `config.el` (core)
-;;   4. After reload: re-apply theme, font, and re-run frame hooks
-;;      (needed because `doom/reload` resets but doesn't re-trigger them).
+;; Doom 内置的 `doom/reload` 仅重新求值配置文件。此自定义命令
+;; 在更改主题、字体、包或自动加载文件时更彻底：
+;;   1. `doom/reload-autoloads` — 重新扫描自动加载（无需 `doom sync`）
+;;   2. `doom/reload-packages` — 重新求值 `packages.el`
+;;   3. `doom/reload` — 重新求值 `config.el`（核心）
+;;   4. 重载后：重新应用主题、字体并重新运行帧 hook
+;;     （因为 `doom/reload` 重置了它们但不会重新触发）。
 ;;
-;; Bound to `SPC h r R` (uppercase R = Full reload vs lowercase r = reload).
+;; 绑定到 `SPC h r R`（大写 R = 完全重载 vs 小写 r = 重载）。
 ;;
 (defun my/doom-full-reload--apply (&rest _)
-  "Re-apply theme and font after `doom/reload'.
+  "在 `doom/reload' 后重新应用主题和字体。
 
-Only reapplies theme + font — does NOT re-run `server-after-make-frame-hook'
-or other non-idempotent frame hooks.  Runs via `doom-after-reload-hook'."
+仅重新应用主题 + 字体 — 不重新运行 `server-after-make-frame-hook'
+或其他非幂等帧 hook。通过 `doom-after-reload-hook' 运行。"
   (my/theme-apply (my/theme-for-hour))
   (when (fboundp 'doom/reload-font)
     (doom/reload-font))
   (message "Full reload complete (config + theme + font)"))
 
-;; Register once at top level (not inside `my/doom-full-reload') to prevent
-;; hook accumulation on repeated calls.
+;; 在顶层注册一次（不在 `my/doom-full-reload' 内部），以防止
+;; 重复调用时 hook 累积。
 (after! doom
   (add-hook 'doom-after-reload-hook #'my/doom-full-reload--apply))
 
 (defun my/doom-full-reload ()
-  "Reload autoloads, packages and config.
+  "重新加载自动加载、包和配置。
 
-Steps:
-1. `doom/reload-autoloads` — pick up new autoloaded commands/faces.
-2. `doom/reload-packages` — re-evaluate `packages.el` without `doom sync`.
-3. `doom/reload` — re-evaluate `config.el` (core).
-4. `doom-after-reload-hook` fires automatically, re-applying theme and font
-   via `my/doom-full-reload--apply` (registered at top level).
+步骤：
+1. `doom/reload-autoloads` — 获取新的自动加载命令/面。
+2. `doom/reload-packages` — 重新求值 `packages.el'（无需 `doom sync`）。
+3. `doom/reload` — 重新求值 `config.el'（核心）。
+4. `doom-after-reload-hook' 自动触发，通过 `my/doom-full-reload--apply'
+   （在顶层注册）重新应用主题和字体。
 
-Each step guards against missing fboundp (safe when called before Doom's
-reload machinery is fully initialized).
+每一步都检查 fboundp（在 Doom 的重载机制完全初始化前调用时安全）。
 
-Bound to `SPC h r R`."
+绑定到 `SPC h r R'。"
   (interactive)
   (when (fboundp 'doom/reload-autoloads)
     (ignore-errors (doom/reload-autoloads)))
@@ -961,44 +949,23 @@ Bound to `SPC h r R`."
 (map! :leader
       :desc "Full reload" "h r R" #'my/doom-full-reload)
 
-;; ── C dynamic modules ─────────────────────────────────────────────────────
-(module-load (expand-file-name "modules/cnotify-module.so" doom-user-dir))
-(module-load (expand-file-name "modules/count-cjk.so" doom-user-dir))
+;; ── C 动态模块路径 ─────────────────────────────────────────────
+(defvar my/cnotify-so (expand-file-name "modules/cnotify-module.so" doom-user-dir)
+  "cnotify 模块的 .so 文件路径。首次使用时惰性加载。")
 
-;; Wayland clipboard (transparent — hooks into Emacs copy/paste)
-(when (and (getenv "WAYLAND_DISPLAY")
-           (file-exists-p (expand-file-name "modules/clipboard-wl.so" doom-user-dir)))
-  (module-load (expand-file-name "modules/clipboard-wl.so" doom-user-dir))
 
-  ;; Copy: M-w / C-w also set Wayland clipboard
-  (setq interprogram-cut-function
-        (lambda (text &optional push)
-          (ignore push)
-          (when (fboundp 'clipboard-set)
-            (condition-case nil
-                (clipboard-set "text/plain" text)
-              (error nil)))))
 
-  ;; Paste: C-y gets text from Wayland clipboard first
-  (setq interprogram-paste-function
-        (lambda ()
-          (when (fboundp 'clipboard-get)
-            (condition-case nil
-                (clipboard-get "text/plain")
-              (error nil)))))
 
-  (message "🔧 Wayland clipboard: loaded (multi-window copy/paste)"))
-
-;; ─── Pomodoro log ────────────────────────────────────────────────────────
+;; ─── 番茄钟日志 ────────────────────────────────────────────────────────
 (defvar my/pomodoro-log-file
   (expand-file-name "pomodoro.log.el" doom-user-dir)
-  "Sexp log of completed pomodoro cycles.")
+  "已完成番茄钟周期的 Sexp 日志。")
 
 (defvar my/pomodoro-default-task "专注"
-  "Default task name when none provided at prompt.")
+  "未在提示中提供时的默认任务名称。")
 
 (defun my/pomodoro-log-read ()
-  "Read all log entries, returns list of plists."
+  "读取所有日志条目，返回 plist 列表。"
   (when (file-exists-p my/pomodoro-log-file)
     (with-temp-buffer
       (insert-file-contents my/pomodoro-log-file)
@@ -1006,7 +973,7 @@ Bound to `SPC h r R`."
       (read (current-buffer)))))
 
 (defun my/pomodoro-log-write (entry)
-  "Append ENTRY (plist) to log file."
+  "将 ENTRY（plist）追加到日志文件。"
   (with-temp-file my/pomodoro-log-file
     (when (file-exists-p my/pomodoro-log-file)
       (insert-file-contents my/pomodoro-log-file))
@@ -1014,19 +981,19 @@ Bound to `SPC h r R`."
     (insert (prin1-to-string entry) "\n")))
 
 (defun my/pomodoro-log-entry (task minutes)
-  "Write a completed pomodoro entry."
+  "写入一个完成的番茄钟条目。"
   (my/pomodoro-log-write
    `(:time ,(format-time-string "%Y-%m-%d %H:%M")
      :task ,task :work ,minutes :break 5)))
 
 (defun my/pomodoro-show-stats ()
-  "Show pomodoro statistics: today, week, total."
+  "显示番茄钟统计：今日、本周、总计。"
   (interactive)
   (let* ((entries (my/pomodoro-log-read))
          (today (format-time-string "%Y-%m-%d"))
          (week-start (format-time-string "%Y-%m-%d"
-                      (time-subtract (current-time)
-                       (* (1- (string-to-number (format-time-string "%u"))) 86400))))
+                       (time-subtract (current-time)
+                        (* (1- (string-to-number (format-time-string "%u"))) 86400))))
          (today-entries (seq-filter
                          (lambda (e) (string-prefix-p today (plist-get e :time)))
                          entries))
@@ -1055,14 +1022,21 @@ Bound to `SPC h r R`."
       (goto-char (point-min)))
     (switch-to-buffer buf)))
 
-;; ─── Pomodoro tracking (phase transitions) ────────────────────────────────
-(defvar my/pomodoro--prev-phase 0 "Previous pomodoro phase, for detecting cycle completion.")
-(defvar my/pomodoro--current-task nil "Task name for current pomodoro session.")
-(defvar my/pomodoro--current-work-min 25 "Work minutes for current session.")
+;; ─── 番茄钟追踪（阶段转换）────────────────────────────────
+(defvar my/pomodoro--prev-phase 0 "之前的番茄钟阶段，用于检测周期完成。")
+(defvar my/pomodoro--current-task nil "当前番茄钟会话的任务名称。")
+(defvar my/pomodoro--current-work-min 25 "当前会话的工作分钟数。")
+
+;; ─── cnotify 惰性加载 ──────────────────────────────────────────────
+(defun my/cnotify--ensure ()
+  "确保 cnotify C 模块已加载。首次调用时通过 module-load 加载 .so。"
+  (unless (featurep 'cnotify-module)
+    (module-load my/cnotify-so)))
 
 (defun my/pomodoro-start (&optional task work-min break-min)
-  "Start pomodoro with TASK name (default \"专注\")."
+  "以 TASK 名称开始番茄钟（默认为\"专注\"）。"
   (interactive)
+  (my/cnotify--ensure)
   (let ((tname (or task
                    (let ((s (read-string "Task: " nil nil my/pomodoro-default-task)))
                      (if (string= s "") my/pomodoro-default-task s))))
@@ -1072,38 +1046,38 @@ Bound to `SPC h r R`."
           my/pomodoro--current-work-min w
           my/pomodoro--prev-phase 0)
     (cnotify-pomodoro-start w b)
+    (my/cnotify-start-poll)
     (message "🍅 %s — %d min" tname w)))
 
 (defun my/pomodoro-stop ()
-  "Stop running pomodoro (incomplete — not logged)."
+  "停止正在运行的番茄钟（不完整 — 不记录）。"
   (interactive)
+  (my/cnotify--ensure)
   (cnotify-pomodoro-stop)
   (setq my/pomodoro--prev-phase 0)
+  (my/cnotify-refresh)
   (message "🍅 Pomodoro stopped — not logged"))
 
 (defun my/timer-start (minutes &optional message)
-  "Start countdown timer for MINUTES, notify with MESSAGE."
+  "开始 MINUTES 倒计时，以 MESSAGE 通知。"
   (interactive "nMinutes: \nsMessage: ")
-  (cnotify-timer-start (* minutes 60) (or message "Timer finished")))
+  (my/cnotify--ensure)
+  (cnotify-timer-start (* minutes 60) (or message "Timer finished"))
+  (my/cnotify-start-poll))
 
 (defun my/timer-stop ()
-  "Stop running timer."
+  "停止正在运行的计时器。"
   (interactive)
-  (cnotify-timer-stop))
+  (my/cnotify--ensure)
+  (cnotify-timer-stop)
+  (my/cnotify-refresh))
 
-(defun my/password-gen (&optional length)
-  "Generate a strong password and copy to clipboard."
-  (interactive "P")
-  (let* ((len (or length 24))
-         (pw (password-gen len)))
-    (if (fboundp 'clipboard-set)
-        (clipboard-set "text/plain" pw)
-      (kill-new pw))
-    (message "🔑 Password (%d chars) copied to clipboard" len)))
+
 
 (defun my/word-count (&optional beg end)
-  "Count CJK/English chars and words in region (or whole buffer)."
+  "统计区域（或整个缓冲区）中的 CJK/英文字符和词数。"
   (interactive "r")
+  (my/ensure-cjk-module)
   (let* ((text (if (use-region-p)
                    (buffer-substring-no-properties beg end)
                  (buffer-substring-no-properties (point-min) (point-max))))
@@ -1119,20 +1093,20 @@ Bound to `SPC h r R`."
        :desc "Start pomodoro"           "s" #'my/pomodoro-start
        :desc "Stop pomodoro"            "S" #'my/pomodoro-stop
        :desc "Word count"               "w" #'my/word-count
-       :desc "Pomodoro stats"           "v" #'my/pomodoro-show-stats
-       :desc "Generate password"         "p" #'my/password-gen))
+       :desc "Pomodoro stats"           "v" #'my/pomodoro-show-stats))
 
-;; ── Modeline: timer / pomodoro countdown ───────────────────────
-(defvar my/cnotify-indicator nil "Mode-line string for timer/pomodoro.")
-(defvar my/cnotify-update-timer nil "Internal 1s timer for modeline refresh.")
+;; ── 模式行：计时器/番茄钟倒计时 ───────────────────────
+(defvar my/cnotify-indicator nil "模式行中计时器/番茄钟的显示字符串。")
+(defvar my/cnotify-update-timer nil "模式行刷新的内部 1 秒定时器。")
 
 (defun my/cnotify-refresh ()
-  "Refresh modeline from C module status. Called every 1s."
-  ;; Handle notification clicks — focus Emacs if user clicked a popup
+  "从 C 模块状态刷新模式行。每秒调用一次。"
+  (my/cnotify--ensure)
+  ;; 处理通知点击 — 如果用户点击了弹窗则将焦点设回 Emacs
   (when (cnotify-poll-action)
     (select-frame-set-input-focus (selected-frame)))
 
-  ;; Detect pomodoro cycle completion (phase 1→2 = work finished)
+  ;; 检测番茄钟周期完成（阶段 1→2 = 工作完成）
   (pcase-let ((`(,remaining . ,phase) (cnotify-status)))
     (when (and (= my/pomodoro--prev-phase 1) (= phase 2)
                my/pomodoro--current-task)
@@ -1142,7 +1116,7 @@ Bound to `SPC h r R`."
                my/pomodoro--current-work-min))
     (setq my/pomodoro--prev-phase phase)
 
-    ;; Update modeline indicator
+    ;; 更新模式行指示器
     (if (and (= remaining 0) (= phase 0))
         (progn (setq my/cnotify-indicator nil)
                (when my/cnotify-update-timer
@@ -1155,15 +1129,11 @@ Bound to `SPC h r R`."
              (t           (format " ⏱ %d:%02d" (/ remaining 60) (% remaining 60))))))
     (force-mode-line-update)))
 
-;; Start 1s poll when timer/pomodoro starts
+;; 计时器/番茄钟启动时开始每秒轮询
 (defun my/cnotify-start-poll ()
   (my/cnotify-refresh)
   (unless my/cnotify-update-timer
     (setq my/cnotify-update-timer (run-with-timer 1 1 #'my/cnotify-refresh))))
 
+;; 将计时器指示器添加到模式行
 (add-to-list 'mode-line-misc-info '("" my/cnotify-indicator ""))
-
-(advice-add 'cnotify-timer-start    :after (lambda (&rest _) (my/cnotify-start-poll)))
-(advice-add 'cnotify-pomodoro-start :after (lambda (&rest _) (my/cnotify-start-poll)))
-(advice-add 'cnotify-timer-stop     :after (lambda (&rest _) (my/cnotify-refresh)))
-(advice-add 'cnotify-pomodoro-stop  :after (lambda (&rest _) (my/cnotify-refresh)))

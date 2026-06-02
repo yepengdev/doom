@@ -1,18 +1,18 @@
-/* cnotify-module.c — Emacs dynamic module (.so)
+/* cnotify-module.c — Emacs 动态模块 (.so)
  *
- * Provides:
- *   Desktop notifications (libnotify) with click-to-callback
- *   Countdown timer + pomodoro clock (pthread background)
+ * 提供：
+ *   桌面通知（libnotify），支持点击回调
+ *   倒计时器 + 番茄钟（pthread 后台线程）
  *
- * API:
+ * API：
  *   (cnotify-notify TITLE BODY &optional CALLBACK)
- *                  → t  (CALLBACK is called on click, from Emacs main thread)
+ *                  → t  （点击时在主线程中调用 CALLBACK）
  *   (cnotify-timer-start MINUTES MSG)                → t
  *   (cnotify-timer-stop)                             → t
  *   (cnotify-pomodoro-start WORK-MIN BREAK-MIN)      → t
  *   (cnotify-pomodoro-stop)                          → t
  *   (cnotify-status)  → (TIMER-REMAINING . POMODORO-PHASE)
- *   (cnotify-poll-action) → t if notification was clicked, nil otherwise
+ *   (cnotify-poll-action) → t 表示通知被点击，否则返回 nil
  */
 
 #include <emacs-module.h>
@@ -26,18 +26,19 @@
 
 int plugin_is_GPL_compatible;
 
-/* ── Shared status ───────────────────────────────────────── */
-static volatile int timer_remaining   = 0;
-static volatile int pomodoro_phase    = 0;  /* 0=idle, 1=work, 2=break */
-static volatile int timer_stop        = 0;
-static volatile int pomodoro_stop     = 0;
-static volatile int callback_pending  = 0;
-static emacs_value callback_fn        = NULL;   /* global ref to Emacs lambda */
-static pthread_t timer_tid    = 0;
-static pthread_t pomodoro_tid = 0;
+/* ── 共享状态 ───────────────────────────────────────── */
+static volatile int timer_remaining   = 0;          /* 倒计时剩余秒数 */
+static volatile int pomodoro_phase    = 0;          /* 0=空闲, 1=工作, 2=休息 */
+static volatile int timer_stop        = 0;          /* 请求停止计时器 */
+static volatile int pomodoro_stop     = 0;          /* 请求停止番茄钟 */
+static volatile int callback_pending  = 0;          /* 是否有待处理的通知点击 */
+static emacs_value callback_fn        = NULL;       /* Emacs lambda 的全局引用 */
+static pthread_t timer_tid    = 0;                  /* 计时器线程 ID */
+static pthread_t pomodoro_tid = 0;                  /* 番茄钟线程 ID */
 
-/* ── Helpers ─────────────────────────────────────────────── */
+/* ── 辅助函数 ─────────────────────────────────────────────── */
 
+/* 从 emacs_value 中提取 C 字符串 */
 static char *
 extract_string(emacs_env *env, emacs_value val)
 {
@@ -52,6 +53,7 @@ extract_string(emacs_env *env, emacs_value val)
 static emacs_value
 intern_t(emacs_env *env) { return env->intern(env, "t"); }
 
+/* 向 Emacs 注册一个可调用函数 */
 static void
 register_fn(emacs_env *env, const char *name,
             emacs_value (*fn)(emacs_env *, ptrdiff_t, emacs_value[], void *),
@@ -63,14 +65,16 @@ register_fn(emacs_env *env, const char *name,
                  (emacs_value[]){ sym, fval });
 }
 
-/* ── Notifications with click handling ───────────────────── */
+/* ── 带点击处理的通知 ──────────────────────────────────── */
 
+/* 超时回调：退出 GLib 主循环 */
 static gboolean click_timeout_cb(gpointer loop)
 {
     g_main_loop_quit((GMainLoop *)loop);
     return G_SOURCE_REMOVE;
 }
 
+/* 通知点击动作回调：标记待处理状态并退出主循环 */
 static void click_action_cb(NotifyNotification *n, char *action, gpointer data)
 {
     (void)n; (void)action;
@@ -78,9 +82,9 @@ static void click_action_cb(NotifyNotification *n, char *action, gpointer data)
     g_main_loop_quit((GMainLoop *)data);
 }
 
-/* Send notification with action. Blocks up to 5s in GLib main loop.
-   If the user clicks, callback_pending is set (consumed by poll-action
-   in the Emacs main thread). Runs in background threads. */
+/* 发送带动作按钮的通知。在 GLib 主循环中最多阻塞 5 秒。
+   如果用户点击，设置 callback_pending 标志（由 Emacs 主线程中
+   的 poll-action 消费）。运行在后台线程中。 */
 static void notify_send_clickable(const char *title, const char *body)
 {
     GMainContext *ctx = g_main_context_new();
@@ -106,10 +110,12 @@ static void notify_send_clickable(const char *title, const char *body)
     g_object_unref(G_OBJECT(n));
 }
 
-/* ── Timer thread ────────────────────────────────────────── */
+/* ── 计时器线程 ────────────────────────────────────────── */
 
+/* 计时器线程参数：秒数和完成时显示的消息 */
 struct timer_arg { int seconds; char *message; };
 
+/* 后台计时器线程：每秒递减，结束时发送通知 */
 static void *
 timer_thread(void *arg)
 {
@@ -131,10 +137,12 @@ done:
     return NULL;
 }
 
-/* ── Pomodoro thread ─────────────────────────────────────── */
+/* ── 番茄钟（Pomodoro）线程 ─────────────────────────────── */
 
+/* 番茄钟参数：工作和休息时长（秒） */
 struct pomodoro_arg { int work_sec; int break_sec; };
 
+/* 后台番茄钟线程：交替工作/休息阶段，直到被停止 */
 static void *
 pomodoro_thread(void *arg)
 {
@@ -170,11 +178,12 @@ done:
     return NULL;
 }
 
-/* ── Emacs-callable functions ────────────────────────────── */
+/* ── Emacs 可调用函数 ─────────────────────────────────── */
 
-/* Thread wrapper for notify_send_clickable — prevents blocking Emacs */
+/* 通知线程包装器，避免在主线程中阻塞 */
 struct notify_arg { char *title; char *body; };
 
+/* 通知线程入口：调用 notify_send_clickable 后清理资源 */
 static void *
 notify_thread(void *arg)
 {
@@ -186,6 +195,7 @@ notify_thread(void *arg)
     return NULL;
 }
 
+/* (cnotify-notify TITLE BODY &optional CALLBACK) */
 static emacs_value
 Fnotify_notify(emacs_env *env, ptrdiff_t nargs,
                emacs_value args[], void *data)
@@ -195,18 +205,18 @@ Fnotify_notify(emacs_env *env, ptrdiff_t nargs,
     char *body  = extract_string(env, args[1]);
     if (!title || !body) { free(title); free(body); return env->intern(env, "nil"); }
 
-    /* Clear previous callback */
+    /* 清除之前的回调 */
     if (callback_fn) {
         env->free_global_ref(env, callback_fn);
         callback_fn = NULL;
     }
     callback_pending = 0;
 
-    /* Store optional 3rd arg (lambda callback) */
+    /* 存储可选的第三个参数（lambda 回调） */
     if (nargs >= 3)
         callback_fn = env->make_global_ref(env, args[2]);
 
-    /* Launch notification in background thread — don't block Emacs */
+    /* 在后台线程中发送通知——不阻塞 Emacs */
     struct notify_arg *na = malloc(sizeof(*na));
     if (na) {
         na->title = title;
@@ -223,6 +233,7 @@ Fnotify_notify(emacs_env *env, ptrdiff_t nargs,
     return intern_t(env);
 }
 
+/* (cnotify-poll-action) —— 检查是否有待处理的点击事件 */
 static emacs_value
 Fpoll_action(emacs_env *env, ptrdiff_t nargs,
              emacs_value args[], void *data)
@@ -230,7 +241,7 @@ Fpoll_action(emacs_env *env, ptrdiff_t nargs,
     (void)nargs; (void)args; (void)data;
     if (callback_pending && callback_fn) {
         callback_pending = 0;
-        /* Invoke the stored lambda. Runs in Emacs main thread — safe. */
+        /* 执行存储的 lambda。运行在 Emacs 主线程中——安全。 */
         env->funcall(env, callback_fn, 0, NULL);
         env->free_global_ref(env, callback_fn);
         callback_fn = NULL;
@@ -239,6 +250,7 @@ Fpoll_action(emacs_env *env, ptrdiff_t nargs,
     return env->intern(env, "nil");
 }
 
+/* (cnotify-timer-start MINUTES MSG) —— 启动倒计时 */
 static emacs_value
 Ftimer_start(emacs_env *env, ptrdiff_t nargs,
              emacs_value args[], void *data)
@@ -262,6 +274,7 @@ Ftimer_start(emacs_env *env, ptrdiff_t nargs,
     return intern_t(env);
 }
 
+/* (cnotify-timer-stop) —— 停止计时器 */
 static emacs_value
 Ftimer_stop(emacs_env *env, ptrdiff_t nargs,
             emacs_value args[], void *data)
@@ -273,6 +286,7 @@ Ftimer_stop(emacs_env *env, ptrdiff_t nargs,
     return intern_t(env);
 }
 
+/* (cnotify-pomodoro-start WORK-MIN BREAK-MIN) —— 启动番茄钟 */
 static emacs_value
 Fpomodoro_start(emacs_env *env, ptrdiff_t nargs,
                 emacs_value args[], void *data)
@@ -295,6 +309,7 @@ Fpomodoro_start(emacs_env *env, ptrdiff_t nargs,
     return intern_t(env);
 }
 
+/* (cnotify-pomodoro-stop) —— 停止番茄钟 */
 static emacs_value
 Fpomodoro_stop(emacs_env *env, ptrdiff_t nargs,
                emacs_value args[], void *data)
@@ -307,6 +322,7 @@ Fpomodoro_stop(emacs_env *env, ptrdiff_t nargs,
     return intern_t(env);
 }
 
+/* (cnotify-status) —— 返回 (TIMER-REMAINING . POMODORO-PHASE) */
 static emacs_value
 Fstatus(emacs_env *env, ptrdiff_t nargs,
         emacs_value args[], void *data)
@@ -320,7 +336,7 @@ Fstatus(emacs_env *env, ptrdiff_t nargs,
            });
 }
 
-/* ── Module entry point ──────────────────────────────────── */
+/* ── 模块入口点 ──────────────────────────────────────── */
 
 int
 emacs_module_init(struct emacs_runtime *ert)

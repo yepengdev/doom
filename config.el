@@ -438,16 +438,17 @@ Delays 0.4s for browser window to appear."
 ;; ─── Org 实时预览 ────────────────────────────────────────────
 ;;
 ;; M-x my/org-live-preview      将当前 Org 导出为 HTML 并在浏览器中实时预览，
-;;                              保存文件时自动重新导出，浏览器通过 polling JS
-;;                              检测更新并自动刷新。
+;;                              保存文件时自动重新导出，浏览器通过 SSE 实时
+;;                              接收刷新信号（不轮询）。
 ;; M-x my/org-live-preview-stop 停止预览并清理临时文件和后台进程。
 ;;
 ;; 机制：
 ;;   1. 导出当前 Org 到 /tmp/org-live-XXXXXX/index.html（含现有 org.css 样式）
-;;   2. 在 </body> 前注入 polling JS（每 500ms 发 If-Modified-Since 请求）
-;;   3. 启动 python3 http.server 在随机端口（127.0.0.1:0）
+;;   2. 在 </body> 前注入 SSE 连接脚本（new EventSource('/live')）
+;;   3. 启动定制 Python HTTP + SSE 服务器在随机端口（127.0.0.1:0）
 ;;   4. 用 browse-url 在默认浏览器中打开
 ;;   5. after-save-hook（buffer-local）触发重新导出
+;;   6. SSE 端点监控 index.html 的 mtime，变化即推送 reload 事件
 
 (defvar my/org-live--proc nil "livereload HTTP 服务器进程")
 (defvar my/org-live--dir  nil "临时 HTTP 根目录")
@@ -514,34 +515,79 @@ Delays 0.4s for browser window to appear."
     (write-region (point-min) (point-max) file nil 'silent)))
 
 (defun my/org-live--inject-script (file)
-  "在 HTML 的 </body> 前 livereload polling JS。"
+  "在 HTML 的 </body> 前注入 SSE livereload JS。"
   (with-temp-buffer
     (insert-file-contents file)
     (when (let ((case-fold-search t))
             (re-search-forward "</body>" nil t))
       (goto-char (match-beginning 0))
-      (insert "\
-<script>
-(async()=>{
-  let lm=document.lastModified;
-  while(1){
-    await new Promise(r=>setTimeout(r,500));
-    let r=await fetch('/',{headers:{'If-Modified-Since':lm}});
-    if(r.ok&&r.status===200){location.reload();break}
-  }
-})();
-</script>")
+      (insert "<script>new EventSource('/live').onmessage=()=>location.reload()</script>")
       (write-region (point-min) (point-max) file nil 'silent))))
 
 (defun my/org-live--serve (dir)
-  "在 DIR 上用随机端口启动 Python HTTP 服务器，返回 (PORT . PROCESS)。"
+  "在 DIR 上用随机端口启动 Python HTTP+SSE 服务器，返回 (PORT . PROCESS)。"
   (let* ((port (string-to-number
                 (shell-command-to-string
                  "python3 -c \"import socket; s=socket.socket(); s.bind(('127.0.0.1',0)); print(s.getsockname()[1]); s.close()\"")))
-         (proc (start-process-shell-command
+         (script (expand-file-name "server.py" dir))
+         proc)
+    ;; 写入定制服务器脚本
+    (with-temp-file script
+      (insert "\
+import os, socket, time, http.server
+
+DIR = os.getcwd()
+PORT = PORT_PLACEHOLDER
+INDEX = os.path.join(DIR, 'index.html')
+
+class Handler(http.server.BaseHTTPRequestHandler):
+    def do_GET(self):
+        if self.path == '/live':
+            self.send_response(200)
+            self.send_header('Content-Type', 'text/event-stream')
+            self.send_header('Cache-Control', 'no-cache')
+            self.send_header('Connection', 'keep-alive')
+            self.end_headers()
+            t0 = os.path.getmtime(INDEX) if os.path.exists(INDEX) else 0
+            try:
+                while True:
+                    time.sleep(0.1)
+                    if os.path.exists(INDEX):
+                        t1 = os.path.getmtime(INDEX)
+                        if t1 > t0:
+                            self.wfile.write(b'data:reload\\n\\n')
+                            self.wfile.flush()
+                            t0 = t1
+            except:
+                pass
+            return
+        p = os.path.join(DIR, self.path.lstrip('/'))
+        if os.path.isdir(p):
+            p = os.path.join(p, 'index.html')
+        if os.path.isfile(p):
+            self.send_response(200)
+            if p.endswith('.css'):
+                self.send_header('Content-Type', 'text/css')
+            elif p.endswith('.html'):
+                self.send_header('Content-Type', 'text/html')
+            elif p.endswith('.js'):
+                self.send_header('Content-Type', 'application/javascript')
+            self.end_headers()
+            with open(p, 'rb') as f:
+                self.wfile.write(f.read())
+        else:
+            self.send_response(404)
+            self.end_headers()
+    def log_message(self, *a): pass
+
+httpd = http.server.HTTPServer(('127.0.0.1', PORT), Handler)
+httpd.serve_forever()")
+      (goto-char (point-min))
+      (while (search-forward "PORT_PLACEHOLDER" nil t)
+        (replace-match (number-to-string port))))
+    (setq proc (start-process-shell-command
                 "org-live-httpd" nil
-                (format "cd %s && python3 -m http.server %d --bind 127.0.0.1"
-                        dir port))))
+                (format "cd %s && exec python3 server.py" (shell-quote-argument dir))))
     (set-process-query-on-exit-flag proc nil)
     (cons port proc)))
 

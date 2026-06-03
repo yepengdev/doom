@@ -130,11 +130,21 @@ static void *alloc_arg_by_type(emacs_env *env, emacs_value val,
     uint64_t v = (uint64_t) env->extract_integer(env, val);
     memcpy(buf, &v, sz);
   } else if (type == &ffi_type_float) {
-    double d = env->extract_float(env, val);
+    double d;
+    emacs_value t = env->type_of(env, val);
+    if (env->eq(env, t, env->intern(env, "integer")))
+      d = (double) env->extract_integer(env, val);
+    else
+      d = env->extract_float(env, val);
     float f = (float) d;
     memcpy(buf, &f, sz);
   } else if (type == &ffi_type_double) {
-    double d = env->extract_float(env, val);
+    double d;
+    emacs_value t = env->type_of(env, val);
+    if (env->eq(env, t, env->intern(env, "integer")))
+      d = (double) env->extract_integer(env, val);
+    else
+      d = env->extract_float(env, val);
     memcpy(buf, &d, sz);
   } else {
     /* Unknown type: zero-fill */

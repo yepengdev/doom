@@ -38,6 +38,10 @@
 (deftest "sqrt（double 参，double 返回）"
   (cl-assert (= (dyncall "libm.so.6" "sqrt" :double :double 4.0) 2.0)))
 
+(deftest "sqrt 接受整型参数（Emacs integer → double）"
+  (cl-assert (= (dyncall "libm.so.6" "sqrt" :double :double 4) 2.0))
+  (cl-assert (= (dyncall "libm.so.6" "sqrt" :double :double 9) 3.0)))
+
 (deftest "tgamma（load+sym+call 三步模式）"
   (let* ((lib (dyncall-load "libm.so.6"))
          (fn (dyncall-sym lib "tgamma"))

@@ -4,7 +4,8 @@ Doom Emacs personal config at `~/.config/doom/` — 3 active files + supporting 
 
 ## Files & `doom sync` rule
 - `init.el` / `packages.el` — edit + `doom sync` (required)
-- `config.el` — single-file config (replaces former `config/*.el` split); edit only, no `doom sync`
+- `config.el` — core config (UI, editor, org, LaTeX, i18n); edit only, no `doom sync`
+- `modules/tools/` — Doom user modules split from main `config.el`
 
 ## Commands
 `doom sync | doctor | upgrade | env | clean`
@@ -26,6 +27,7 @@ corfu+orderless, vertico, deft, doom, hl-todo, modeline, popup+defaults, vc-gutt
 evil+everywhere, file-templates, fold, format+onsave, multiple-cursors, snippets, whitespace+guess+trim,
 dired, electric, tramp, undo, vc, eshell, vterm,
 eval+overlay, lookup, magit, pdf,
+cjk, notes, pomodoro,
 ffi+dyncall,
 emacs-lisp, markdown, org+journal+noter+pretty+pandoc
 
@@ -49,8 +51,9 @@ emacs-lisp, markdown, org+journal+noter+pretty+pandoc
 
 ### `my/count-chinese-chars` / `my/count-words`
 - Source: `c-modules/count-cjk.c`, compiled to `c-modules/count-cjk.so`
+- Module: `modules/tools/cjk/` (Doom module, enabled via `:tools cjk` in init.el)
 - Build: `make -C c-modules/` (requires `emacs-module.h` from Emacs 30)
-- `config.el` tries `module-load` at init; errors with build instructions if `.so` missing
+- Doom module's `config.el` checks `.so` at init; errors with build instructions if missing
 - Exports: `my/count-cjk` (CJK only), `my/count-text` (CJK + English words)
 - `M-=` → `my/count-words` (replaces `count-words-region`), `SPC r n c` → `my/count-chinese-chars`
 - Benchmark: `emacs -Q -batch -l tests-bench/count-cjk-bench.el`
@@ -67,7 +70,7 @@ emacs-lisp, markdown, org+journal+noter+pretty+pandoc
 ## Directory structure
 - `config.el` / `init.el` / `packages.el` — core Doom config (root)
 - `c-modules/` — C native modules + their Makefile
-- `modules/` — Doom modules (e.g. `ffi/dyncall/`)
+- `modules/` — Doom modules (e.g. `ffi/dyncall/`, `tools/{cjk,notes,pomodoro}/`)
 - `tests-bench/` — benchmark / test scripts
 - `pandoc/` — Pandoc reference docx + Lua filters
 - `org-export/` — Org HTML CSS assets

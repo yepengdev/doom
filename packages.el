@@ -7,15 +7,6 @@
 ;; 界面
 (package! spacious-padding)
 
-;; 笔记 / 卡片盒笔记法
-(package! denote)
-(package! denote-org)
-(package! denote-sequence)
-(package! denote-explore)
-(package! denote-journal)        ;; denote 日记扩展
-(package! denote-menu)           ;; denote 菜单/浏览界面
-(package! consult-notes)         ;; 通过 consult 搜索笔记
-
 ;; 阅读
 (package! nov)                   ;; EPUB 阅读器
 (package! org-pdftools)          ;; 在 Org 中内嵌 PDF

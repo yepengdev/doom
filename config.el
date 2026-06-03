@@ -562,8 +562,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
                             self.wfile.flush()
                             t0 = t1
             except:
-                break
-            return
+                return
         p = os.path.join(DIR, self.path.lstrip('/'))
         if os.path.isdir(p):
             p = os.path.join(p, 'index.html')

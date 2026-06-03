@@ -500,7 +500,9 @@ Delays 0.4s for browser window to appear."
       (when (file-exists-p css-src)
         (copy-directory css-src (expand-file-name "css" my/org-live--dir) t t t)))
     (my/org-live--fix-css-paths output)
-    (my/org-live--inject-script output)))
+    (my/org-live--inject-script output)
+    ;; 标记文件 = 通知 SSE 推送 reload（确保 index.html 已完整写入）
+    (with-temp-file (expand-file-name ".live" my/org-live--dir))))
 
 (defun my/org-live--fix-css-paths (file)
   "将 HTML 中的绝对 CSS 路径重写为相对于 HTTP 根目录的路径。"
@@ -538,7 +540,8 @@ import os, socket, time, http.server
 
 DIR = os.getcwd()
 PORT = PORT_PLACEHOLDER
-INDEX = os.path.join(DIR, 'index.html')
+LIVE = os.path.join(DIR, '.live')
+open(LIVE, 'w').close()
 
 class Handler(http.server.BaseHTTPRequestHandler):
     def do_GET(self):
@@ -548,18 +551,18 @@ class Handler(http.server.BaseHTTPRequestHandler):
             self.send_header('Cache-Control', 'no-cache')
             self.send_header('Connection', 'keep-alive')
             self.end_headers()
-            t0 = os.path.getmtime(INDEX) if os.path.exists(INDEX) else 0
+            t0 = os.path.getmtime(LIVE) if os.path.exists(LIVE) else 0
             try:
                 while True:
                     time.sleep(0.1)
-                    if os.path.exists(INDEX):
-                        t1 = os.path.getmtime(INDEX)
+                    if os.path.exists(LIVE):
+                        t1 = os.path.getmtime(LIVE)
                         if t1 > t0:
                             self.wfile.write(b'data:reload\\n\\n')
                             self.wfile.flush()
                             t0 = t1
             except:
-                pass
+                break
             return
         p = os.path.join(DIR, self.path.lstrip('/'))
         if os.path.isdir(p):
@@ -580,7 +583,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             self.end_headers()
     def log_message(self, *a): pass
 
-httpd = http.server.HTTPServer(('127.0.0.1', PORT), Handler)
+httpd = http.server.ThreadingHTTPServer(('127.0.0.1', PORT), Handler)
 httpd.serve_forever()")
       (goto-char (point-min))
       (while (search-forward "PORT_PLACEHOLDER" nil t)

@@ -38,11 +38,11 @@
 | ~my/theme-night-start~ | 夜间切换小时（19） |
 | ~my/enable-spacious-padding--done~ | ~spacious-padding~ 一次性 guard |
 | ~my/org-large-file-size-threshold~ | 大文件阈值（~1024*1024~） |
-| ~my/cjk-so~ | C 模块路径（~modules/count-cjk.so~） |
-| ~my/pandoc-dir~ | Pandoc 资源目录 |
-| ~my/org-export-assets-dir~ | HTML 导出资源目录 |
-| ~my/cnotify-so~ | cnotify 模块路径（~modules/cnotify-module.so~） |
-| ~my/random-so~ | random 模块路径（~modules/random.so~） |
+| ~my/cjk-so~ | C 模块路径（~c-modules/count-cjk.so~） |
+
+  | ~my/cnotify-so~ | cnotify 模块路径（~c-modules/cnotify-module.so~） |
+
+  | ~my/random-so~ | random 模块路径（~c-modules/random.so~） |
 | ~my/pomodoro-log-file~ | 番茄钟日志文件路径 |
 | ~my/pomodoro-default-task~ | 默认番茄钟任务名 |
 | ~my/cnotify-indicator~ | 模式行计时器指示器字符串 |

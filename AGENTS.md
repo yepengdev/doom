@@ -26,6 +26,7 @@ corfu+orderless, vertico, deft, doom, hl-todo, modeline, popup+defaults, vc-gutt
 evil+everywhere, file-templates, fold, format+onsave, multiple-cursors, snippets, whitespace+guess+trim,
 dired, electric, tramp, undo, vc, eshell, vterm,
 eval+overlay, lookup, magit, pdf,
+ffi+dyncall,
 emacs-lisp, markdown, org+journal+noter+pretty+pandoc
 
 ## Gotchas
@@ -47,24 +48,26 @@ emacs-lisp, markdown, org+journal+noter+pretty+pandoc
 ## C dynamic modules
 
 ### `my/count-chinese-chars` / `my/count-words`
-- Source: `modules/count-cjk.c`, compiled to `modules/count-cjk.so`
-- Build: `make -C modules/` (requires `emacs-module.h` from Emacs 30)
+- Source: `c-modules/count-cjk.c`, compiled to `c-modules/count-cjk.so`
+- Build: `make -C c-modules/` (requires `emacs-module.h` from Emacs 30)
 - `config.el` tries `module-load` at init; errors with build instructions if `.so` missing
 - Exports: `my/count-cjk` (CJK only), `my/count-text` (CJK + English words)
 - `M-=` → `my/count-words` (replaces `count-words-region`), `SPC r n c` → `my/count-chinese-chars`
 - Benchmark: `emacs -Q -batch -l tests-bench/count-cjk-bench.el`
 
-### `get-dir-size` (directory size via nftw)
-- Source: `modules/dirsize.c`, compiled to `modules/dirsize.so`
-- Exports: `get-dir-size` (PATH → bytes, integer)
-- Auto-loaded at startup by `config.el` (same pattern as CJK module)
-- Auto-displayed in Dired header line: `[/path]  total 42  [12.5M]`
-- Uses POSIX `nftw(3)` at C level — near-instant even on 100K-file dirs
-- Build as part of `make -C modules/` alongside count-cjk
+### `dyncall` — libffi 动态 FFI
+- Source: `c-modules/dyncall.c`, compiled to `c-modules/dyncall.so`
+- Module: `modules/ffi/dyncall/` (Doom module, enabled via `:ffi dyncall` in init.el)
+- `config.el` loads `.so` eagerly (same as other C modules)
+- `autoload.el` provides wrapped functions (`+dyncall-pid`, `+dyncall-sqrt`, etc.)
+- `doctor.el` checks for `libffi` and `dyncall.so` existence
+- Build: `make -C c-modules/`
+- Test: `emacs -Q --batch -l tests-bench/dyncall-test.el`
 
 ## Directory structure
 - `config.el` / `init.el` / `packages.el` — core Doom config (root)
-- `modules/` — C native modules + their Makefile
+- `c-modules/` — C native modules + their Makefile
+- `modules/` — Doom modules (e.g. `ffi/dyncall/`)
 - `tests-bench/` — benchmark / test scripts
 - `pandoc/` — Pandoc reference docx + Lua filters
 - `org-export/` — Org HTML CSS assets

@@ -106,9 +106,12 @@
        ;;terraform         ; 基础设施即代码
        ;;tmux              ; 与 tmux 交互的 API
        tree-sitter       ; 语法解析，和谐共处……
-       ;;upload            ; 通过 ssh/ftp 将本地项目映射到远程
+        ;;upload            ; 通过 ssh/ftp 将本地项目映射到远程
 
-       :os
+       :ffi
+       dyncall            ; libffi 动态 FFI：在运行时调用任意 C 函数
+
+        :os
        (:if (featurep :system 'macos) macos)  ; 改善 macOS 兼容性
        tty               ; 改善终端 Emacs 体验
 

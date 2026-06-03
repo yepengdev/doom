@@ -2,7 +2,7 @@
 
 * 用途
 
-中英双语统一统计。C 动态模块（~modules/count-cjk.so~）一次扫描完成所有计数。
+中英双语统一统计。C 动态模块（~c-modules/count-cjk.so~）一次扫描完成所有计数。
 
 | 功能 | 快捷键 | 输出示例 |
 |------|--------|----------|
@@ -42,7 +42,7 @@ C 模块使用惰性加载策略：启动时不编译不加载，首次调用命
 也可手动触发构建：
 
 #+BEGIN_SRC sh
-cd ~/.config/doom && make -C modules/
+cd ~/.config/doom && make -C c-modules/
 #+END_SRC
 
 或 Emacs 内 ~M-x my/build-cjk-module~（~SPC r n b~）。

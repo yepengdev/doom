@@ -1,9 +1,9 @@
 /* count-cjk.c — Emacs 动态模块：混合 CJK（中日韩）与英文计数
  *
- * 编译：  make -C modules/
+ * 编译：  make -C c-modules/
  *   (gcc -shared -fPIC -O2 -I/usr/include/emacs-30 ...)
  *
- * 加载： (module-load (expand-file-name "modules/count-cjk.so" doom-user-dir))
+ * 加载： (module-load (expand-file-name "c-modules/count-cjk.so" doom-user-dir))
  *
  * 导出函数：
  *   my/count-cjk  (STRING) → cons (CHARS . PUNCT)

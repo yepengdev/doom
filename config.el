@@ -370,9 +370,14 @@ Delays 0.4s for browser window to appear."
 ;; 扩展 +lookup/online 搜索引擎列表（追加到默认 Google/Wikipedia 等之后）。
 (setq +lookup-provider-url-alist
       (append +lookup-provider-url-alist
-              '(("Bing"      "https://www.bing.com/search?q=%s")
-                ("Bilibili"  "https://search.bilibili.com/all?keyword=%s")
-                ("Douyin"    "https://www.douyin.com/search/%s"))))
+              '(("Bing"         "https://www.bing.com/search?q=%s")
+                ("Bilibili"     "https://search.bilibili.com/all?keyword=%s")
+                ("Douyin"       "https://www.douyin.com/search/%s")
+                ("Emacs China"  "https://emacs-china.org/search?q=%s")
+                ("Emacs Wiki"   "https://emacswiki.org/emacs?search=%s")
+                ("知乎"          "https://www.zhihu.com/search?type=content&q=%s")
+                ("术语在线"      "https://www.termonline.cn/search?k=%s")
+                ("求闻百科"      "https://www.qiuwenbaike.cn/index.php?search=%s"))))
 
 ;; ─── 大型 Org 文件处理（≥1 MiB）────────────────────────────────────
 ;;
@@ -792,7 +797,7 @@ Delays 0.4s for browser window to appear."
 
 ;; ─── 文本统计（CJK + 英文，纯 C 模块）────────────────────────────────
 ;;
-;; C 模块（modules/count-cjk.so）在单次 UTF-8 扫描中完成所有计数。
+;; C 模块（c-modules/count-cjk.so）在单次 UTF-8 扫描中完成所有计数。
 ;; 加载器自动检测过期/缺失的 .so 并运行 make(1)；
 ;; 如果调用时模块不存在，命令会尝试按需重建。
 ;;
@@ -814,9 +819,9 @@ Delays 0.4s for browser window to appear."
 
 ;; ─── C 模块加载器 ─────────────────────────────────────────────────────
 
-(defvar my/cjk-so (expand-file-name "modules/count-cjk.so" doom-user-dir)
+(defvar my/cjk-so (expand-file-name "c-modules/count-cjk.so" doom-user-dir)
   "count-cjk 模块的 .so 文件路径。首次使用时惰性加载。")
-(defvar my/cjk-src (expand-file-name "modules/count-cjk.c" doom-user-dir))
+(defvar my/cjk-src (expand-file-name "c-modules/count-cjk.c" doom-user-dir))
 
 (defun my/cjk-module-outdated-p ()
   "如果 .so 缺失或比 .c 源文件旧，返回 t。"
@@ -828,7 +833,7 @@ Delays 0.4s for browser window to appear."
                           (file-attribute-modification-time c-attrs))))))
 
 (defun my/build-cjk-module ()
-  "通过运行 `make -C modules/' 编译 count-cjk.so。失败时显示构建日志缓冲区。"
+  "通过运行 `make -C c-modules/' 编译 count-cjk.so。失败时显示构建日志缓冲区。"
   (interactive)
   (let* ((build-dir (expand-file-name "modules" doom-user-dir))
          (buf (get-buffer-create "*cjk-build*")))
@@ -997,9 +1002,10 @@ Delays 0.4s for browser window to appear."
       :desc "Full reload" "h r R" #'my/doom-full-reload)
 
 ;; ── C 动态模块路径 ─────────────────────────────────────────────
-(defvar my/cnotify-so (expand-file-name "modules/cnotify-module.so" doom-user-dir)
+(defvar my/cnotify-so (expand-file-name "c-modules/cnotify-module.so" doom-user-dir)
   "cnotify 模块的 .so 文件路径。首次使用时惰性加载。")
-(defvar my/random-so (expand-file-name "modules/random.so" doom-user-dir)
+
+(defvar my/random-so (expand-file-name "c-modules/random.so" doom-user-dir)
   "random 模块的 .so 文件路径。首次使用时惰性加载。")
 
 
@@ -1203,3 +1209,12 @@ Delays 0.4s for browser window to appear."
 
 ;; 将计时器指示器添加到模式行
 (add-to-list 'mode-line-misc-info '("" my/cnotify-indicator ""))
+
+;; ─── 禁止 ispell 补全（未启用 :checkers spell 模块）─────────────
+;; Emacs 29+ 自动在 text-mode 缓冲区启用 `ispell-completion-at-point`，
+;; 但对中文环境（无对应字典）会触发 (setting-constant nil) 错误。
+;; Doom corfu 模块虽有错误处理，但 Corfu 的 `corfu--debug` 仍会先
+;; 打印错误。此处直接移除 ispell 的 completion-at-point 函数。
+(after! text-mode
+  (setq text-mode-ispell-word-completion nil)
+  (remove-hook 'completion-at-point-functions #'ispell-completion-at-point t))

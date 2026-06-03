@@ -341,11 +341,38 @@
            "<link rel=\"stylesheet\" type=\"text/css\" href=\"" css-dir "/htmlize.css\"/>"))
     (setq org-html-head-extra "")))
 
-;; ─── 外部浏览器打开链接 ──────────────────────────────────────────
-;; xdg-open 委托给桌面环境的默认处理器
-;;（Firefox/Chrome/用户在系统范围内配置的任何浏览器）。
-;; 硬编码特定浏览器会在无头终端或非 XDG 桌面上失效。
+;; ─── 外部链接打开 ────────────────────────────────────────────
+;; browse-url: 通用链接（普通打开/org 链接）走 xdg-open 到默认浏览器。
 (setq browse-url-browser-function #'browse-url-xdg-open)
+
+;; +lookup/online（SPC s o）打开搜索 URL 后，自动将 niri 焦点切到浏览器。
+;; 用法：结合 niri IPC（`niri msg --json windows`）按 app_id 查窗口 ID，
+;; 然后用 `focus-window --id` 切换焦点，避免 Wayland 下 xdg-open 不自动
+;; 弹到前台的问题。
+(defun my/niri-focus-by-app-id (app-id)
+  "Focus first niri window whose app_id matches APP-ID.
+Uses `niri msg --json windows` parsed via jq, then `focus-window --id`."
+  (call-process-shell-command
+   (format "niri msg action focus-window --id $(niri msg --json windows | jq --arg a \"%s\" '.[] | select(.app_id==$a) | .id')" app-id)
+   nil 0 nil))
+
+(defun my/open-url-and-focus (url)
+  "Open URL via xdg-open, then focus the browser with `my/niri-focus-by-app-id'.
+Delays 0.4s for browser window to appear."
+  (interactive (list (read-string "URL: ")))
+  (let ((process-connection-type nil))
+    (start-process "xdg-open" nil "xdg-open" url)
+    (run-at-time 0.4 nil
+      (lambda ()
+        (my/niri-focus-by-app-id "brave-browser")))))
+(setq +lookup-open-url-fn #'my/open-url-and-focus)
+
+;; 扩展 +lookup/online 搜索引擎列表（追加到默认 Google/Wikipedia 等之后）。
+(setq +lookup-provider-url-alist
+      (append +lookup-provider-url-alist
+              '(("Bing"      "https://www.bing.com/search?q=%s")
+                ("Bilibili"  "https://search.bilibili.com/all?keyword=%s")
+                ("Douyin"    "https://www.douyin.com/search/%s"))))
 
 ;; ─── 大型 Org 文件处理（≥1 MiB）────────────────────────────────────
 ;;
@@ -840,6 +867,19 @@
     (unless (fboundp 'my/count-text)
       (error "count-cjk.so 重建后仍不可用"))))
 
+;; ─── 辅助函数 ────────────────────────────────────────────────────────
+
+(defun my/--fmt-num (n)
+  "用中文单位格式化大数字：≥1万显示为 `X.X万（精确）'，≥1亿同理。"
+  (let ((abs-n (abs n)))
+    (cond
+     ((>= abs-n 100000000)
+      (format "%.2f亿（%d）" (/ n 100000000.0) n))
+     ((>= abs-n 10000)
+      (format "%.2f万（%d）" (/ n 10000.0) n))
+     (t
+      (format "%d" n)))))
+
 ;; ─── 命令 ────────────────────────────────────────────────────────────
 
 ;;;###autoload
@@ -854,9 +894,11 @@
          (cn-punct (cdr result))
          (total (- end beg))
          (pct (if (> total 0) (/ (* (+ cn-chars cn-punct) 100.0) total) 0.0)))
-    (message (concat "字:%d  含标点:%d  总:%d  %.1f%%"
+    (message (concat "字:%s  含标点:%s  总:%d  %.1f%%"
                      (if (use-region-p) " (选中)" ""))
-             cn-chars (+ cn-chars cn-punct) total pct)))
+             (my/--fmt-num cn-chars)
+             (my/--fmt-num (+ cn-chars cn-punct))
+             total pct)))
 
 ;;;###autoload
 (defun my/count-words (&optional beg end)
@@ -879,7 +921,11 @@
          (punct (aref v 1))
          (en-words (aref v 2))
          (total (aref v 4)))
-    (message "中:%d  英:%d  标点:%d  总:%d" cjk en-words punct total)))
+    (message "中:%s  英:%s  标点:%s  总:%s"
+             (my/--fmt-num cjk)
+             (my/--fmt-num en-words)
+             (my/--fmt-num punct)
+             (my/--fmt-num total))))
 
 ;; ─── 绑定 ────────────────────────────────────────────────────────────
 
@@ -1101,8 +1147,10 @@
                  (buffer-substring-no-properties (point-min) (point-max))))
          (label (if (use-region-p) "Region" "Buffer"))
          (v    (my/count-text text)))
-    (message "%s: %d CJK, %d punct, %d EN words (%d EN chars), %d total cp"
-             label (aref v 0) (aref v 1) (aref v 2) (aref v 3) (aref v 4))))
+    (message "%s: %s CJK, %s punct, %s EN words (%s EN chars), %s total cp"
+             label (my/--fmt-num (aref v 0)) (my/--fmt-num (aref v 1))
+             (my/--fmt-num (aref v 2)) (my/--fmt-num (aref v 3))
+             (my/--fmt-num (aref v 4)))))
 
 (map! :leader
       (:prefix-map ("r t" . "Tools")

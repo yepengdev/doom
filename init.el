@@ -96,7 +96,7 @@
        ;;editorconfig      ; 让别人争论制表符 vs 空格吧
        ;;ein               ; 用 Emacs 驯服 Jupyter 笔记本
        (eval +overlay)     ; 运行代码（还有 REPL）
-       lookup              ; 浏览代码及其文档
+       (lookup +docsets)              ; 浏览代码及其文档
        ;;llm               ; 当我说你需要朋友时，我不是指……
        ;;(lsp +eglot)      ; 把 Emacs 变成 VS Code
        magit             ; Emacs 的 Git 前端

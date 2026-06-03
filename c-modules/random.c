@@ -164,8 +164,9 @@ Frandom_password(emacs_env *env, ptrdiff_t nargs,
     char *buf = (char *)malloc((size_t)len + 1);
     if (!buf) { signal_error(env, "random-password: memory allocation failed"); return intern_nil(env); }
 
-    /* 一次性读取足够多的随机字节 */
-    size_t rand_size = (size_t)len * 2;
+    /* 拒绝采样消除模偏置：只接受 idx < reject_threshold 的值 */
+    size_t pos = 0;
+    size_t rand_size = (size_t)len * 4;
     uint8_t *rand_buf = (uint8_t *)malloc(rand_size);
     if (!rand_buf) { free(buf); signal_error(env, "random-password: memory allocation failed"); return intern_nil(env); }
 
@@ -175,8 +176,26 @@ Frandom_password(emacs_env *env, ptrdiff_t nargs,
         return intern_nil(env);
     }
 
-    for (int i = 0; i < len; i++)
-        buf[i] = pw_chars[rand_buf[i] % pw_chars_len];
+    uint8_t reject_threshold = (256 / pw_chars_len) * pw_chars_len;
+    for (int i = 0; i < len; i++) {
+        uint8_t idx;
+        do {
+            if (pos >= rand_size) {
+                free(rand_buf);
+                rand_size = (size_t)len * 4;
+                rand_buf = (uint8_t *)malloc(rand_size);
+                if (!rand_buf) { free(buf); signal_error(env, "random-password: memory allocation failed"); return intern_nil(env); }
+                if (fill_random(rand_buf, rand_size) != 0) {
+                    free(rand_buf); free(buf);
+                    signal_error(env, "random-password: entropy source unavailable");
+                    return intern_nil(env);
+                }
+                pos = 0;
+            }
+            idx = rand_buf[pos++];
+        } while (idx >= reject_threshold);
+        buf[i] = pw_chars[idx % pw_chars_len];
+    }
     buf[len] = '\0';
 
     free(rand_buf);

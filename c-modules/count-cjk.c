@@ -31,6 +31,9 @@ static int is_cjk(uint32_t cp) {
       || (cp >= 0x2B740 && cp <= 0x2B81F)  /* CJK 统一表意文字扩展 D */
       || (cp >= 0x2B820 && cp <= 0x2CEAF)  /* CJK 统一表意文字扩展 E */
       || (cp >= 0x2CEB0 && cp <= 0x2EBE0)  /* CJK 统一表意文字扩展 F */
+      || (cp >= 0x2EBF0 && cp <= 0x2EE5F)  /* CJK 统一表意文字扩展 G */
+      || (cp >= 0x30000 && cp <= 0x3134F)  /* CJK 统一表意文字扩展 H */
+      || (cp >= 0x31350 && cp <= 0x323AF)  /* CJK 统一表意文字扩展 I */
       || (cp >= 0x2F800 && cp <= 0x2FA1F); /* CJK 兼容表意文字补充 */
 }
 
@@ -268,7 +271,7 @@ int emacs_module_init(struct emacs_runtime *ert) EMACS_NOEXCEPT {
     emacs_value func = env->make_function(
         env, 1, 1, Fcount_text,
         "Return vector [cjk punct en-words en-chars total-cp] for STRING.\n"
-        "  cjk       — CJK Unified Ideographs (incl. Extensions A-F)\n"
+        "  cjk       — CJK Unified Ideographs (incl. Extensions A-I)\n"
         "  punct     — CJK punctuation\n"
         "  en-words  — English words (letters/digits/apostrophe runs)\n"
         "  en-chars  — English word characters\n"

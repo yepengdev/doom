@@ -17,7 +17,7 @@
 
 ;; ─── 番茄钟日志 ────────────────────────────────────────────────────────
 (defvar my/pomodoro-log-file
-  (expand-file-name "pomodoro.log.el" doom-user-dir)
+  (expand-file-name "pomodoro.eld" doom-user-dir)
   "已完成番茄钟周期的 Sexp 日志。")
 
 (defvar my/pomodoro-default-task "专注"
@@ -28,7 +28,9 @@
     (with-temp-buffer
       (insert-file-contents my/pomodoro-log-file)
       (goto-char (point-min))
-      (read (current-buffer)))))
+      (condition-case nil
+          (read (current-buffer))
+        (error nil)))))
 
 (defun my/pomodoro-log-write (entry)
   (with-temp-file my/pomodoro-log-file
@@ -46,9 +48,15 @@
   (interactive)
   (let* ((entries (my/pomodoro-log-read))
          (today (format-time-string "%Y-%m-%d"))
-         (week-start (format-time-string "%Y-%m-%d"
-                                        (time-subtract (current-time)
-                                                       (* (1- (string-to-number (format-time-string "%u"))) 86400))))
+          (week-start
+           (let* ((decoded (decode-time))
+                  (dow (nth 6 decoded))
+                  (mon-day (if (= dow 0) 7 dow)))
+             (format-time-string "%Y-%m-%d"
+                                (encode-time (nth 0 decoded) (nth 1 decoded) (nth 2 decoded)
+                                             (- (nth 3 decoded) (1- mon-day))
+                                             (nth 4 decoded) (nth 5 decoded)
+                                             (nth 8 decoded)))))
          (today-entries (seq-filter
                          (lambda (e) (string-prefix-p today (plist-get e :time)))
                          entries))

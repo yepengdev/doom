@@ -157,8 +157,9 @@
 ;;
 (setq confirm-kill-emacs nil)
 (setq shell-file-name (executable-find "bash"))
-(setq-default vterm-shell "/usr/bin/fish")
-(setq-default explicit-shell-file-name "/usr/bin/fish")
+(when-let ((fish (executable-find "fish")))
+  (setq-default vterm-shell fish
+                explicit-shell-file-name fish))
 (setq server-raise-frame t
       server-client-instructions nil)
 
@@ -190,9 +191,10 @@
 
   (defun my/olivetti-toggle-line-numbers-h ()
     "在 olivetti-mode 中禁用行号；退出时恢复原始状态。
-进入时将原始状态保存在 `my/olivetti--line-numbers-p' 中，退出时恢复。"
+ 进入时将原始状态保存在 `my/olivetti--line-numbers-p' 中，退出时恢复。"
     (if olivetti-mode
-        (setq my/olivetti--line-numbers-p (display-line-numbers-mode -1))
+        (setq my/olivetti--line-numbers-p
+              (and (bound-and-true-p display-line-numbers-mode) t))
       (when my/olivetti--line-numbers-p
         (display-line-numbers-mode 1))))
   (add-hook 'olivetti-mode-hook #'my/olivetti-toggle-line-numbers-h))
@@ -351,10 +353,19 @@
 ;; 弹到前台的问题。
 (defun my/niri-focus-by-app-id (app-id)
   "Focus first niri window whose app_id matches APP-ID.
-Uses `niri msg --json windows` parsed via jq, then `focus-window --id`."
-  (call-process-shell-command
-   (format "niri msg action focus-window --id $(niri msg --json windows | jq --arg a \"%s\" '.[] | select(.app_id==$a) | .id')" app-id)
-   nil 0 nil))
+Uses `niri msg --json windows` parsed with json-read-from-string."
+  (let ((data (shell-command-to-string "niri msg --json windows")))
+    (when (and data (not (string-empty-p data)))
+      (let* ((json-object-type 'plist)
+             (json-array-type 'list)
+             (windows (json-read-from-string data))
+             (match (seq-find (lambda (w) (equal (plist-get w :app_id) app-id))
+                              windows))
+             (id (and match (plist-get match :id))))
+        (when id
+          (call-process "niri" nil 0 nil
+                        "msg" "action" "focus-window"
+                        "--id" (format "%d" id)))))))
 
 (defun my/open-url-and-focus (url)
   "Open URL via xdg-open, then focus the browser with `my/niri-focus-by-app-id'.
@@ -363,8 +374,8 @@ Delays 0.4s for browser window to appear."
   (let ((process-connection-type nil))
     (start-process "xdg-open" nil "xdg-open" url)
     (run-at-time 0.4 nil
-      (lambda ()
-        (my/niri-focus-by-app-id "brave-browser")))))
+                 (lambda ()
+                   (my/niri-focus-by-app-id "brave-browser")))))
 (setq +lookup-open-url-fn #'my/open-url-and-focus)
 
 ;; 扩展 +lookup/online 搜索引擎列表（追加到默认 Google/Wikipedia 等之后）。
@@ -496,9 +507,10 @@ Delays 0.4s for browser window to appear."
   "用当前 org-html-head 设置导出 HTML 到临时目录。"
   (let ((output (expand-file-name "index.html" my/org-live--dir)))
     (org-export-to-file 'html output nil nil nil nil nil nil)
-    (let ((css-src (expand-file-name "css" my/org-export-assets-dir)))
-      (when (file-exists-p css-src)
-        (copy-directory css-src (expand-file-name "css" my/org-live--dir) t t t)))
+    (let* ((css-dst (expand-file-name "css" my/org-live--dir))
+           (css-src (expand-file-name "css" my/org-export-assets-dir)))
+      (when (and (file-exists-p css-src) (not (file-exists-p css-dst)))
+        (copy-directory css-src css-dst t t t)))
     (my/org-live--fix-css-paths output)
     (my/org-live--inject-script output)
     ;; 标记文件 = 通知 SSE 推送 reload（确保 index.html 已完整写入）
@@ -526,20 +538,23 @@ Delays 0.4s for browser window to appear."
       (insert "<script>new EventSource('/live').onmessage=()=>location.reload()</script>")
       (write-region (point-min) (point-max) file nil 'silent))))
 
+(defvar my/org-live-python (or (executable-find "python3")
+                               (executable-find "python"))
+  "Python 3 executable for org-live-preview server.")
+
 (defun my/org-live--serve (dir)
   "在 DIR 上用随机端口启动 Python HTTP+SSE 服务器，返回 (PORT . PROCESS)。"
   (let* ((port (string-to-number
                 (shell-command-to-string
-                 "python3 -c \"import socket; s=socket.socket(); s.bind(('127.0.0.1',0)); print(s.getsockname()[1]); s.close()\"")))
+                 (format "%s -c \"import socket; s=socket.socket(); s.bind(('127.0.0.1',0)); print(s.getsockname()[1]); s.close()\"" my/org-live-python))))
          (script (expand-file-name "server.py" dir))
          proc)
-    ;; 写入定制服务器脚本
     (with-temp-file script
-      (insert "\
+      (insert (format "\
 import os, socket, time, http.server
 
 DIR = os.getcwd()
-PORT = PORT_PLACEHOLDER
+PORT = %d
 LIVE = os.path.join(DIR, '.live')
 open(LIVE, 'w').close()
 
@@ -583,13 +598,10 @@ class Handler(http.server.BaseHTTPRequestHandler):
     def log_message(self, *a): pass
 
 httpd = http.server.ThreadingHTTPServer(('127.0.0.1', PORT), Handler)
-httpd.serve_forever()")
-      (goto-char (point-min))
-      (while (search-forward "PORT_PLACEHOLDER" nil t)
-        (replace-match (number-to-string port))))
+httpd.serve_forever()" port)))
     (setq proc (start-process-shell-command
                 "org-live-httpd" nil
-                (format "cd %s && exec python3 server.py" (shell-quote-argument dir))))
+                (format "cd %s && exec %s server.py" (shell-quote-argument dir) my/org-live-python)))
     (set-process-query-on-exit-flag proc nil)
     (cons port proc)))
 
@@ -863,12 +875,11 @@ httpd.serve_forever()")
 绑定到 `SPC h r R'。"
   (interactive)
   (when (fboundp 'doom/reload-autoloads)
-    (ignore-errors (doom/reload-autoloads)))
+    (with-demoted-errors "Full reload: %S" (doom/reload-autoloads)))
   (when (fboundp 'doom/reload-packages)
-    (ignore-errors (doom/reload-packages)))
+    (with-demoted-errors "Full reload: %S" (doom/reload-packages)))
   (when (fboundp 'doom/reload)
-    (ignore-errors
-      (doom/reload))))
+    (with-demoted-errors "Full reload: %S" (doom/reload))))
 
 (map! :leader
       :desc "Full reload" "h r R" #'my/doom-full-reload)
@@ -884,4 +895,4 @@ httpd.serve_forever()")
 ;; 打印错误。此处直接移除 ispell 的 completion-at-point 函数。
 (after! text-mode
   (setq text-mode-ispell-word-completion nil)
-  (remove-hook 'completion-at-point-functions #'ispell-completion-at-point t))
+  (remove-hook 'completion-at-point-functions #'ispell-completion-at-point))

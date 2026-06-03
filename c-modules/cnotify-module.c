@@ -23,15 +23,16 @@
 #include <pthread.h>
 #include <libnotify/notify.h>
 #include <stdio.h>
+#include <stdatomic.h>
 
 int plugin_is_GPL_compatible;
 
 /* ── 共享状态 ───────────────────────────────────────── */
-static volatile int timer_remaining   = 0;          /* 倒计时剩余秒数 */
-static volatile int pomodoro_phase    = 0;          /* 0=空闲, 1=工作, 2=休息 */
-static volatile int timer_stop        = 0;          /* 请求停止计时器 */
-static volatile int pomodoro_stop     = 0;          /* 请求停止番茄钟 */
-static volatile int callback_pending  = 0;          /* 是否有待处理的通知点击 */
+static atomic_int timer_remaining;                  /* 倒计时剩余秒数 */
+static atomic_int pomodoro_phase;                   /* 0=空闲, 1=工作, 2=休息 */
+static atomic_bool timer_stop;                      /* 请求停止计时器 */
+static atomic_bool pomodoro_stop;                   /* 请求停止番茄钟 */
+static atomic_bool callback_pending;                /* 是否有待处理的通知点击 */
 static emacs_value callback_fn        = NULL;       /* Emacs lambda 的全局引用 */
 static pthread_t timer_tid    = 0;                  /* 计时器线程 ID */
 static pthread_t pomodoro_tid = 0;                  /* 番茄钟线程 ID */
@@ -124,7 +125,7 @@ timer_thread(void *arg)
 
     for (int i = 0; i < ta->seconds; i++) {
         if (timer_stop) goto done;
-        sleep(1);
+        { int r = 1; while (r > 0) r = sleep(r); }
         timer_remaining = ta->seconds - i - 1;
     }
     if (!timer_stop)
@@ -154,7 +155,7 @@ pomodoro_thread(void *arg)
         notify_send_clickable("🍅 Pomodoro", "Work phase started");
         for (int i = 0; i < pa->work_sec; i++) {
             if (pomodoro_stop) goto done;
-            sleep(1);
+            { int r = 1; while (r > 0) r = sleep(r); }
             timer_remaining = pa->work_sec - i - 1;
         }
         if (pomodoro_stop) break;
@@ -164,7 +165,7 @@ pomodoro_thread(void *arg)
         timer_remaining = pa->break_sec;
         for (int i = 0; i < pa->break_sec; i++) {
             if (pomodoro_stop) goto done;
-            sleep(1);
+            { int r = 1; while (r > 0) r = sleep(r); }
             timer_remaining = pa->break_sec - i - 1;
         }
         if (pomodoro_stop) break;
@@ -270,7 +271,6 @@ Ftimer_start(emacs_env *env, ptrdiff_t nargs,
         free(ta->message); free(ta);
         return env->intern(env, "nil");
     }
-    pthread_detach(timer_tid);
     return intern_t(env);
 }
 
@@ -305,7 +305,6 @@ Fpomodoro_start(emacs_env *env, ptrdiff_t nargs,
         free(pa);
         return env->intern(env, "nil");
     }
-    pthread_detach(pomodoro_tid);
     return intern_t(env);
 }
 
@@ -346,6 +345,18 @@ emacs_module_init(struct emacs_runtime *ert)
 
     if (!notify_init("cnotify"))
         return 1;
+
+    /* 清理潜在残留线程（模块重载场景） */
+    timer_stop = 1;
+    pomodoro_stop = 1;
+    if (timer_tid) { pthread_join(timer_tid, NULL); timer_tid = 0; }
+    if (pomodoro_tid) { pthread_join(pomodoro_tid, NULL); pomodoro_tid = 0; }
+    timer_stop = 0;
+    pomodoro_stop = 0;
+    timer_remaining = 0;
+    pomodoro_phase = 0;
+    callback_pending = 0;
+    callback_fn = NULL;
 
     register_fn(env, "cnotify-notify",
                 Fnotify_notify, 2, 3,

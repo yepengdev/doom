@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -Wall -Wextra -std=c99 -O2 -fPIC
+CFLAGS = -Wall -Wextra -std=gnu11 -O2 -fPIC
 NOTIFY_LIBS = $(shell pkg-config --cflags --libs libnotify glib-2.0) -lpthread
 FFI_CFLAGS = $(shell pkg-config --cflags libffi)
 FFI_LIBS   = $(shell pkg-config --libs libffi)

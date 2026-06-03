@@ -495,7 +495,23 @@ Delays 0.4s for browser window to appear."
   "用当前 org-html-head 设置导出 HTML 到临时目录。"
   (let ((output (expand-file-name "index.html" my/org-live--dir)))
     (org-export-to-file 'html output nil nil nil nil nil nil)
+    (let ((css-src (expand-file-name "css" my/org-export-assets-dir)))
+      (when (file-exists-p css-src)
+        (copy-directory css-src (expand-file-name "css" my/org-live--dir) t t t)))
+    (my/org-live--fix-css-paths output)
     (my/org-live--inject-script output)))
+
+(defun my/org-live--fix-css-paths (file)
+  "将 HTML 中的绝对 CSS 路径重写为相对于 HTTP 根目录的路径。"
+  (with-temp-buffer
+    (insert-file-contents file)
+    (let* ((css-dir (expand-file-name "css" my/org-export-assets-dir))
+           (abs-pat (concat "href=\"" (regexp-quote (file-name-as-directory css-dir)))))
+      (when (re-search-forward abs-pat nil t)
+        (goto-char (point-min))
+        (while (re-search-forward abs-pat nil t)
+          (replace-match "href=\"css/"))))
+    (write-region (point-min) (point-max) file nil 'silent)))
 
 (defun my/org-live--inject-script (file)
   "在 HTML 的 </body> 前 livereload polling JS。"

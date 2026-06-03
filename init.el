@@ -14,7 +14,7 @@
 
 (doom! :input
        ;;bidi              ; 帮助你从右到左书写
-       chinese             ; 中文拼音首字母搜索（SPC s s 可用）
+       ;;chinese           ; 中文拼音首字母搜索 — 自己配置了 fcitx + evil-pinyin
        ;;japanese           ; 日语输入支持
        ;;layout            ; auie,ctsrnm 是更优秀的主行键位
 

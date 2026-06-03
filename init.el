@@ -24,20 +24,20 @@
        ;;helm              ; *另一个*寻找爱与生活的搜索引擎
        ;;ido               ; 另一个*另一个*搜索引擎……
        ;;ivy               ; 一个寻找爱与生活的搜索引擎
-       vertico           ; 未来的搜索引擎
+       (vertico +icons)           ; 未来的搜索引擎
 
        :ui
        deft              ; Emacs 版的 Notational Velocity
        doom              ; 让 DOOM 呈现其样貌的配置
        ;;dashboard         ; Emacs 的漂亮启动画面
        ;;doom-quit         ; 退出 Emacs 时的 DOOM 退出提示
-       ;;(emoji +unicode)  ; 🙂
+       (emoji +unicode)  ; 🙂
        hl-todo           ; 高亮 TODO/FIXME/NOTE/DEPRECATED/HACK/REVIEW
-       ;;indent-guides     ; 高亮缩进列
+       indent-guides     ; 高亮缩进列
        ;;ligatures         ; 连字和符号，让代码重新变漂亮
        ;;minimap           ; 在侧边显示代码缩略图
        modeline          ; 时尚的 Atom 风格模式行，带 API
-       ;;nav-flash         ; 大范围移动后闪烁光标所在行
+       nav-flash         ; 大范围移动后闪烁光标所在行
        ;;neotree           ; 项目文件树，类似 vim 的 NERDTree
        ophints           ; 高亮操作所作用的区域
        (popup +defaults)   ; 驯服突然出现的临时窗口
@@ -47,7 +47,7 @@
        ;;unicode           ; 各种语言的扩展 Unicode 支持
        (vc-gutter +pretty) ; 边缘显示版本控制差异
        ;;vi-tilde-fringe   ; 在缓冲区末尾外显示波浪线
-       ;;window-select     ; 可视化切换窗口
+       ;; window-select     ; 可视化切换窗口
        workspaces        ; 标签模拟、持久化及独立工作区
        ;;zen               ; 无干扰编码或写作
 
@@ -67,10 +67,10 @@
        ;;word-wrap         ; 感知语言缩进的软换行
 
        :emacs
-       dired             ; 让 dired 变得漂亮且实用
+       (dired +dirvish +icons)             ; 让 dired 变得漂亮且实用
        electric          ; 更智能的基于关键字的 electric-indent
        ;;eww               ; 互联网很糟糕
-       ;;ibuffer           ; 交互式缓冲区管理
+       (ibuffer +icons)           ; 交互式缓冲区管理
        tramp             ; 远程文件触手可及
        undo              ; 持久化、更智能的撤销
        vc                ; 版本控制与 Emacs 和谐共处
@@ -82,7 +82,7 @@
        vterm             ; Emacs 中最好的终端模拟
 
        :checkers
-       ;;syntax              ; 为你遗漏的每个分号打你手心
+       syntax              ; 为你遗漏的每个分号打你手心
        ;;(spell +flyspell) ; 为你拼错的每个单词打你手心
        ;;grammar           ; 为你犯的每个语法错误打你手心
 
@@ -105,7 +105,7 @@
        pdf               ; PDF 增强
        ;;terraform         ; 基础设施即代码
        ;;tmux              ; 与 tmux 交互的 API
-       ;;tree-sitter       ; 语法解析，和谐共处……
+       tree-sitter       ; 语法解析，和谐共处……
        ;;upload            ; 通过 ssh/ftp 将本地项目映射到远程
 
        :os

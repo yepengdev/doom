@@ -391,6 +391,7 @@
       (when (bound-and-true-p prettify-symbols-mode) (prettify-symbols-mode -1))
       (setq-local prettify-symbols-alist nil)
       (when (bound-and-true-p variable-pitch-mode) (variable-pitch-mode -1))
+      (when (bound-and-true-p olivetti-mode) (olivetti-mode -1))
       (font-lock-flush))))
 
 (add-hook 'org-mode-hook #'my/org-maybe-disable-prettification)
@@ -572,8 +573,8 @@
   :after denote
   :hook (calendar-mode . denote-journal-calendar-mode)
   :custom
-  (denote-journal-directory "journal")
-  (denote-journal-keyword '("日记"))
+  (denote-journal-directory (concat denote-directory "/journal"))
+  (denote-journal-keyword '("journal"))
   (denote-journal-title-format 'day-date-month-year)
   :init
   (map! :leader
@@ -994,8 +995,8 @@
   (let* ((entries (my/pomodoro-log-read))
          (today (format-time-string "%Y-%m-%d"))
          (week-start (format-time-string "%Y-%m-%d"
-                       (time-subtract (current-time)
-                        (* (1- (string-to-number (format-time-string "%u"))) 86400))))
+                                         (time-subtract (current-time)
+                                                        (* (1- (string-to-number (format-time-string "%u"))) 86400))))
          (today-entries (seq-filter
                          (lambda (e) (string-prefix-p today (plist-get e :time)))
                          entries))
@@ -1109,7 +1110,6 @@
        :desc "Stop timer"               "T" #'my/timer-stop
        :desc "Start pomodoro"           "s" #'my/pomodoro-start
        :desc "Stop pomodoro"            "S" #'my/pomodoro-stop
-       :desc "Generate password"        "p" #'my/random-password
        :desc "Word count"               "w" #'my/word-count
        :desc "Pomodoro stats"           "v" #'my/pomodoro-show-stats))
 

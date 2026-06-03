@@ -435,6 +435,113 @@ Delays 0.4s for browser window to appear."
                         (doom-so-long-p)))))
 
 
+;; ─── Org 实时预览 ────────────────────────────────────────────
+;;
+;; M-x my/org-live-preview      将当前 Org 导出为 HTML 并在浏览器中实时预览，
+;;                              保存文件时自动重新导出，浏览器通过 polling JS
+;;                              检测更新并自动刷新。
+;; M-x my/org-live-preview-stop 停止预览并清理临时文件和后台进程。
+;;
+;; 机制：
+;;   1. 导出当前 Org 到 /tmp/org-live-XXXXXX/index.html（含现有 org.css 样式）
+;;   2. 在 </body> 前注入 polling JS（每 500ms 发 If-Modified-Since 请求）
+;;   3. 启动 python3 http.server 在随机端口（127.0.0.1:0）
+;;   4. 用 browse-url 在默认浏览器中打开
+;;   5. after-save-hook（buffer-local）触发重新导出
+
+(defvar my/org-live--proc nil "livereload HTTP 服务器进程")
+(defvar my/org-live--dir  nil "临时 HTTP 根目录")
+(defvar my/org-live--url  nil "浏览器中打开的 URL")
+
+;;;###autoload
+(defun my/org-live-preview ()
+  "在浏览器中实时预览当前 Org 文件。保存即自动刷新。"
+  (interactive)
+  (unless (derived-mode-p 'org-mode)
+    (user-error "Not an Org buffer"))
+  (when my/org-live--proc (my/org-live-preview-stop))
+  (my/org-live--export-and-serve)
+  (add-hook 'after-save-hook #'my/org-live--on-save nil t)
+  (add-hook 'kill-buffer-hook #'my/org-live--maybe-stop nil t)
+  (browse-url my/org-live--url)
+  (message "🌐 Org 实时预览: %s" my/org-live--url))
+
+;;;###autoload
+(defun my/org-live-preview-stop ()
+  "停止 Org 实时预览并清理。"
+  (interactive)
+  (when my/org-live--proc
+    (delete-process my/org-live--proc)
+    (setq my/org-live--proc nil))
+  (when my/org-live--dir
+    (delete-directory my/org-live--dir t)
+    (setq my/org-live--dir nil))
+  (setq my/org-live--url nil)
+  (remove-hook 'after-save-hook #'my/org-live--on-save t)
+  (remove-hook 'kill-buffer-hook #'my/org-live--maybe-stop t)
+  (message "🌐 Org 预览已停止"))
+
+(defun my/org-live--maybe-stop ()
+  "Buffer-local kill-buffer-hook：当预览缓冲被杀死时清理。"
+  (when (and my/org-live--proc (derived-mode-p 'org-mode))
+    (my/org-live-preview-stop)))
+
+(defun my/org-live--on-save ()
+  "after-save-hook：重新导出 HTML。"
+  (when (and my/org-live--dir (derived-mode-p 'org-mode))
+    (my/org-live--export)))
+
+(defun my/org-live--export ()
+  "用当前 org-html-head 设置导出 HTML 到临时目录。"
+  (let ((output (expand-file-name "index.html" my/org-live--dir)))
+    (org-export-to-file 'html output nil nil nil nil nil nil)
+    (my/org-live--inject-script output)))
+
+(defun my/org-live--inject-script (file)
+  "在 HTML 的 </body> 前 livereload polling JS。"
+  (with-temp-buffer
+    (insert-file-contents file)
+    (when (let ((case-fold-search t))
+            (re-search-forward "</body>" nil t))
+      (goto-char (match-beginning 0))
+      (insert "\
+<script>
+(async()=>{
+  let lm=document.lastModified;
+  while(1){
+    await new Promise(r=>setTimeout(r,500));
+    let r=await fetch('/',{headers:{'If-Modified-Since':lm}});
+    if(r.ok&&r.status===200){location.reload();break}
+  }
+})();
+</script>")
+      (write-region (point-min) (point-max) file nil 'silent))))
+
+(defun my/org-live--serve (dir)
+  "在 DIR 上用随机端口启动 Python HTTP 服务器，返回 (PORT . PROCESS)。"
+  (let* ((port (string-to-number
+                (shell-command-to-string
+                 "python3 -c \"import socket; s=socket.socket(); s.bind(('127.0.0.1',0)); print(s.getsockname()[1]); s.close()\"")))
+         (proc (start-process-shell-command
+                "org-live-httpd" nil
+                (format "cd %s && python3 -m http.server %d --bind 127.0.0.1"
+                        dir port))))
+    (set-process-query-on-exit-flag proc nil)
+    (cons port proc)))
+
+(defun my/org-live--export-and-serve ()
+  "组合操作：创建临时目录 → 导出 → 启动 HTTP → 打开 URL。"
+  (let* ((dir (make-temp-file "org-live-" t))
+         (port-proc (my/org-live--serve dir))
+         (port (car port-proc))
+         (proc (cdr port-proc))
+         (url (format "http://127.0.0.1:%d/" port)))
+    (setq my/org-live--dir  dir
+          my/org-live--proc proc
+          my/org-live--url  url)
+    (my/org-live--export)))
+
+
 ;; ═══════════════════════════════════════════════════════════════════════════
 ;; LaTeX（AUCTeX + Org → LaTeX 导出）
 ;; ═══════════════════════════════════════════════════════════════════════════

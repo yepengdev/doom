@@ -99,24 +99,24 @@
        (lookup +docsets)              ; 浏览代码及其文档
        ;;llm               ; 当我说你需要朋友时，我不是指……
        ;;(lsp +eglot)      ; 把 Emacs 变成 VS Code
-        magit             ; Emacs 的 Git 前端
-        ;;make              ; 从 Emacs 运行 make 任务
-        notes             ; Denote + Deft 笔记系统
-        ;;pass              ; 给极客用的密码管理器
-        pdf               ; PDF 增强
-        pomodoro          ; 番茄钟 + 计时器 + 桌面通知
-        cjk               ; CJK 字符统计（纯 C 模块）
-        ;;terraform         ; 基础设施即代码
-        ;;tmux              ; 与 tmux 交互的 API
-        tree-sitter       ; 语法解析，和谐共处……
-         ;;upload            ; 通过 ssh/ftp 将本地项目映射到远程
+       magit             ; Emacs 的 Git 前端
+       ;;make              ; 从 Emacs 运行 make 任务
+       notes             ; Denote + Deft 笔记系统
+       ;;pass              ; 给极客用的密码管理器
+       pdf               ; PDF 增强
+       pomodoro          ; 番茄钟 + 计时器 + 桌面通知
+       cjk               ; CJK 字符统计（纯 C 模块）
+       ;;terraform         ; 基础设施即代码
+       ;;tmux              ; 与 tmux 交互的 API
+       tree-sitter       ; 语法解析，和谐共处……
+       ;;upload            ; 通过 ssh/ftp 将本地项目映射到远程
 
-        :lang
+       :lang
 
        :ffi
        dyncall            ; libffi 动态 FFI：在运行时调用任意 C 函数
 
-        :os
+       :os
        (:if (featurep :system 'macos) macos)  ; 改善 macOS 兼容性
        tty               ; 改善终端 Emacs 体验
 

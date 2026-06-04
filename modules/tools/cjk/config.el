@@ -130,18 +130,29 @@
 ;;   中文多字  → mapull 词语/成语
 ;;   非中文    → 原始英语后端
 ;;
-;; 数据文件：
-;;   ~/.config/doom/dict.sqlite3           — 萌典（需外部准备）
-;;   ~/.config/doom/dict/mapull.db         — mapull（由 my/mapull-import 导入）
-;;   ~/.config/doom/dict/*.json            — mapull 原始 JSON 数据
+;; 数据目录：~/.config/emacs/.local/dict/
+;;   dict.sqlite3  — 萌典（61MB，需自行准备）
+;;   mapull.db     — mapull（首次查询自动下载并导入）
+;;   *.json        — mapull 原始数据缓存
 
 (defvar my/mapull-data-dir
-  (expand-file-name "dict" doom-user-dir)
+  (expand-file-name ".local/dict" user-emacs-directory)
   "mapull JSON 文件所在目录。")
 
 (defvar my/mapull-db
   (expand-file-name "mapull.db" my/mapull-data-dir)
   "mapull sqlite3 数据库路径。")
+
+(defvar my/mapull--base-url
+  "https://gh-proxy.com/https://raw.githubusercontent.com/mapull/chinese-dictionary/main/"
+  "mapull JSON 原始数据的代理下载地址。")
+
+(defvar my/mapull--json-files
+  '(("character/char_base.json"   . "char_base.json")
+    ("character/char_detail.json" . "char_detail.json")
+    ("word/word.json"             . "word.json")
+    ("idiom/idiom.json"           . "idiom.json"))
+  "需要下载的 mapull 文件列表：源路径 → 本地文件名。")
 
 (defvar my/dict--faces
   '((title    . (:foreground "#ff8700" :bold t :height 1.2))
@@ -172,14 +183,33 @@
         (insert "]")))
     (json-parse-buffer :object-type 'alist :array-type 'list)))
 
+;; ── 自动下载 ───────────────────────────────────────────
+
+(defun my/mapull--download-missing ()
+  "下载缺失的 mapull JSON 文件到 `my/mapull-data-dir'。"
+  (let ((data-dir my/mapull-data-dir))
+    (unless (file-exists-p data-dir)
+      (make-directory data-dir t))
+    (dolist (pair my/mapull--json-files)
+      (let ((dest (expand-file-name (cdr pair) data-dir)))
+        (unless (file-exists-p dest)
+          (message "词典数据：下载 %s ..." (cdr pair))
+          (condition-case err
+              (url-copy-file
+               (concat my/mapull--base-url (car pair)) dest t)
+            (error
+             (message "下载 %s 失败：%s，跳过" (cdr pair) (error-message-string err))
+             nil)))))))
+
 ;;;###autoload
 (defun my/mapull-import (&optional base detail words idioms)
-  "将 mapull JSON 数据导入为 mapull.db。
+  "下载（如需）并导入 mapull JSON 数据为 mapull.db。
 可选参数控制导入哪些表（默认全导入）。"
   (interactive)
   (let ((data-dir my/mapull-data-dir))
     (unless (file-exists-p data-dir)
       (make-directory data-dir t))
+    (my/mapull--download-missing)
     (when (or base (not (or base detail words idioms)))
       (my/mapull--import-char-base))
     (when (or detail (not (or base detail words idioms)))
@@ -316,7 +346,8 @@
 
 ;; ── 萌典查询（移植自 config.el）────────────────────────
 
-(defvar my/moedict-db (expand-file-name "dict.sqlite3" doom-user-dir))
+(defvar my/moedict-db
+  (expand-file-name ".local/dict/dict.sqlite3" user-emacs-directory))
 
 (defun my/mapull--cjk-p (string)
   (string-match (rx (category chinese)) string))
@@ -389,8 +420,11 @@ WHERE e.title = ?
 
 (defun my/mapull--open-db ()
   (unless (file-exists-p my/mapull-db)
-    (error "mapull.db 不存在，请先运行 M-x my/mapull-import"))
-  (sqlite-open my/mapull-db))
+    (when (yes-or-no-p "mapull.db 不存在，首次需要下载约 100MB 数据并建立索引，现在进行？")
+      (my/mapull-import)))
+  (if (file-exists-p my/mapull-db)
+      (sqlite-open my/mapull-db)
+    (error "mapull.db 不存在，运行 M-x my/mapull-import 手动导入")))
 
 (defun my/mapull--query-char (db char)
   (car (sqlite-select db "SELECT * FROM chars WHERE char = ?" (list char))))

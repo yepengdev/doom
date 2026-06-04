@@ -122,3 +122,401 @@
        :desc "Word count"     "w" #'my/word-count
        :desc "Rebuild module" "b" #'my/build-cjk-module))
 (map! :g "M-=" #'my/count-words)
+
+;; ─── 中文词典（萌典 + mapull 离线数据）────────────────
+;;
+;; SPC o d / K 统一入口：
+;;   中文单字  → 萌典释义 + 汉字档案 + 相关词语/成语
+;;   中文多字  → mapull 词语/成语
+;;   非中文    → 原始英语后端
+;;
+;; 数据文件：
+;;   ~/.config/doom/dict.sqlite3           — 萌典（需外部准备）
+;;   ~/.config/doom/dict/mapull.db         — mapull（由 my/mapull-import 导入）
+;;   ~/.config/doom/dict/*.json            — mapull 原始 JSON 数据
+
+(defvar my/mapull-data-dir
+  (expand-file-name "dict" doom-user-dir)
+  "mapull JSON 文件所在目录。")
+
+(defvar my/mapull-db
+  (expand-file-name "mapull.db" my/mapull-data-dir)
+  "mapull sqlite3 数据库路径。")
+
+(defvar my/dict--faces
+  '((title    . (:foreground "#ff8700" :bold t :height 1.2))
+    (radical  . (:foreground "#ffffff" :background "#a40000"))
+    (bopomofo . (:foreground "#008700" :background "#d7ff87"))
+    (pinyin   . (:foreground "#008700" :background "#d7ff87"))
+    (type     . (:foreground "#ffffd7" :background "#525252"))
+    (def      . (:foreground "#1f5bff"))
+    (example  . (:foreground "#525252"))
+    (quote    . (:foreground "#ff4ea3" :slant italic))
+    (link     . (:foreground "#00a775"))
+    (synonyms . (:foreground "#9a08ff"))
+    (antonyms . (:foreground "#9a08ff"))
+    (section  . (:foreground "#626262" :underline t)))
+  "词典渲染用的面 alist。")
+
+;; ── 导入：mapull JSON → mapull.db ────────────────────
+
+(defun my/mapull--read-ndjson (file)
+  (with-temp-buffer
+    (insert-file-contents file)
+    (save-excursion
+      (goto-char (point-min))
+      (when (not (= (char-after) ?\[))
+        (insert "[")
+        (goto-char (point-max))
+        (skip-chars-backward ",\n\r\t ")
+        (insert "]")))
+    (json-parse-buffer :object-type 'alist :array-type 'list)))
+
+;;;###autoload
+(defun my/mapull-import (&optional base detail words idioms)
+  "将 mapull JSON 数据导入为 mapull.db。
+可选参数控制导入哪些表（默认全导入）。"
+  (interactive)
+  (let ((data-dir my/mapull-data-dir))
+    (unless (file-exists-p data-dir)
+      (make-directory data-dir t))
+    (when (or base (not (or base detail words idioms)))
+      (my/mapull--import-char-base))
+    (when (or detail (not (or base detail words idioms)))
+      (my/mapull--import-char-detail))
+    (when (or words (not (or base detail words idioms)))
+      (my/mapull--import-words))
+    (when (or idioms (not (or base detail words idioms)))
+      (my/mapull--import-idioms))
+    (message "mapull 导入完成！")))
+
+(defun my/mapull--import-char-base ()
+  (let* ((file (expand-file-name "char_base.json" my/mapull-data-dir))
+         (db (sqlite-open my/mapull-db))
+         (data (my/mapull--read-ndjson file))
+         (total (length data))
+         (n 0))
+    (sqlite-execute db "CREATE TABLE IF NOT EXISTS chars (
+      char TEXT PRIMARY KEY, strokes INTEGER, pinyin TEXT,
+      radical TEXT, freq INTEGER, structure TEXT,
+      traditional TEXT, variant TEXT, definition TEXT)")
+    (sqlite-execute db "BEGIN TRANSACTION")
+    (dolist (entry data)
+      (condition-case nil
+          (sqlite-execute db
+            "INSERT OR REPLACE INTO chars (char,strokes,pinyin,radical,freq,structure,traditional,variant)
+             VALUES (?,?,?,?,?,?,?,?)"
+            (list (alist-get 'char entry)
+                  (alist-get 'strokes entry)
+                  (string-join (alist-get 'pinyin entry) ",")
+                  (alist-get 'radicals entry)
+                  (alist-get 'frequency entry)
+                  (alist-get 'structure entry)
+                  (or (alist-get 'traditional entry) "")
+                  (or (alist-get 'variant entry) "")))
+        (error nil))
+      (cl-incf n)
+      (when (= (% n 1000) 0)
+        (message "导入 char_base: %d/%d" n total)))
+    (sqlite-execute db "COMMIT")
+    (message "import char_base: %d rows"
+             (caar (sqlite-select db "SELECT COUNT(*) FROM chars")))
+    (sqlite-close db)))
+
+(defun my/mapull--import-char-detail ()
+  (let* ((file (expand-file-name "char_detail.json" my/mapull-data-dir))
+         (db (sqlite-open my/mapull-db))
+         (data (my/mapull--read-ndjson file))
+         (total (length data))
+          (n 0))
+    (sqlite-execute db "BEGIN TRANSACTION")
+    (dolist (entry data)
+      (let* ((char (alist-get 'char entry))
+             (prons (alist-get 'pronunciations entry))
+             (first-def
+              (when (and prons (listp prons))
+                (let* ((p (car prons))
+                       (exps (alist-get 'explanations p)))
+                  (when (and exps (listp exps))
+                    (alist-get 'content (car exps)))))))
+        (when (and char first-def)
+          (condition-case nil
+              (sqlite-execute db
+                "UPDATE chars SET definition = ? WHERE char = ?"
+                (list first-def char))
+            (error nil))))
+      (cl-incf n)
+      (when (= (% n 1000) 0)
+        (message "导入 char_detail: %d/%d" n total)))
+    (sqlite-execute db "COMMIT")
+    (message "import char_detail: done")
+    (sqlite-close db)))
+
+(defun my/mapull--import-words ()
+  (let* ((file (expand-file-name "word.json" my/mapull-data-dir)))
+    (if (not (file-exists-p file))
+        (message "跳过 words: %s 不存在" file)
+      (let* ((db (sqlite-open my/mapull-db))
+             (data (with-temp-buffer
+                     (insert-file-contents file)
+                     (json-parse-buffer :object-type 'alist :array-type 'list)))
+             (total (length data))
+             (n 0))
+        (sqlite-execute db "CREATE TABLE IF NOT EXISTS words (
+          word TEXT, pinyin TEXT, definition TEXT)")
+        (sqlite-execute db "BEGIN TRANSACTION")
+        (dolist (entry data)
+          (condition-case nil
+              (sqlite-execute db
+                "INSERT INTO words VALUES (?,?,?)"
+                (list (alist-get 'word entry)
+                      (or (alist-get 'pinyin entry) "")
+                      (or (alist-get 'explanation entry) "")))
+            (error nil))
+          (cl-incf n)
+          (when (= (% n 5000) 0)
+            (message "导入 words: %d/%d" n total)))
+        (sqlite-execute db "COMMIT")
+        (sqlite-execute db "CREATE INDEX IF NOT EXISTS idx_words_word ON words(word)")
+        (message "import words: %d rows"
+                 (caar (sqlite-select db "SELECT COUNT(*) FROM words")))
+        (sqlite-close db)))))
+
+(defun my/mapull--import-idioms ()
+  (let* ((file (expand-file-name "idiom.json" my/mapull-data-dir))
+         (db (sqlite-open my/mapull-db))
+         (data (with-temp-buffer
+                 (insert-file-contents file)
+                 (json-parse-buffer :object-type 'alist :array-type 'list)))
+         (total (length data))
+         (n 0))
+    (sqlite-execute db "CREATE TABLE IF NOT EXISTS idioms (
+      idiom TEXT, pinyin TEXT, definition TEXT, source TEXT)")
+    (sqlite-execute db "BEGIN TRANSACTION")
+    (dolist (entry data)
+      (condition-case nil
+          (sqlite-execute db
+            "INSERT INTO idioms VALUES (?,?,?,?)"
+            (list (alist-get 'word entry)
+                  (or (alist-get 'pinyin entry) "")
+                  (or (alist-get 'explanation entry) "")
+                  (or (let ((s (alist-get 'source entry)))
+                        (when (and s (listp s))
+                          (alist-get 'book s)))
+                      "")))
+        (error nil))
+      (cl-incf n)
+      (when (= (% n 5000) 0)
+        (message "导入 idioms: %d/%d" n total)))
+    (sqlite-execute db "COMMIT")
+    (sqlite-execute db "CREATE INDEX IF NOT EXISTS idx_idioms_idiom ON idioms(idiom)")
+    (message "import idioms: %d rows"
+             (caar (sqlite-select db "SELECT COUNT(*) FROM idioms")))
+    (sqlite-close db)))
+
+;; ── 萌典查询（移植自 config.el）────────────────────────
+
+(defvar my/moedict-db (expand-file-name "dict.sqlite3" doom-user-dir))
+
+(defun my/mapull--cjk-p (string)
+  (string-match (rx (category chinese)) string))
+
+(defun my/mapull--fmt (n)
+  (let ((abs-n (abs n)))
+    (cond ((>= abs-n 100000000)
+           (format "%.2f亿（%d）" (/ n 100000000.0) n))
+          ((>= abs-n 10000)
+           (format "%.2f万（%d）" (/ n 10000.0) n))
+          (t (format "%d" n)))))
+
+;; 萌典内部查询（写当前 buffer）
+(defun my/mapull--moedict-query (word)
+  (unless (file-exists-p my/moedict-db)
+    (error "dict.sqlite3 不存在于 %s" my/moedict-db))
+  (let ((db (sqlite-open my/moedict-db))
+        (n 0))
+    (unwind-protect
+        (dolist (row (sqlite-select db "
+SELECT e.title, e.radical, e.stroke_count, e.non_radical_stroke_count,
+       h.bopomofo, h.bopomofo2, h.pinyin,
+       d.type, d.def, d.example, d.quote, d.link,
+       d.synonyms, d.antonyms
+FROM entries e, heteronyms h, definitions d
+WHERE e.title = ?
+  AND h.entry_id = e.id
+  AND d.heteronym_id = h.id" (list word)))
+          (cl-incf n)
+          (my/mapull--moedict-insert-row row)
+          (insert "\n"))
+      (sqlite-close db))
+    (when (= n 0)
+      (error "未找到「%s」" word))))
+
+(defun my/mapull--moedict-insert-row (row)
+  (cl-flet ((col (pos)
+              (let ((v (nth pos row)))
+                (and (not (null v)) v))))
+    (let ((title        (col 0)) (radical   (col 1)) (stroke-c   (col 2))
+          (non-rad-sc   (col 3)) (bopomofo  (col 4)) (bopomofo2  (col 5))
+          (pinyin       (col 6)) (type      (col 7)) (def        (col 8))
+          (example      (col 9)) (quote     (col 10)) (link      (col 11))
+          (synonyms     (col 12)) (antonyms  (col 13)))
+      (when radical
+        (insert (propertize (format "部首:%s  笔画:%s(+%s)" radical stroke-c non-rad-sc)
+                            'face (cdr (assq 'radical my/dict--faces))))
+        (insert "\n"))
+      (when title
+        (insert (propertize title 'face (cdr (assq 'title my/dict--faces))))
+        (when bopomofo (insert "  " (propertize bopomofo 'face (cdr (assq 'bopomofo my/dict--faces)))))
+        (when pinyin   (insert "  " (propertize pinyin 'face (cdr (assq 'pinyin my/dict--faces)))))
+        (insert "\n"))
+      (when type
+        (insert (propertize (format " [%s]" type) 'face (cdr (assq 'type my/dict--faces)))))
+      (when def
+        (insert "\n" (propertize def 'face (cdr (assq 'def my/dict--faces)))))
+      (when example
+        (insert "\n  " (propertize example 'face (cdr (assq 'example my/dict--faces)))))
+      (when quote
+        (insert "\n  " (propertize quote 'face (cdr (assq 'quote my/dict--faces)))))
+      (when link
+        (insert "\n  " (propertize link 'face (cdr (assq 'link my/dict--faces)))))
+      (when synonyms
+        (insert "\n  [同] " (propertize synonyms 'face (cdr (assq 'synonyms my/dict--faces)))))
+      (when antonyms
+        (insert "\n  [反] " (propertize antonyms 'face (cdr (assq 'antonyms my/dict--faces))))))))
+
+;; ── mapull 查询 ──────────────────────────────────────
+
+(defun my/mapull--open-db ()
+  (unless (file-exists-p my/mapull-db)
+    (error "mapull.db 不存在，请先运行 M-x my/mapull-import"))
+  (sqlite-open my/mapull-db))
+
+(defun my/mapull--query-char (db char)
+  (car (sqlite-select db "SELECT * FROM chars WHERE char = ?" (list char))))
+
+(defun my/mapull--query-words (db word)
+  (sqlite-select db
+    "SELECT word, pinyin, definition FROM words
+     WHERE word = ? OR word LIKE ?
+     ORDER BY CASE WHEN word = ? THEN 0 ELSE 1 END
+     LIMIT 20"
+    (list word (format "%%%s%%" word) word)))
+
+(defun my/mapull--query-idioms (db word)
+  (sqlite-select db
+    "SELECT idiom, pinyin, definition FROM idioms
+     WHERE idiom = ? OR idiom LIKE ?
+     ORDER BY CASE WHEN idiom = ? THEN 0 ELSE 1 END
+     LIMIT 10"
+    (list word (format "%%%s%%" word) word)))
+
+;; ── 渲染 ─────────────────────────────────────────────
+
+(defun my/dict--render-section (label)
+  (insert "\n" (propertize (make-string 50 ?─)
+                           'face (cdr (assq 'section my/dict--faces)))
+          "\n"
+          (propertize (concat "  " label)
+                      'face (cdr (assq 'section my/dict--faces)))
+          "\n"))
+
+(defun my/dict--render-char-archive (db char)
+  (let ((row (my/mapull--query-char db char)))
+    (when row
+      (my/dict--render-section "汉字档案")
+      (let ((strokes   (nth 1 row))
+            (pinyin    (nth 2 row))
+            (radical   (nth 3 row))
+            (freq      (nth 4 row))
+            (structure (nth 5 row))
+            (trad      (nth 6 row))
+            (variant   (nth 7 row))
+            (defn      (nth 8 row)))
+        (insert (format "笔画:%s  部首:%s  结构:%s" (or strokes "?")
+                        (or radical "?") (or structure "?"))
+                (when pinyin (format "  拼音:%s" pinyin))
+                (when freq   (format "  频次:%s"
+                                     (nth freq '("常用0" "常用1" "常用2" "二级" "三级" "生僻"))))
+                "\n")
+        (when (and trad (not (string= trad "")))
+          (insert (format "繁体:%s\n" trad)))
+        (when (and defn (not (string= defn "")))
+          (insert (propertize defn 'face (cdr (assq 'def my/dict--faces))) "\n"))))))
+
+(defun my/dict--render-word-results (db word)
+  (let ((rows (my/mapull--query-words db word)))
+    (when rows
+      (my/dict--render-section
+       (format "词语（%d 条）" (length rows)))
+      (dolist (r rows)
+        (insert (propertize (car r) 'face (cdr (assq 'title my/dict--faces))))
+        (let ((pinyin (nth 1 r))
+              (defn (nth 2 r)))
+          (when (and pinyin (not (string= pinyin "")))
+            (insert "  " (propertize pinyin 'face (cdr (assq 'pinyin my/dict--faces)))))
+          (when (and defn (not (string= defn "")))
+            (insert "\n" (propertize defn 'face (cdr (assq 'def my/dict--faces)))))
+          (insert "\n\n"))))))
+
+(defun my/dict--render-idiom-results (db word)
+  (let ((rows (my/mapull--query-idioms db word)))
+    (when rows
+      (my/dict--render-section
+       (format "成语（%d 条）" (length rows)))
+      (dolist (r rows)
+        (insert (propertize (car r) 'face (cdr (assq 'title my/dict--faces))))
+        (let ((pinyin (nth 1 r))
+              (defn (nth 2 r)))
+          (when (and pinyin (not (string= pinyin "")))
+            (insert "  " (propertize pinyin 'face (cdr (assq 'pinyin my/dict--faces)))))
+          (when (and defn (not (string= defn "")))
+            (insert "\n" (propertize defn 'face (cdr (assq 'def my/dict--faces)))))
+          (insert "\n\n"))))))
+
+;; ── 主入口 ────────────────────────────────────────────
+
+(defun my/dict--render (word)
+  "显示 WORD 的词典信息。单字合并萌典+mapull，多字仅 mapull。"
+  (let ((buf (get-buffer-create "*萌典*"))
+        (db (and (file-exists-p my/mapull-db) (my/mapull--open-db))))
+    (with-current-buffer buf
+      (let ((inhibit-read-only t))
+        (erase-buffer)
+        (condition-case moe-err
+            (progn
+              (when (= (length word) 1)
+                ;; 单字：先查萌典
+                (condition-case nil
+                    (my/mapull--moedict-query word)
+                  (error
+                   ;; 萌典无结果时显示汉字档案作为兜底
+                   (my/dict--render-section "萌典释义")
+                   (insert (propertize (format "（萌典未收录「%s」）" word)
+                                       'face (cdr (assq 'def my/dict--faces))))))
+                ;; mapull 汉字档案
+                (when db
+                  (my/dict--render-char-archive db word)))
+              ;; 词语 + 成语（单字和多字都查）
+              (when db
+                (my/dict--render-word-results db word)
+                (my/dict--render-idiom-results db word)))
+          (error
+           (insert (format "错误: %s" (error-message-string moe-err)))))
+        (when db (sqlite-close db))
+        (goto-char (point-min))
+        (special-mode)
+        (setq buffer-read-only t
+              header-line-format (format "  萌典 · mapull: %s" word)))
+      (display-buffer buf))))
+
+;;;###autoload
+(defun my/+lookup-dictionary-definition-a (fn identifier &optional arg)
+  "中文用萌典+mapull，英文用原始后端。"
+  (if (and identifier (my/mapull--cjk-p identifier))
+      (condition-case err
+          (my/dict--render identifier)
+        (error (message "%s" (error-message-string err))))
+    (funcall fn identifier arg)))
+
+(advice-add '+lookup/dictionary-definition :around #'my/+lookup-dictionary-definition-a)

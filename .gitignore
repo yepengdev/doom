@@ -10,4 +10,5 @@ dict/*.json
 startup-history.eld
 dict/
 .opencode/
+AGENTS.md
 !c-modules/cjieba/dict/

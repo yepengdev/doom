@@ -145,13 +145,29 @@ static emacs_value Fjieba_tag(emacs_env* env, ptrdiff_t nargs,
   if (!words) { free(buf); return env->intern(env, "nil"); }
 
   int count = 0;
-  for (CJiebaWordWithTag* w = words; w->word; w++) count++;
+  CJiebaWordWithTag** entries = NULL;
+  {
+    CJiebaWordWithTag* p = words;
+    while (p->word) {
+      count++;
+      ptrdiff_t tag_len = strlen(p->tag);
+      p = (CJiebaWordWithTag*)((char*)p + sizeof(CJiebaWordWithTag) + tag_len + 1);
+    }
+    entries = (CJiebaWordWithTag**)malloc((size_t)count * sizeof(CJiebaWordWithTag*));
+    if (!entries) { FreeWordTag(words); free(buf); return env->intern(env, "nil"); }
+    p = words;
+    for (int i = 0; i < count; i++) {
+      entries[i] = p;
+      ptrdiff_t tag_len = strlen(p->tag);
+      p = (CJiebaWordWithTag*)((char*)p + sizeof(CJiebaWordWithTag) + tag_len + 1);
+    }
+  }
 
   emacs_value nil = env->intern(env, "nil");
   emacs_value tail = nil;
 
-  CJiebaWordWithTag* p = words;
-  for (int i = 0; i < count; i++) {
+  for (int i = count - 1; i >= 0; i--) {
+    CJiebaWordWithTag* p = entries[i];
     ptrdiff_t tag_len = strlen(p->tag);
     emacs_value word_s = env->make_string(env, p->word, (ptrdiff_t)p->len);
     emacs_value tag_s  = env->make_string(env, p->tag, tag_len);
@@ -159,8 +175,8 @@ static emacs_value Fjieba_tag(emacs_env* env, ptrdiff_t nargs,
                                     (emacs_value[]){ word_s, tag_s });
     tail = env->funcall(env, env->intern(env, "cons"), 2,
                         (emacs_value[]){ pair, tail });
-    p = (CJiebaWordWithTag*)((char*)p + sizeof(CJiebaWordWithTag) + tag_len + 1);
   }
+  free(entries);
 
   FreeWordTag(words);
   free(buf);

@@ -8,10 +8,12 @@
 
 ;; ─── cnotify 惰性加载 ──────────────────────────────────────────────
 (defun my/cnotify--ensure ()
+  "确保 cnotify 模块已加载，未加载则从 .so 动态加载。"
   (unless (featurep 'cnotify-module)
     (module-load my/cnotify-so)))
 
 (defun my/random--ensure ()
+  "确保 random 模块已加载，未加载则从 .so 动态加载。"
   (unless (featurep 'random-module)
     (module-load my/random-so)))
 
@@ -24,6 +26,8 @@
   "未在提示中提供时的默认任务名称。")
 
 (defun my/pomodoro-log-read ()
+  "读取 pomodoro 日志文件并返回 entries 列表。
+日志文件为 sexp 格式，每行一个 plist。"
   (when (file-exists-p my/pomodoro-log-file)
     (with-temp-buffer
       (insert-file-contents my/pomodoro-log-file)
@@ -33,6 +37,7 @@
         (error nil)))))
 
 (defun my/pomodoro-log-write (entry)
+  "将 ENTRY（plist）追加写入 pomodoro 日志文件。"
   (with-temp-file my/pomodoro-log-file
     (when (file-exists-p my/pomodoro-log-file)
       (insert-file-contents my/pomodoro-log-file))
@@ -40,6 +45,7 @@
     (insert (prin1-to-string entry) "\n")))
 
 (defun my/pomodoro-log-entry (task minutes)
+  "记录一个完成的番茄钟：TASK 名称和 WORK-MINUTES 时长。"
   (my/pomodoro-log-write
    `(:time ,(format-time-string "%Y-%m-%d %H:%M")
      :task ,task :work ,minutes :break 5)))

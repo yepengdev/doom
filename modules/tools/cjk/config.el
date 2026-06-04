@@ -19,6 +19,7 @@
 (defvar my/cjk-src (expand-file-name "c-modules/count-cjk.c" doom-user-dir))
 
 (defun my/cjk-module-outdated-p ()
+  "检查 count-cjk.so 是否需要重新编译（源码比 .so 新则返回 t）。"
   (let ((c-attrs (file-attributes my/cjk-src)))
     (and c-attrs
          (or (not (file-exists-p my/cjk-so))
@@ -350,6 +351,7 @@
   (expand-file-name "dict/dict.sqlite3" doom-local-dir))
 
 (defun my/mapull--cjk-p (string)
+  "判断 STRING 是否包含中文字符（使用 Emacs 的 chinese category）。"
   (string-match (rx (category chinese)) string))
 
 (defun my/mapull--fmt (n)

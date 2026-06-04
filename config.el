@@ -13,19 +13,6 @@
 (setq native-comp-async-report-warnings-errors 'silent)
 
 ;; ═══════════════════════════════════════════════════════════════════════════
-;; Git 代理（受限网络）
-;; ═══════════════════════════════════════════════════════════════════════════
-;;
-;; `doom-gitconfig` 包装 git(1)，将所有 GitHub HTTPS 请求路由到
-;; gh-proxy.com。在 GFW 或任何屏蔽原始 github.com 的防火墙后需要此配置。
-;; 环境变量由 Doom 的 git 包装器读取；实际的 gitconfig 文件存放在
-;; 本目录的 `doom-gitconfig` 中。
-;;
-(setenv "DOOMGITCONFIG"
-        (expand-file-name "doom-gitconfig" doom-user-dir))
-
-
-;; ═══════════════════════════════════════════════════════════════════════════
 ;; UI
 ;; ═══════════════════════════════════════════════════════════════════════════
 
@@ -323,7 +310,7 @@
   ;; 设置 docx 导出的 Pandoc 选项 — 使用自定义模板。
   (setq org-pandoc-options-for-docx
         `((reference-doc . ,(expand-file-name
-                             "templates/template_标题不编号-列表第二行顶格.docx"
+                             "templates/template-default.docx"
                              my/pandoc-dir))
           (lua-filter . ,(expand-file-name "markdown-to-docx.lua" my/pandoc-dir)))))
 
@@ -463,7 +450,7 @@ Delays 0.4s for browser window to appear."
 ;; 机制：
 ;;   1. 导出当前 Org 到 /tmp/org-live-XXXXXX/index.html（含现有 org.css 样式）
 ;;   2. 在 </body> 前注入 SSE 连接脚本（new EventSource('/live')）
-;;   3. 启动定制 Python HTTP + SSE 服务器在随机端口（127.0.0.1:0）
+;;   3. 启动独立 Python 脚本 scripts/org-live-server.py，自动分配端口
 ;;   4. 用 browse-url 在默认浏览器中打开
 ;;   5. after-save-hook（buffer-local）触发重新导出
 ;;   6. SSE 端点监控 index.html 的 mtime，变化即推送 reload 事件
@@ -472,22 +459,28 @@ Delays 0.4s for browser window to appear."
 (defvar my/org-live--dir  nil "临时 HTTP 根目录")
 (defvar my/org-live--url  nil "浏览器中打开的 URL")
 
+(defvar my/org-live-server-py
+  (expand-file-name "scripts/org-live-server.py" doom-user-dir)
+  "独立 Python HTTP+SSE 服务器脚本路径。")
+
 ;;;###autoload
 (defun my/org-live-preview ()
-  "在浏览器中实时预览当前 Org 文件。保存即自动刷新。"
   (interactive)
   (unless (derived-mode-p 'org-mode)
     (user-error "Not an Org buffer"))
+  (unless (file-exists-p my/org-live-server-py)
+    (user-error "缺少 %s" my/org-live-server-py))
+  (unless my/org-live-python
+    (user-error "Python 3 未找到 — liverefresh 需要 python3"))
   (when my/org-live--proc (my/org-live-preview-stop))
   (my/org-live--export-and-serve)
   (add-hook 'after-save-hook #'my/org-live--on-save nil t)
   (add-hook 'kill-buffer-hook #'my/org-live--maybe-stop nil t)
   (browse-url my/org-live--url)
-  (message "🌐 Org 实时预览: %s" my/org-live--url))
+  (message "🍅 Org 实时预览: %s" my/org-live--url))
 
 ;;;###autoload
 (defun my/org-live-preview-stop ()
-  "停止 Org 实时预览并清理。"
   (interactive)
   (when my/org-live--proc
     (delete-process my/org-live--proc)
@@ -498,20 +491,20 @@ Delays 0.4s for browser window to appear."
   (setq my/org-live--url nil)
   (remove-hook 'after-save-hook #'my/org-live--on-save t)
   (remove-hook 'kill-buffer-hook #'my/org-live--maybe-stop t)
-  (message "🌐 Org 预览已停止"))
+  (message "🍅 Org 预览已停止"))
 
 (defun my/org-live--maybe-stop ()
-  "Buffer-local kill-buffer-hook：当预览缓冲被杀死时清理。"
+  "当前 Org buffer 被关闭时自动停止 live preview。"
   (when (and my/org-live--proc (derived-mode-p 'org-mode))
     (my/org-live-preview-stop)))
 
 (defun my/org-live--on-save ()
-  "after-save-hook：重新导出 HTML。"
+  "保存 Org buffer 时触发重新导出用于 live preview。"
   (when (and my/org-live--dir (derived-mode-p 'org-mode))
     (my/org-live--export)))
 
 (defun my/org-live--export ()
-  "用当前 org-html-head 设置导出 HTML 到临时目录。"
+  "将当前 Org 导出为 index.html 到 live preview 临时目录，注入 CSS 和 SSE 脚本。"
   (let ((output (expand-file-name "index.html" my/org-live--dir)))
     (org-export-to-file 'html output nil nil nil nil nil nil)
     (let* ((css-dst (expand-file-name "css" my/org-live--dir))
@@ -520,11 +513,10 @@ Delays 0.4s for browser window to appear."
         (copy-directory css-src css-dst t t t)))
     (my/org-live--fix-css-paths output)
     (my/org-live--inject-script output)
-    ;; 标记文件 = 通知 SSE 推送 reload（确保 index.html 已完整写入）
     (with-temp-file (expand-file-name ".live" my/org-live--dir))))
 
 (defun my/org-live--fix-css-paths (file)
-  "将 HTML 中的绝对 CSS 路径重写为相对于 HTTP 根目录的路径。"
+  "将导出的 HTML 中 CSS 的绝对路径替换为相对路径（用于本地预览）。"
   (with-temp-buffer
     (insert-file-contents file)
     (let* ((css-dir (expand-file-name "css" my/org-export-assets-dir))
@@ -536,7 +528,7 @@ Delays 0.4s for browser window to appear."
     (write-region (point-min) (point-max) file nil 'silent)))
 
 (defun my/org-live--inject-script (file)
-  "在 HTML 的 </body> 前注入 SSE livereload JS。"
+  "在 HTML 的 </body> 前注入 SSE 自动刷新脚本。"
   (with-temp-buffer
     (insert-file-contents file)
     (when (let ((case-fold-search t))
@@ -549,71 +541,43 @@ Delays 0.4s for browser window to appear."
                                (executable-find "python"))
   "Python 3 executable for org-live-preview server.")
 
+(defun my/org-live--sentinel (proc event)
+  (when (and (string-match-p "finished\\|exited\\|signal" event)
+             (eq proc my/org-live--proc))
+    (setq my/org-live--proc nil
+          my/org-live--dir nil
+          my/org-live--url nil)
+    (message "🍅 org-live-server 已停止")))
+
 (defun my/org-live--serve (dir)
-  "在 DIR 上用随机端口启动 Python HTTP+SSE 服务器，返回 (PORT . PROCESS)。"
-  (let* ((port (string-to-number
-                (shell-command-to-string
-                 (format "%s -c \"import socket; s=socket.socket(); s.bind(('127.0.0.1',0)); print(s.getsockname()[1]); s.close()\"" my/org-live-python))))
-         (script (expand-file-name "server.py" dir))
-         proc)
-    (with-temp-file script
-      (insert (format "\
-import os, socket, time, http.server
-
-DIR = os.getcwd()
-PORT = %d
-LIVE = os.path.join(DIR, '.live')
-open(LIVE, 'w').close()
-
-class Handler(http.server.BaseHTTPRequestHandler):
-    def do_GET(self):
-        if self.path == '/live':
-            self.send_response(200)
-            self.send_header('Content-Type', 'text/event-stream')
-            self.send_header('Cache-Control', 'no-cache')
-            self.send_header('Connection', 'keep-alive')
-            self.end_headers()
-            t0 = os.path.getmtime(LIVE) if os.path.exists(LIVE) else 0
-            try:
-                while True:
-                    time.sleep(0.1)
-                    if os.path.exists(LIVE):
-                        t1 = os.path.getmtime(LIVE)
-                        if t1 > t0:
-                            self.wfile.write(b'data:reload\\n\\n')
-                            self.wfile.flush()
-                            t0 = t1
-            except:
-                return
-        p = os.path.join(DIR, self.path.lstrip('/'))
-        if os.path.isdir(p):
-            p = os.path.join(p, 'index.html')
-        if os.path.isfile(p):
-            self.send_response(200)
-            if p.endswith('.css'):
-                self.send_header('Content-Type', 'text/css')
-            elif p.endswith('.html'):
-                self.send_header('Content-Type', 'text/html')
-            elif p.endswith('.js'):
-                self.send_header('Content-Type', 'application/javascript')
-            self.end_headers()
-            with open(p, 'rb') as f:
-                self.wfile.write(f.read())
-        else:
-            self.send_response(404)
-            self.end_headers()
-    def log_message(self, *a): pass
-
-httpd = http.server.ThreadingHTTPServer(('127.0.0.1', PORT), Handler)
-httpd.serve_forever()" port)))
-    (setq proc (start-process-shell-command
-                "org-live-httpd" nil
-                (format "cd %s && exec %s server.py" (shell-quote-argument dir) my/org-live-python)))
-    (set-process-query-on-exit-flag proc nil)
+  "在 DIR 上启动 Python HTTP+SSE livereload 服务器，返回 (PORT . PROCESS)。
+Python 自动分配端口并打印 PORT:<n> 到 stdout，Emacs 从进程缓冲区读取。"
+  (let* ((buf (get-buffer-create "*org-live-httpd*"))
+         (proc (make-process
+                :name "org-live-httpd"
+                :buffer buf
+                :command (list my/org-live-python
+                               my/org-live-server-py
+                               "--dir" dir)
+                :connection-type 'pipe
+                :noquery t
+                :sentinel #'my/org-live--sentinel))
+         port)
+    (with-current-buffer buf
+      (while (and (process-live-p proc) (not port))
+        (accept-process-output proc 0.5)
+        (goto-char (point-min))
+        (when (re-search-forward "^PORT:\\([0-9]+\\)$" nil t)
+          (setq port (string-to-number (match-string 1)))))
+      (unless port
+        (delete-process proc)
+        (let ((log (buffer-string)))
+          (error "org-live-server 启动失败: %s"
+                 (truncate-string-to-width log 200 nil nil t)))))
     (cons port proc)))
 
 (defun my/org-live--export-and-serve ()
-  "组合操作：创建临时目录 → 导出 → 启动 HTTP → 打开 URL。"
+  "创建临时目录 → 启动 HTTP 服务器 → 首次导出，串联整个 live preview 启动流程。"
   (let* ((dir (make-temp-file "org-live-" t))
          (port-proc (my/org-live--serve dir))
          (port (car port-proc))

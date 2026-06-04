@@ -4,7 +4,7 @@ tests-bench/flycheck_*
 \#*\#
 .\#*
 *.sqlite3
-*.json
-:memory:
+dict/*.json
 startup-history.eld
 dict/
+.opencode/

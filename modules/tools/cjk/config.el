@@ -130,13 +130,13 @@
 ;;   中文多字  → mapull 词语/成语
 ;;   非中文    → 原始英语后端
 ;;
-;; 数据目录：~/.config/emacs/.local/dict/
+;; 数据目录：~/.config/emacs/.local/dict/  (via doom-local-dir)
 ;;   dict.sqlite3  — 萌典（61MB，需自行准备）
 ;;   mapull.db     — mapull（首次查询自动下载并导入）
 ;;   *.json        — mapull 原始数据缓存
 
 (defvar my/mapull-data-dir
-  (expand-file-name ".local/dict" user-emacs-directory)
+  (expand-file-name "dict" doom-local-dir)
   "mapull JSON 文件所在目录。")
 
 (defvar my/mapull-db
@@ -347,7 +347,7 @@
 ;; ── 萌典查询（移植自 config.el）────────────────────────
 
 (defvar my/moedict-db
-  (expand-file-name ".local/dict/dict.sqlite3" user-emacs-directory))
+  (expand-file-name "dict/dict.sqlite3" doom-local-dir))
 
 (defun my/mapull--cjk-p (string)
   (string-match (rx (category chinese)) string))
@@ -521,10 +521,6 @@ WHERE e.title = ?
               (setq db (condition-case nil
                            (sqlite-open my/mapull-db)
                          (error nil)))
-              (message "my/dict--render: my/mapull-db=%s exists=%s db=%s"
-                       my/mapull-db (file-exists-p my/mapull-db) db)
-              (message "my/dict--render: moedict=%s exists=%s"
-                       my/moedict-db (file-exists-p my/moedict-db))
               (when (= (length word) 1)
                 (condition-case nil
                     (my/mapull--moedict-query word)

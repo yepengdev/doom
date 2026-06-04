@@ -512,32 +512,36 @@ WHERE e.title = ?
 
 (defun my/dict--render (word)
   "显示 WORD 的词典信息。单字合并萌典+mapull，多字仅 mapull。"
-  (let ((buf (get-buffer-create "*萌典*"))
-        (db (and (file-exists-p my/mapull-db) (my/mapull--open-db))))
+  (let ((buf (get-buffer-create "*萌典*")))
     (with-current-buffer buf
-      (let ((inhibit-read-only t))
+      (let ((inhibit-read-only t) db)
         (erase-buffer)
-        (condition-case moe-err
+        (condition-case err
             (progn
+              (setq db (condition-case nil
+                           (sqlite-open my/mapull-db)
+                         (error nil)))
+              (message "my/dict--render: my/mapull-db=%s exists=%s db=%s"
+                       my/mapull-db (file-exists-p my/mapull-db) db)
+              (message "my/dict--render: moedict=%s exists=%s"
+                       my/moedict-db (file-exists-p my/moedict-db))
               (when (= (length word) 1)
-                ;; 单字：先查萌典
                 (condition-case nil
                     (my/mapull--moedict-query word)
                   (error
-                   ;; 萌典无结果时显示汉字档案作为兜底
                    (my/dict--render-section "萌典释义")
                    (insert (propertize (format "（萌典未收录「%s」）" word)
                                        'face (cdr (assq 'def my/dict--faces))))))
-                ;; mapull 汉字档案
                 (when db
                   (my/dict--render-char-archive db word)))
-              ;; 词语 + 成语（单字和多字都查）
               (when db
                 (my/dict--render-word-results db word)
                 (my/dict--render-idiom-results db word)))
           (error
-           (insert (format "错误: %s" (error-message-string moe-err)))))
-        (when db (sqlite-close db))
+           (insert (format "错误: %s" (error-message-string err)))))
+        (when db (ignore-errors (sqlite-close db)))
+        (when (= (buffer-size) 0)
+          (insert (format "没有找到「%s」的相关结果" word)))
         (goto-char (point-min))
         (special-mode)
         (setq buffer-read-only t
@@ -548,9 +552,7 @@ WHERE e.title = ?
 (defun my/+lookup-dictionary-definition-a (fn identifier &optional arg)
   "中文用萌典+mapull，英文用原始后端。"
   (if (and identifier (my/mapull--cjk-p identifier))
-      (condition-case err
-          (my/dict--render identifier)
-        (error (message "%s" (error-message-string err))))
+      (my/dict--render identifier)
     (funcall fn identifier arg)))
 
 (advice-add '+lookup/dictionary-definition :around #'my/+lookup-dictionary-definition-a)

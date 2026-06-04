@@ -1,7 +1,6 @@
 ;;; init.el -*- lexical-binding: t; -*-
 
 ;; 启用 use-package 载入统计（用于分析启动速度）
-(setq use-package-compute-statistics t)
 
 ;; 此文件控制 Doom 启用哪些模块及其加载顺序。
 ;; 修改后请记得运行 'doom sync'！

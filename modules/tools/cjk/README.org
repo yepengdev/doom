@@ -7,6 +7,9 @@ This module provides fast, UTF-8–safe text counting for Chinese (CJK) and
 English text, powered by a C dynamic module (~count-cjk.so~). The C module scans
 the buffer in a single pass.
 
+It also integrates offline Chinese dictionary lookup (萌典 + mapull) into
+Doom's ~+lookup/dictionary-definition~ (~SPC o d / K~).
+
 ** Maintainers
 - @peng
 
@@ -16,8 +19,9 @@ the buffer in a single pass.
   used in CJK-aware statistics (future).
 
 ** Packages
-No Elisp package dependencies. All functionality is provided by
-~count-cjk.so~, compiled from ~c-modules/count-cjk.c~.
+- No Elisp package dependencies for the C module (used by ~my/count-words~ etc.)
+- Dictionary queries use built-in Emacs ~sqlite~ (no external ELPA packages)
+- ~define-word~ is used as fallback for non-Chinese queries
 
 ** Hacks
 - ~count-words-region~ is replaced with ~my/count-words~ for CJK-aware word
@@ -42,6 +46,8 @@ Requires: ~gcc~, ~emacs-module.h~ (Emacs 30).
 
 * Usage
 ** Interactive commands
+
+*** Text counting
 | Keybind     | Command                 | Description                          |
 |-------------+-------------------------+--------------------------------------|
 | ~M-=\~      | ~my/count-words~         | CJK chars + English words (region or buffer) |
@@ -51,22 +57,64 @@ Requires: ~gcc~, ~emacs-module.h~ (Emacs 30).
 
 All commands operate on the region if active, otherwise on the whole buffer.
 
+*** Dictionary
+| Keybind     | Command                          | Description                              |
+|-------------+----------------------------------+------------------------------------------|
+| ~SPC o d~   | ~+lookup/dictionary-definition~  | Look up word at point (Chinese or English)|
+| ~K~ (evil)  | ~+lookup/dictionary-definition~  | Same (evil normal mode key)              |
+
+Chinese words show:
+- Single char: 萌典 (MOE dictionary) definition + mapull character archive + related words/idioms
+- Multi char: mapull word + idiom results
+- Non-Chinese: falls back to ~define-word~
+
 ** Example output
 - ~my/count-chinese-chars~: =字:12,345  含标点:12,456  总:50000  24.9%=
 - ~my/count-words~: =中:12,345  英:789  标点:111  总:22,345=
 - ~my/word-count~: =Buffer: 12345 CJK, 111 punct, 789 EN words (4567 EN chars), 23456 total cp=
 
 * Configuration
+*** Text counting
 No configuration is required. The following variables are available:
 
 - ~my/cjk-so~ :: path to the compiled ~.so~ file
 - ~my/cjk-src~ :: path to the C source file
 
+*** Dictionary
+- ~my/mapull-data-dir~ :: data directory (~= ~/.config/emacs/.local/dict/~)
+- ~my/mapull-db~ :: mapull sqlite db path
+- ~my/moedict-db~ :: 萌典 sqlite db path
+- ~my/mapull--base-url~ :: download mirror for mapull JSON
+- ~my/mapull--json-files~ :: list of JSON files to download
+
+Dictionary data is auto-downloaded on first use (~M-x my/mapull-import~ or
+triggered by first ~SPC o d~ query). Download is ~100MB (word.json) via
+~url-copy-file~; proxy can be configured via ~url-proxy-services~.
+
 * Troubleshooting
-** "count-cjk.so not found" on startup
+
+** Text counting
+
+*** "count-cjk.so not found" on startup
 Run ~make -C c-modules/~ from ~/.config/doom/ to build manually. The module
 will also auto-compile on first use.
 
-** Build errors
+*** Build errors
 Check the ~*cjk-build*~ buffer for compiler output. Ensure ~emacs-module.h~ is
 available (Emacs 30+).
+
+** Dictionary
+
+*** SPC o d shows empty buffer / "没有找到"
+Check ~*Messages*~ for the resolved paths. The data directory is
+~/.config/emacs/.local/dict/~. Ensure ~dict.sqlite3~ and ~mapull.db~ exist there.
+
+If paths show ~.local/cache/.local/dict/~ in ~*Messages*~, you're hitting the
+~user-emacs-directory~ trap (Doom 3 redirects it to cache dir). Run ~doom
+reload~ after upgrading AGENTS.md changes.
+
+*** First-time download is slow
+The ~word.json~ file is ~62MB. It uses ~url-copy-file~ which respects
+~url-proxy-services~. Download progress is visible in ~*Messages*~.
+
+Run ~M-x my/mapull-import~ manually to trigger the download + import anytime.

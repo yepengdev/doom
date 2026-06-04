@@ -19,7 +19,7 @@ Doom Emacs personal config at `~/.config/doom/` — 3 active files + supporting 
 - Wrap overridable settings in `after!` or use `doom-`/`+` prefix
 
 ## Proxy
-- `doom-gitconfig` sets `https://gh-proxy.com/github.com/` as insteadOf for GitHub — sourced via `DOOMGITCONFIG` env var in `config.el`
+- `https://gh-proxy.com/github.com/` as insteadOf for GitHub — set via `DOOMGITCONFIG` env var (retired, config removed)
 - Relevant for `doom sync` behind restrictive networks
 
 ## Active modules (from `init.el`, commented-out omitted)
@@ -46,6 +46,8 @@ emacs-lisp, markdown, org+journal+noter+pretty+pandoc
 - **Org HTML export**: local minimal theme from `org-export/minimal/` (CSS only, zero JS, no CDN)
 - **Package `gcmh`**: declared in `packages.el` for dynamic runtime GC management
 - **`so-long`**: disabled for Org mode via custom predicate in `after! so-long`
+- **`user-emacs-directory`** 陷阱: Doom 3 将其重定向到 `.local/cache/`。持久数据应使用 `doom-local-dir`（`~/.config/emacs/.local/`）而非 `user-emacs-directory`
+- **词典数据**: 萌典 + mapull 离线词典数据目录 `~/.config/emacs/.local/dict/`（由 `doom-local-dir` 派生）；`SPC o d / K` 统一入口
 
 ## C dynamic modules
 
@@ -66,6 +68,15 @@ emacs-lisp, markdown, org+journal+noter+pretty+pandoc
 - `doctor.el` checks for `libffi` and `dyncall.so` existence
 - Build: `make -C c-modules/`
 - Test: `emacs -Q --batch -l tests-bench/dyncall-test.el`
+
+## Dict module (萌典 + mapull)
+- 数据目录: `~/.config/emacs/.local/dict/`（由 `doom-local-dir` 确定）
+- **萌典** (`dict.sqlite3`, 61MB): 官方 dict.concised.moe.edu.tw 台湾国语辞典离线版
+- **mapull** (`mapull.db`, 43MB): 汉字档案(笔画/部首/结构/频次) + 词语(320k) + 成语(50k)
+- 入口: `SPC o d / K` → `+lookup/dictionary-definition` 的 `:around` advice (`my/+lookup-dictionary-definition-a`)
+- 单字 = 萌典释义 + 汉字档案 + 相关词语/成语; 多字 = 词语/成语
+- 非中文回退到英语后端 (define-word)
+- 首次使用自动下载 mapull JSON (~100MB) 并导入 sqlite
 
 ## Directory structure
 - `config.el` / `init.el` / `packages.el` — core Doom config (root)

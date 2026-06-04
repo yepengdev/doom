@@ -9,6 +9,7 @@
 - **Evil** — Vim emulation everywhere
 - **Magit** — Git porcelain
 - **Denote** — file-naming note system with sequences & explore
+- **CJK tools** — C module for Chinese/English text counting; offline dictionary (萌典 + mapull) integrated into SPC o d
 
 ## Layout
 - `init.el` — Doom module list (`doom!` block); enable/disable features
@@ -34,3 +35,4 @@
 - **Font changes** need `(doom/reload-font)` — apply via `my/apply-fonts` hook; if font isn't found, use `M-x describe-font` to locate the correct name
 - **Doom may override your setting** unless wrapped in `(with-eval-load-after 'PACKAGE ...)` or prefixed `doom-`/`+`
 - **Daemon-aware patterns** — some hooks (`server-after-make-frame-hook` vs `after-init-hook`) are fragile; graphical-only config should check `(display-graphic-p frame)`
+- **`user-emacs-directory` redirect** — Doom 3 points it to `.local/cache/`; persistent data paths must use `doom-local-dir` instead (e.g., dict data at `(expand-file-name "dict" doom-local-dir)`)

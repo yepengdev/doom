@@ -3,3 +3,8 @@ tests-bench/flycheck_*
 *~
 \#*\#
 .\#*
+*.sqlite3
+*.json
+:memory:
+startup-history.eld
+dict/

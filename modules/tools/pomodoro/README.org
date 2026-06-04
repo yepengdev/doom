@@ -1,0 +1,95 @@
+#+title:    :tools pomodoro
+#+subtitle: Pomodoro timer, countdown, random passwords, desktop notifications
+#+created:  June 3, 2026
+
+* Description :unfold:
+This module provides a Pomodoro timer, generic countdown timer, and random
+password generator, all backed by C dynamic modules:
+
+- ~cnotify-module.so~ — desktop notifications (libnotify) + timer engine
+- ~random.so~ — cryptographic random bytes (/dev/urandom / getrandom)
+
+The timer shows a live countdown in the mode line and logs completed Pomodoro
+cycles to a sexp file.
+
+** Maintainers
+- @peng
+
+** Packages
+No Elisp package dependencies. All functionality is provided by:
+- ~cnotify-module.so~ (compiled from ~c-modules/cnotify-module.c~)
+- ~random.so~ (compiled from ~c-modules/random.c~)
+
+** Hacks
+- A mode-line indicator displays the current timer / Pomodoro phase with
+  countdown (~ 🍅 24:15~, ~ ☕ 4:30~, ~ ⏱ 10:00~).
+- On phase transition (work → break), the completed session is logged to
+  =pomodoro.eld= automatically.
+
+* Installation
+[[id:01cffea4-3329-45e2-a892-95a384ab2338][Enable this module in your ~doom!~ block.]]
+
+#+begin_src emacs-lisp
+:tools (pomodoro)
+#+end_src
+
+Build the C modules:
+
+#+begin_src sh
+make -C ~/.config/doom/c-modules/
+#+end_src
+
+Requires: ~gcc~, ~emacs-module.h~ (Emacs 30), ~libnotify~, ~libffi~.
+
+* Usage
+** Keybindings (~SPC r t~ prefix)
+| Key | Command                   | Description                         |
+|-----+---------------------------+-------------------------------------|
+| ~s~ | ~my/pomodoro-start~        | Start Pomodoro (prompts for task)   |
+| ~S~ | ~my/pomodoro-stop~         | Stop current Pomodoro (no log)      |
+| ~v~ | ~my/pomodoro-show-stats~   | View today/week/total statistics    |
+| ~t~ | ~my/timer-start~           | Start generic countdown             |
+| ~T~ | ~my/timer-stop~            | Stop countdown                      |
+
+Additionally, ~my/random-password~ is available (no keybinding by default):
+
+#+begin_src emacs-lisp
+;; Generate a 24-char random password and copy to clipboard
+M-x my/random-password
+#+end_src
+
+** Pomodoro flow
+1. ~SPC r t s~ → enter task name → 25 min work phase begins
+2. Mode line shows ~ 🍅 24:59~, ticking down
+3. On completion: desktop notification fires, break phase (~ ☕~) starts
+4. Each completed work cycle is logged to =pomodoro.eld=
+5. ~SPC r t v~ shows statistics (today / this week / all time)
+
+** Custom timer
+~SPC r t t~ → enter minutes + optional message → countdown begins
+Desktop notification fires when time is up.
+
+* Configuration
+** Default work / break durations
+Pomodoro defaults to 25 min work / 5 min break. Override by passing
+prefix arguments to ~my/pomodoro-start~:
+
+#+begin_src emacs-lisp
+;; 45 min work, 10 min break
+(my/pomodoro-start "Deep work" 45 10)
+#+end_src
+
+** Log file location
+The log is stored at =~/.config/doom/pomodoro.eld= by default. Change via:
+
+#+begin_src emacs-lisp
+(setq my/pomodoro-log-file "~/org/pomodoro.eld")
+#+end_src
+
+* Troubleshooting
+** Desktop notifications don't appear
+Ensure ~libnotify~ is installed and a notification daemon (e.g. ~dunst~) is
+running.
+
+** "dyncall.so not found"
+Run ~make -C c-modules/~ from ~/.config/doom/ to build all C modules.

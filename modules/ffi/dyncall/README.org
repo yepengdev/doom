@@ -1,0 +1,114 @@
+#+title:    :ffi dyncall
+#+subtitle: Dynamic FFI — call any C function from Elisp at runtime
+#+created:  June 3, 2026
+
+* Description :unfold:
+This module provides a dynamic FFI (Foreign Function Interface) powered by
+[[https://sourceware.org/libffi/][libffi]], allowing Elisp to call arbitrary C functions at runtime without
+writing C wrappers. The heavy lifting is done by ~dyncall.so~, a C dynamic
+module compiled from ~c-modules/dyncall.c~.
+
+The module exposes both a low-level one-shot API and a high-level cached
+interface for efficient repeated calls.
+
+** Maintainers
+- @peng
+
+** Packages
+No Elisp package dependencies. The C module requires ~libffi~ at build time.
+
+** Hacks
+- A cache layer (~+dyncall-libc~, ~+dyncall-libm~) avoids repeated ~dlopen~
+  overhead for libc and libm.
+- Convenience wrappers (~+dyncall-sqrt~, ~+dyncall-pid~, etc.) are autoloaded
+  for common use cases.
+
+* Installation
+[[id:01cffea4-3329-45e2-a892-95a384ab2338][Enable this module in your ~doom!~ block.]]
+
+#+begin_src emacs-lisp
+:ffi (dyncall)
+#+end_src
+
+Build the C module:
+
+#+begin_src sh
+make -C ~/.config/doom/c-modules/ dyncall.so
+#+end_src
+
+Requires: ~gcc~, ~emacs-module.h~ (Emacs 30), ~libffi~ (development headers).
+
+* Usage
+** Low-level API (one-shot)
+#+begin_src emacs-lisp
+(dyncall "libm.so.6" "sqrt" :double :double 4.0)     ; => 2.0
+(dyncall nil "getpid" :int)                           ; => 12345
+(dyncall nil "strcmp" :int :string "a" :string "b")   ; => -1
+#+end_src
+
+** High-level API (cached)
+#+begin_src emacs-lisp
+;; Load library and cache symbol
+(let ((lib (dyncall-load "libm.so.6"))
+      (fn  (dyncall-sym lib "tgamma")))
+  (dyncall-call fn :double :double 5.0)   ; => 24.0
+  (dyncall-close lib))
+#+end_src
+
+** Convenience wrappers (autoloaded)
+| Function            | C call            | Returns |
+|---------------------+-------------------+---------|
+| ~+dyncall-pid~      | ~getpid()~         | int     |
+| ~+dyncall-ppid~     | ~getppid()~        | int     |
+| ~+dyncall-uid~      | ~getuid()~         | int     |
+| ~+dyncall-gid~      | ~getgid()~         | int     |
+| ~+dyncall-sqrt~     | ~sqrt()~           | double  |
+| ~+dyncall-pow~      | ~pow()~            | double  |
+| ~+dyncall-exp~      | ~exp()~            | double  |
+| ~+dyncall-log~      | ~log()~            | double  |
+| ~+dyncall-log10~    | ~log10()~          | double  |
+| ~+dyncall-sin~      | ~sin()~            | double  |
+| ~+dyncall-cos~      | ~cos()~            | double  |
+| ~+dyncall-tan~      | ~tan()~            | double  |
+| ~+dyncall-floor~    | ~floor()~          | double  |
+| ~+dyncall-ceil~     | ~ceil()~           | double  |
+| ~+dyncall-round~    | ~round()~          | double  |
+| ~+dyncall-abs~      | ~fabs()~           | double  |
+| ~+dyncall-erf~      | ~erf()~            | double  |
+| ~+dyncall-strcmp~   | ~strcmp()~         | int     |
+| ~+dyncall-strcasecmp~ | ~strcasecmp()~   | int     |
+
+** Demo
+~M-x +dyncall-demo~ prints system info + math results + string comparisons.
+
+** Supported types
+| Type        | Description                     |
+|-------------+---------------------------------|
+| ~:void~     | No return value                 |
+| ~:int~      | ~int~ (32-bit signed)           |
+| ~:uint~     | ~unsigned int~                  |
+| ~:long~     | ~long~                          |
+| ~:ulong~    | ~unsigned long~                 |
+| ~:int64~    | ~int64_t~                       |
+| ~:float~    | ~float~ (32-bit)                |
+| ~:double~   | ~double~ (64-bit)               |
+| ~:string~   | ~const char*~ (null-terminated) |
+| ~:pointer~  | ~void*~                         |
+
+* Configuration
+No configuration required. The C module is loaded eagerly when the Doom module
+is enabled.
+
+* Troubleshooting
+** "dyncall.so not found"
+Run the doctor (~doom doctor~) to check. Build with:
+
+#+begin_src sh
+make -C ~/.config/doom/c-modules/ dyncall.so
+#+end_src
+
+** "libffi not found"
+Install libffi development headers:
+- Arch: ~sudo pacman -S libffi~
+- Debian/Ubuntu: ~sudo apt install libffi-dev~
+- macOS: ~brew install libffi~

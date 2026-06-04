@@ -1,0 +1,86 @@
+#+title:    :tools notes
+#+subtitle: Deft + Denote + Consult-notes for plain-text Zettelkasten
+#+created:  June 3, 2026
+
+* Description :unfold:
+This module configures a complete note-taking workflow centred around
+[[https://protesilaos.com/emacs/denote][Denote]] (file-naming Zettelkasten), with [[doom-package:deft]] for quick file
+browsing and [[doom-package:consult-notes]] for search integration.
+
+** Maintainers
+- @peng
+
+** Packages
+- [[doom-package:denote]]
+- [[doom-package:denote-org]]
+- [[doom-package:denote-sequence]]
+- [[doom-package:denote-explore]]
+- [[doom-package:denote-journal]]
+- [[doom-package:denote-menu]]
+- [[doom-package:consult-notes]]
+
+* Installation
+[[id:01cffea4-3329-45e2-a892-95a384ab2338][Enable this module in your ~doom!~ block.]]
+
+#+begin_src emacs-lisp
+:tools (notes)
+#+end_src
+
+This module has no external dependencies beyond the Elisp packages listed above.
+
+* Usage
+** Deft (file browser)
+Deft is configured to search =~/org/deft/= recursively. Org-mode titles
+( =#+title:= ) are parsed and used as display names.
+
+** Denote (primary note system)
+Notes live in =~/org/denote/=, with journal entries in =~/org/denote/journal/=.
+
+*** Keybindings (~SPC r d~ prefix)
+| Key     | Command                                        | Description              |
+|---------+------------------------------------------------+--------------------------|
+| ~n~     | ~denote~                                        | New note                 |
+| ~d~     | ~denote-date~                                   | New note with date prompt |
+| ~t~     | ~denote-type~                                   | New note (select type)   |
+| ~o~     | ~denote-open-or-create~                         | Open or create           |
+| ~j~     | ~denote-journal-new-or-existing-entry~           | Today's journal          |
+| ~s~     | ~denote-sequence~                               | New sequence note        |
+| ~l~     | ~denote-find-link~                              | Find & jump to link      |
+| ~i~     | ~denote-link-or-create~                         | Link or create           |
+| ~h~     | ~denote-org-link-to-heading~                    | Link to Org heading      |
+| ~H~     | ~denote-org-backlinks-for-heading~              | Backlinks for heading    |
+| ~b~     | ~denote-find-backlink~                          | Find backlinks           |
+| ~x~     | ~denote-org-extract-org-subtree~                | Extract subtree          |
+| ~k~     | ~denote-rename-file-keywords~                   | Rename keywords          |
+| ~r~     | ~denote-rename-file~                            | Rename file              |
+| ~R~     | ~denote-rename-file-using-front-matter~          | Rename from front matter |
+| ~f~     | ~consult-notes~                                 | Search notes             |
+| ~g~     | ~denote-grep~                                   | Grep notes               |
+| ~D~     | ~denote-dired~                                  | Browse in Dired          |
+| ~m~     | ~list-denotes~                                  | Table view (denote-menu) |
+
+*** Explore (~SPC r d e~ prefix)
+| Key | Command                            | Description         |
+|-----+------------------------------------+---------------------|
+| ~c~ | ~denote-explore-count-notes~        | Count notes         |
+| ~C~ | ~denote-explore-count-keywords~     | Count keywords      |
+| ~r~ | ~denote-explore-random-note~        | Random note         |
+| ~l~ | ~denote-explore-random-link~        | Random link         |
+| ~n~ | ~denote-explore-network~            | Knowledge network   |
+
+** Auto-commit
+A git auto-commit hook is installed on ~denote-after-new-note-hook~: every new
+note triggers =git add -A && git commit= in the Denote directory.
+
+* Configuration
+Set the following variables in your =config.el= *before* enabling this module:
+
+#+begin_src emacs-lisp
+;; Optional: change Denote directory (default: ~/org/denote)
+(setq denote-directory "~/org/denote")
+;; Optional: change journal directory
+(setq denote-journal-directory "~/org/denote/journal")
+#+end_src
+
+** Known keywords
+Default keywords: ~'("创作" "学习" "工作" "生活" "技术" "思考" "索引")~

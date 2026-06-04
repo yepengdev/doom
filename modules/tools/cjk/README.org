@@ -1,0 +1,72 @@
+#+title:    :tools cjk
+#+subtitle: Count CJK & English text at C speed
+#+created:  June 3, 2026
+
+* Description :unfold:
+This module provides fast, UTF-8–safe text counting for Chinese (CJK) and
+English text, powered by a C dynamic module (~count-cjk.so~). The C module scans
+the buffer in a single pass.
+
+** Maintainers
+- @peng
+
+** Module flags
+- +dyncall ::
+  Use the dyncall FFI module ([[doom-module::ffi dyncall]]) for libm functions
+  used in CJK-aware statistics (future).
+
+** Packages
+No Elisp package dependencies. All functionality is provided by
+~count-cjk.so~, compiled from ~c-modules/count-cjk.c~.
+
+** Hacks
+- ~count-words-region~ is replaced with ~my/count-words~ for CJK-aware word
+  counting.
+- ~M-=\ is rebound to the CJK-aware variant.
+
+* Installation
+[[id:01cffea4-3329-45e2-a892-95a384ab2338][Enable this module in your ~doom!~ block.]]
+
+#+begin_src emacs-lisp
+:tools (cjk)
+#+end_src
+
+The C module will be auto-compiled on first use if missing or outdated. To
+build manually:
+
+#+begin_src sh
+make -C ~/.config/doom/c-modules/
+#+end_src
+
+Requires: ~gcc~, ~emacs-module.h~ (Emacs 30).
+
+* Usage
+** Interactive commands
+| Keybind     | Command                 | Description                          |
+|-------------+-------------------------+--------------------------------------|
+| ~M-=\       | ~my/count-words~         | CJK chars + English words (region or buffer) |
+| ~SPC r n c~ | ~my/count-chinese-chars~ | CJK chars only (with percentage)    |
+| ~SPC r n w~ | ~my/word-count~          | Detailed breakdown: CJK / punct / EN |
+| ~SPC r n b~ | ~my/build-cjk-module~    | Rebuild the C module from source     |
+
+All commands operate on the region if active, otherwise on the whole buffer.
+
+** Example output
+- ~my/count-chinese-chars~: =字:12,345  含标点:12,456  总:50000  24.9%=
+- ~my/count-words~: =中:12,345  英:789  标点:111  总:22,345=
+- ~my/word-count~: =Buffer: 12345 CJK, 111 punct, 789 EN words (4567 EN chars), 23456 total cp=
+
+* Configuration
+No configuration is required. The following variables are available:
+
+- ~my/cjk-so~ :: path to the compiled ~.so~ file
+- ~my/cjk-src~ :: path to the C source file
+
+* Troubleshooting
+** "count-cjk.so not found" on startup
+Run ~make -C c-modules/~ from ~/.config/doom/ to build manually. The module
+will also auto-compile on first use.
+
+** Build errors
+Check the ~*cjk-build*~ buffer for compiler output. Ensure ~emacs-module.h~ is
+available (Emacs 30+).

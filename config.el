@@ -5,6 +5,12 @@
 ;;; 后者还会重新加载自动加载/包/主题/字体）；无需 `doom sync`，
 ;;; 除非修改了 `packages.el` 或 `init.el`。
 ;;;
+;;; 一些增加速度的变量
+(setq native-comp-speed 3)   ; 等同于 -O3
+(setq native-comp-async-jobs-number  ; 并行编译任务数
+      (min 4 (max 1 (/ (num-processors) 2))))
+(setq package-native-compile t)      ; 安装包时自动编译
+(setq native-comp-async-report-warnings-errors 'silent)
 
 ;; ═══════════════════════════════════════════════════════════════════════════
 ;; Git 代理（受限网络）
@@ -190,11 +196,12 @@
     "若在 olivetti 开启前行号已启用，则为非 nil。")
 
   (defun my/olivetti-toggle-line-numbers-h ()
-    "在 olivetti-mode 中禁用行号；退出时恢复原始状态。
- 进入时将原始状态保存在 `my/olivetti--line-numbers-p' 中，退出时恢复。"
+    "在 olivetti-mode 中禁用行号；退出时恢复原始状态。"
     (if olivetti-mode
-        (setq my/olivetti--line-numbers-p
-              (and (bound-and-true-p display-line-numbers-mode) t))
+        (progn
+          (setq my/olivetti--line-numbers-p
+                (and (bound-and-true-p display-line-numbers-mode) t))
+          (display-line-numbers-mode -1))    ; ← 这里真正关闭行号
       (when my/olivetti--line-numbers-p
         (display-line-numbers-mode 1))))
   (add-hook 'olivetti-mode-hook #'my/olivetti-toggle-line-numbers-h))

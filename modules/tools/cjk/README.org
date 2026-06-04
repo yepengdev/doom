@@ -44,7 +44,7 @@ Requires: ~gcc~, ~emacs-module.h~ (Emacs 30).
 ** Interactive commands
 | Keybind     | Command                 | Description                          |
 |-------------+-------------------------+--------------------------------------|
-| ~M-=\       | ~my/count-words~         | CJK chars + English words (region or buffer) |
+| ~M-=\~      | ~my/count-words~         | CJK chars + English words (region or buffer) |
 | ~SPC r n c~ | ~my/count-chinese-chars~ | CJK chars only (with percentage)    |
 | ~SPC r n w~ | ~my/word-count~          | Detailed breakdown: CJK / punct / EN |
 | ~SPC r n b~ | ~my/build-cjk-module~    | Rebuild the C module from source     |

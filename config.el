@@ -832,9 +832,109 @@ httpd.serve_forever()" port)))
 
 ;; （CJK 字符统计已移至 :tools cjk 模块）
 
+;; ─── 萌典中文词典（Emacs 内置 sqlite，零外部包）────────────────
+;;
+;; 当 `+lookup/dictionary-definition`（SPC o d / K）检测到光标处
+;; 为中文时，用 Emacs 30 内置 sqlite 查本地 dict.sqlite3，
+;; 自己渲染结果；否则沿用英文后端（define-word）。
+;;
+(defvar my/moedict-db (expand-file-name "dict.sqlite3" doom-user-dir)
+  "萌典 sqlite3 字典文件路径。")
 
+(defvar my/moedict--faces
+  '((title        . (:foreground "#ff8700" :bold t :height 1.2))
+    (radical      . (:foreground "#ffffff" :background "#a40000"))
+    (bopomofo     . (:foreground "#008700" :background "#d7ff87"))
+    (pinyin       . (:foreground "#008700" :background "#d7ff87"))
+    (type         . (:foreground "#ffffd7" :background "#525252"))
+    (def          . (:foreground "#1f5bff"))
+    (example      . (:foreground "#525252"))
+    (quote        . (:foreground "#ff4ea3" :slant italic))
+    (link         . (:foreground "#00a775"))
+    (synonyms     . (:foreground "#9a08ff"))
+    (antonyms     . (:foreground "#9a08ff"))))
 
+(defun my/moedict--render (word)
+  (let ((buf (get-buffer-create "*萌典*")))
+    (with-current-buffer buf
+      (let ((inhibit-read-only t))
+        (erase-buffer)
+        (condition-case err
+            (my/moedict--query word)
+          (error (insert (format "错误: %s" (error-message-string err)))))
+        (goto-char (point-min))
+        (special-mode)
+        (setq buffer-read-only t
+              header-line-format (format "  萌典: %s" word)))
+      (display-buffer buf))))
 
+(defun my/moedict--query (word)
+  (unless (file-exists-p my/moedict-db)
+    (error "dict.sqlite3 不存在于 %s" my/moedict-db))
+  (let ((db (sqlite-open my/moedict-db))
+        (n 0))
+    (unwind-protect
+        (dolist (row (sqlite-select db "
+SELECT e.title, e.radical, e.stroke_count, e.non_radical_stroke_count,
+       h.bopomofo, h.bopomofo2, h.pinyin,
+       d.type, d.def, d.example, d.quote, d.link,
+       d.synonyms, d.antonyms
+FROM entries e, heteronyms h, definitions d
+WHERE e.title = ?
+  AND h.entry_id = e.id
+  AND d.heteronym_id = h.id" (list word)))
+          (cl-incf n)
+          (my/moedict--insert-row row)
+          (insert "\n"))
+      (sqlite-close db))
+    (when (= n 0)
+      (error "未找到「%s」" word))))
+
+(defun my/moedict--insert-row (row)
+  (cl-flet ((col (pos)
+              (let ((v (nth pos row)))
+                (and (not (null v)) v))))
+    (let ((title        (col 0)) (radical   (col 1)) (stroke-c   (col 2))
+          (non-rad-sc   (col 3)) (bopomofo  (col 4)) (bopomofo2  (col 5))
+          (pinyin       (col 6)) (type      (col 7)) (def        (col 8))
+          (example      (col 9)) (quote     (col 10)) (link      (col 11))
+          (synonyms     (col 12)) (antonyms  (col 13)))
+      (when radical
+        (insert (propertize (format "部首:%s  笔画:%s(+%s)" radical stroke-c non-rad-sc)
+                            'face (cdr (assq 'radical my/moedict--faces))))
+        (insert "\n"))
+      (when title
+        (insert (propertize title 'face (cdr (assq 'title my/moedict--faces))))
+        (when bopomofo (insert "  " (propertize bopomofo 'face (cdr (assq 'bopomofo my/moedict--faces)))))
+        (when pinyin   (insert "  " (propertize pinyin 'face (cdr (assq 'pinyin my/moedict--faces)))))
+        (insert "\n"))
+      (when type
+        (insert (propertize (format " [%s]" type) 'face (cdr (assq 'type my/moedict--faces)))))
+      (when def
+        (insert "\n" (propertize def 'face (cdr (assq 'def my/moedict--faces)))))
+      (when example
+        (insert "\n  " (propertize example 'face (cdr (assq 'example my/moedict--faces)))))
+      (when quote
+        (insert "\n  " (propertize quote 'face (cdr (assq 'quote my/moedict--faces)))))
+      (when link
+        (insert "\n  " (propertize link 'face (cdr (assq 'link my/moedict--faces)))))
+      (when synonyms
+        (insert "\n  [同] " (propertize synonyms 'face (cdr (assq 'synonyms my/moedict--faces)))))
+      (when antonyms
+        (insert "\n  [反] " (propertize antonyms 'face (cdr (assq 'antonyms my/moedict--faces))))))))
+
+(defun my/cjk-identifier-p (string)
+  (string-match (rx (category chinese)) string))
+
+(defun my/+lookup-dictionary-definition-a (fn identifier &optional arg)
+  "中文用萌典，英文用原始后端。"
+  (if (and identifier (my/cjk-identifier-p identifier))
+      (condition-case err
+          (my/moedict--render identifier)
+        (error (message "%s" (error-message-string err))))
+    (funcall fn identifier arg)))
+
+(advice-add '+lookup/dictionary-definition :around #'my/+lookup-dictionary-definition-a)
 
 ;; ═══════════════════════════════════════════════════════════════════════════
 ;; 工具

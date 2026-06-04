@@ -19,3 +19,5 @@
 ;; 中文感知导航与补全
 (package! ace-pinyin)
 (package! evil-pinyin)
+
+;; 萌典使用 Emacs 内置 sqlite，无外部包依赖。

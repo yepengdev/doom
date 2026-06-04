@@ -107,7 +107,8 @@
        ;;pass              ; 给极客用的密码管理器
        pdf               ; PDF 增强
        pomodoro          ; 番茄钟 + 计时器 + 桌面通知
-       cjk               ; CJK 字符统计（纯 C 模块）
+        cjk               ; CJK 字符统计（纯 C 模块）
+        jieba             ; 结巴中文分词 + TF-IDF 关键词提取
        ;;terraform         ; 基础设施即代码
        ;;tmux              ; 与 tmux 交互的 API
        tree-sitter       ; 语法解析，和谐共处……

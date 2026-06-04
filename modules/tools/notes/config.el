@@ -71,7 +71,26 @@
                                          "commit" "--allow-empty"
                                          "-m" "auto: note saved"))
               (message "WARN: denote git commit failed")))))))
-  (add-hook 'denote-after-new-note-hook #'my/denote-git-auto-commit))
+  (add-hook 'denote-after-new-note-hook #'my/denote-git-auto-commit)
+
+  (defun my/denote-jieba-infer-keywords ()
+    "用 jieba TF-IDF 提取关键词，与 `denote-known-keywords' 匹配后自动添加标签。
+若提取的关键词命中已知标签列表，则自动更新文件 front-matter。"
+    (when (and buffer-file-name
+               (derived-mode-p 'org-mode)
+               (require 'jieba-module nil t))
+      (condition-case nil
+          (let* ((text (buffer-string))
+                 (top-kw (mapcar #'car (my/jieba-extract text 5)))
+                 (existing (denote--file-keywords buffer-file-name))
+                 (matched (seq-intersection top-kw
+                                            (append denote-known-keywords existing)
+                                            #'equal)))
+            (when matched
+              (denote-rename-file-keywords buffer-file-name
+                                           (delete-dups (append existing matched)))))
+        (error nil))))
+  (add-hook 'denote-after-new-note-hook #'my/denote-jieba-infer-keywords 80))
 
 (use-package! denote-journal
   :after denote

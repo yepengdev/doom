@@ -1,4 +1,6 @@
 c-modules/*.so
+c-modules/*.o
+c-modules/cjieba/demo
 tests-bench/flycheck_*
 *~
 \#*\#
@@ -8,3 +10,4 @@ dict/*.json
 startup-history.eld
 dict/
 .opencode/
+!c-modules/cjieba/dict/

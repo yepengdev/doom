@@ -11,4 +11,7 @@ startup-history.eld
 dict/
 .opencode/
 AGENTS.md
+REASONIX.md
+*.elc
+package-lock.json
 !c-modules/cjieba/dict/

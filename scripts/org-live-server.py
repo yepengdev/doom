@@ -37,7 +37,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
                         self.wfile.write(b'data:reload\n\n')
                         self.wfile.flush()
                         t0 = t1
-        except BrokenPipeError:
+        except OSError:
             pass
 
     def _static(self):
@@ -73,6 +73,7 @@ def main():
     open(os.path.join(DIR, '.live'), 'w').close()
 
     httpd = http.server.ThreadingHTTPServer(('127.0.0.1', 0), Handler)
+    httpd.daemon_threads = True
     port = httpd.server_address[1]
     print(f'PORT:{port}', flush=True)
     httpd.serve_forever()

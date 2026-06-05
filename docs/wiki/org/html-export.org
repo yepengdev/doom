@@ -10,7 +10,7 @@
 
 #+BEGIN_SRC emacs-lisp
 (defvar my/org-export-assets-dir
-  (expand-file-name "org-export/minimal" doom-user-dir))
+  (expand-file-name "org/export/minimal" doom-user-dir))
 
 (after! ox-html
   (setq org-html-head-include-default-style nil)

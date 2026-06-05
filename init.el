@@ -26,7 +26,7 @@
        ;;helm              ; *另一个*寻找爱与生活的搜索引擎
        ;;ido               ; 另一个*另一个*搜索引擎……
        ;;ivy               ; 一个寻找爱与生活的搜索引擎
-       (vertico +icons)           ; 未来的搜索引擎
+       (vertico +childframe +icons)           ; 未来的搜索引擎
 
        :ui
        deft              ; Emacs 版的 Notational Velocity
@@ -100,15 +100,15 @@
        (eval +overlay)     ; 运行代码（还有 REPL）
        (lookup +dictionary +docsets)              ; 浏览代码及其文档
        ;;llm               ; 当我说你需要朋友时，我不是指……
-       ;;(lsp +eglot)      ; 把 Emacs 变成 VS Code
+       (lsp +eglot)      ; 把 Emacs 变成 VS Code
        magit             ; Emacs 的 Git 前端
        ;;make              ; 从 Emacs 运行 make 任务
        notes             ; Denote + Deft 笔记系统
        ;;pass              ; 给极客用的密码管理器
        pdf               ; PDF 增强
        pomodoro          ; 番茄钟 + 计时器 + 桌面通知
-        cjk               ; CJK 字符统计（纯 C 模块）
-        jieba             ; 结巴中文分词 + TF-IDF 关键词提取
+       cjk               ; CJK 字符统计（纯 C 模块）
+       jieba             ; 结巴中文分词 + TF-IDF 关键词提取
        ;;terraform         ; 基础设施即代码
        ;;tmux              ; 与 tmux 交互的 API
        tree-sitter       ; 语法解析，和谐共处……
@@ -182,7 +182,7 @@
        ;;(rust +lsp)       ; Fe2O3.unwrap().unwrap().unwrap().unwrap()
        ;;scala             ; Java，但很好
        ;;(scheme +guile)   ; 一个完全狡黠的 lisp 家族
-       ;;sh                ; 她在 C xor 上叫卖 {ba,z,fi}sh 贝壳
+       (sh +fish +lsp)                ; 她在 C xor 上叫卖 {ba,z,fi}sh 贝壳
        ;;sml                ; 标准 ML 语言
        ;;solidity          ; 你需要区块链吗？不需要。
        ;;swift             ; 谁需要表情符号变量？

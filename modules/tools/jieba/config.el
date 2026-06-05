@@ -57,6 +57,6 @@
 
 ;; ─── 绑定 ──────────────────────────────────────────────────────────
 (map! :leader
-      (:prefix-map ("r n" . "Count")
+       (:prefix-map ("r n" . "Count")
        :desc "Jieba keywords" "k" #'my/jieba-keywords
        :desc "Jieba cut"      "j" #'my/jieba-cut-region))

@@ -15,6 +15,7 @@
 ;; 写作
 (package! super-save)
 (package! palimpsest)
+(package! olivetti)
 
 ;; 中文感知导航与补全
 (package! ace-pinyin)

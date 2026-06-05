@@ -118,11 +118,74 @@
 
 ;; ─── 绑定 ────────────────────────────────────────────────────────────
 (map! :leader
-      (:prefix-map ("r n" . "Count")
+       (:prefix-map ("r n" . "Count")
        :desc "Chinese chars"  "c" #'my/count-chinese-chars
        :desc "Word count"     "w" #'my/word-count
-       :desc "Rebuild module" "b" #'my/build-cjk-module))
+       :desc "Rebuild module" "b" #'my/build-cjk-module
+       :desc "Toggle stats"   "s" #'my/writing-stats-mode))
 (map! :g "M-=" #'my/count-words)
+
+;; ─── Modeline 实时写作统计（C 模块驱动）────────────────────────────
+;;
+;; 在 Org 缓冲区的 modeline 上实时显示中/英文词数、标点数。
+;; 利用已有的 count-cjk C 模块（my/count-text）做单次 UTF-8 扫描，
+;; 空闲 1 秒后自动刷新。大文件（≥ 1 MiB）自动跳过。
+;;
+;; 绑定：SPC r n s — 开关
+;;
+
+(defvar-local my/writing-stats--str nil
+  "当前 Org buffer 的写作统计格式化字符串。buffer-local。")
+
+(defvar my/writing-stats--timer nil
+  "写作统计 idle timer。全局唯一，首次启用时创建。")
+
+(defvar my/writing-stats--seg-added nil
+  "writing-stats 段是否已加入 modeline，防止重复添加。")
+
+(defun my/writing-stats--refresh ()
+  "更新当前 buffer 的写作统计并刷新 modeline。
+大文件（≥ `my/org-large-file-size-threshold'）跳过。"
+  (when (and (derived-mode-p 'org-mode)
+             (bound-and-true-p my/writing-stats-mode))
+    (if (> (buffer-size) my/org-large-file-size-threshold)
+        (setq my/writing-stats--str nil)
+      (my/ensure-cjk-module)
+      (let* ((text (buffer-substring-no-properties (point-min) (point-max)))
+             (v (my/count-text text)))
+        (setq my/writing-stats--str
+              (format " [中:%s 英:%s 标:%s]"
+                      (my/--fmt-num (aref v 0))
+                      (my/--fmt-num (aref v 2))
+                      (my/--fmt-num (aref v 1))))))
+    (force-mode-line-update)))
+
+(define-minor-mode my/writing-stats-mode
+  "切换 Org 缓冲区的 modeline 实时写作统计。
+
+启用后，在 modeline 上「中:xxx 英:xxx 标:xxx」实时显示，
+空闲 1 秒自动刷新。使用 count-cjk C 模块，单次 UTF-8 扫描。"
+  :lighter ""
+  :keymap nil
+  (if my/writing-stats-mode
+      (progn
+        (my/writing-stats--refresh)
+        (unless my/writing-stats--timer
+          (setq my/writing-stats--timer
+                (run-with-idle-timer 1.0 t #'my/writing-stats--refresh))))
+    (setq my/writing-stats--str nil)
+    (force-mode-line-update)))
+
+(after! doom-modeline
+  (doom-modeline-def-segment writing-stats
+    "显示当前 Org buffer 的写作统计（中/英文词数、标点数）。"
+    (when (bound-and-true-p my/writing-stats--str)
+      (propertize my/writing-stats--str 'face 'font-lock-comment-face)))
+  (unless my/writing-stats--seg-added
+    (doom-modeline-add-segment 'writing-stats 'word-count :after)
+    (setq my/writing-stats--seg-added t)))
+
+(add-hook 'org-mode-hook #'my/writing-stats-mode)
 
 ;; ─── 中文词典（萌典 + mapull 离线数据）────────────────
 ;;

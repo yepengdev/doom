@@ -19,9 +19,8 @@
 ;; ─── Denote（文件命名式 Zettelkasten）───────────────────────────────────
 (use-package! denote
   :after-call doom-first-buffer-hook
-  :hook
-  (dired-mode . denote-dired-mode-in-directories)
-  (text-mode . denote-fontify-links-mode)
+  :hook ((dired-mode . denote-dired-mode-in-directories)
+         (text-mode . denote-fontify-links-mode))
   :custom
   (denote-directory "~/org/denote")
   (denote-dired-directories (list denote-directory))

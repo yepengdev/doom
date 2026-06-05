@@ -10,7 +10,6 @@
 ;; 阅读
 (package! nov)                   ;; EPUB 阅读器
 (package! org-pdftools)          ;; 在 Org 中内嵌 PDF
-(package! djvu)                  ;; DJVU 文档支持
 
 ;; 写作
 (package! super-save)

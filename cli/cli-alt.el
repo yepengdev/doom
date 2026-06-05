@@ -1,6 +1,0 @@
-(defun my/check-macros-after-hook ()
-  (message "CHECK: map! defined: %S" (fboundp 'map!))
-  (message "CHECK: use-package! defined: %S" (fboundp 'use-package!))
-  (message "CHECK: after! defined: %S" (fboundp 'after!))
-  (message "CHECK: use-package defined: %S" (fboundp 'use-package)))
-(add-hook 'doom-before-sync-hook #'my/check-macros-after-hook)

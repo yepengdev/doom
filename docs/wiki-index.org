@@ -7,79 +7,79 @@ doom-handbook.org 侧重"是什么"和"怎么用"；本 Wiki 侧重"为什么"�
 
 * 区块 1：配置哲学与决策记录
 
-#+INCLUDE: "../wiki/adr/01-denote-vs-roam.org" :lines "2-"
-#+INCLUDE: "../wiki/adr/02-emacs-state-vs-insert.org" :lines "2-"
-#+INCLUDE: "../wiki/adr/03-theme-hours-vs-sunrise.org" :lines "2-"
-#+INCLUDE: "../wiki/adr/04-corfu-orderless.org" :lines "2-"
-#+INCLUDE: "../wiki/adr/05-shell-file-name.org" :lines "2-"
-#+INCLUDE: "../wiki/adr/06-single-config.org" :lines "2-"
-#+INCLUDE: "../wiki/adr/07-latexmk.org" :lines "2-"
+#+INCLUDE: "./wiki/adr/01-denote-vs-roam.org" :lines "2-"
+#+INCLUDE: "./wiki/adr/02-emacs-state-vs-insert.org" :lines "2-"
+#+INCLUDE: "./wiki/adr/03-theme-hours-vs-sunrise.org" :lines "2-"
+#+INCLUDE: "./wiki/adr/04-corfu-orderless.org" :lines "2-"
+#+INCLUDE: "./wiki/adr/05-shell-file-name.org" :lines "2-"
+#+INCLUDE: "./wiki/adr/06-single-config.org" :lines "2-"
+#+INCLUDE: "./wiki/adr/07-latexmk.org" :lines "2-"
 
 * 区块 2：UI 配置
 
-#+INCLUDE: "../wiki/ui/fonts.org" :lines "2-"
-#+INCLUDE: "../wiki/ui/theme-auto-switch.org" :lines "2-"
-#+INCLUDE: "../wiki/ui/spacious-padding.org" :lines "2-"
+#+INCLUDE: "./wiki/ui/fonts.org" :lines "2-"
+#+INCLUDE: "./wiki/ui/theme-auto-switch.org" :lines "2-"
+#+INCLUDE: "./wiki/ui/spacious-padding.org" :lines "2-"
 
 * 区块 3：编辑器
 
-#+INCLUDE: "../wiki/editor/evil-emacs-state.org" :lines "2-"
-#+INCLUDE: "../wiki/editor/keybindings.org" :lines "2-"
-#+INCLUDE: "../wiki/editor/olivetti.org" :lines "2-"
-#+INCLUDE: "../wiki/editor/super-save.org" :lines "2-"
-#+INCLUDE: "../wiki/editor/palimpsest.org" :lines "2-"
+#+INCLUDE: "./wiki/editor/evil-emacs-state.org" :lines "2-"
+#+INCLUDE: "./wiki/editor/keybindings.org" :lines "2-"
+#+INCLUDE: "./wiki/editor/olivetti.org" :lines "2-"
+#+INCLUDE: "./wiki/editor/super-save.org" :lines "2-"
+#+INCLUDE: "./wiki/editor/palimpsest.org" :lines "2-"
 
 * 区块 4：Org Mode
 
-#+INCLUDE: "../wiki/org/basics.org" :lines "2-"
-#+INCLUDE: "../wiki/org/large-files.org" :lines "2-"
-#+INCLUDE: "../wiki/org/html-export.org" :lines "2-"
-#+INCLUDE: "../wiki/org/pandoc-export.org" :lines "2-"
-#+INCLUDE: "../wiki/org/latex-export.org" :lines "2-"
+#+INCLUDE: "./wiki/org/basics.org" :lines "2-"
+#+INCLUDE: "./wiki/org/large-files.org" :lines "2-"
+#+INCLUDE: "./wiki/org/html-export.org" :lines "2-"
+#+INCLUDE: "./wiki/org/pandoc-export.org" :lines "2-"
+#+INCLUDE: "./wiki/org/latex-export.org" :lines "2-"
 
 * 区块 5：笔记系统
 
-#+INCLUDE: "../wiki/notes/overview.org" :lines "2-"
-#+INCLUDE: "../wiki/notes/denote-core.org" :lines "2-"
-#+INCLUDE: "../wiki/notes/denote-keybindings.org" :lines "2-"
-#+INCLUDE: "../wiki/notes/denote-git.org" :lines "2-"
-#+INCLUDE: "../wiki/notes/denote-journal.org" :lines "2-"
-#+INCLUDE: "../wiki/notes/denote-sequence.org" :lines "2-"
-#+INCLUDE: "../wiki/notes/denote-explore.org" :lines "2-"
-#+INCLUDE: "../wiki/notes/denote-menu.org" :lines "2-"
-#+INCLUDE: "../wiki/notes/denote-org.org" :lines "2-"
-#+INCLUDE: "../wiki/notes/consult-notes.org" :lines "2-"
-#+INCLUDE: "../wiki/notes/deft.org" :lines "2-"
+#+INCLUDE: "./wiki/notes/overview.org" :lines "2-"
+#+INCLUDE: "./wiki/notes/denote-core.org" :lines "2-"
+#+INCLUDE: "./wiki/notes/denote-keybindings.org" :lines "2-"
+#+INCLUDE: "./wiki/notes/denote-git.org" :lines "2-"
+#+INCLUDE: "./wiki/notes/denote-journal.org" :lines "2-"
+#+INCLUDE: "./wiki/notes/denote-sequence.org" :lines "2-"
+#+INCLUDE: "./wiki/notes/denote-explore.org" :lines "2-"
+#+INCLUDE: "./wiki/notes/denote-menu.org" :lines "2-"
+#+INCLUDE: "./wiki/notes/denote-org.org" :lines "2-"
+#+INCLUDE: "./wiki/notes/consult-notes.org" :lines "2-"
+#+INCLUDE: "./wiki/notes/deft.org" :lines "2-"
 
 * 区块 6：阅读
 
-#+INCLUDE: "../wiki/reading/dired.org" :lines "2-"
-#+INCLUDE: "../wiki/reading/epub.org" :lines "2-"
-#+INCLUDE: "../wiki/reading/pdf.org" :lines "2-"
-#+INCLUDE: "../wiki/reading/org-noter.org" :lines "2-"
+#+INCLUDE: "./wiki/reading/dired.org" :lines "2-"
+#+INCLUDE: "./wiki/reading/epub.org" :lines "2-"
+#+INCLUDE: "./wiki/reading/pdf.org" :lines "2-"
+#+INCLUDE: "./wiki/reading/org-noter.org" :lines "2-"
 
 * 区块 7：国际化
 
-#+INCLUDE: "../wiki/i18n/fcitx.org" :lines "2-"
-#+INCLUDE: "../wiki/i18n/evil-pinyin.org" :lines "2-"
-#+INCLUDE: "../wiki/i18n/ace-pinyin.org" :lines "2-"
-#+INCLUDE: "../wiki/i18n/count-chinese.org" :lines "2-"
+#+INCLUDE: "./wiki/i18n/fcitx.org" :lines "2-"
+#+INCLUDE: "./wiki/i18n/evil-pinyin.org" :lines "2-"
+#+INCLUDE: "./wiki/i18n/ace-pinyin.org" :lines "2-"
+#+INCLUDE: "./wiki/i18n/count-chinese.org" :lines "2-"
 
 * 区块 8：工具
 
-#+INCLUDE: "../wiki/tools/full-reload.org" :lines "2-"
-#+INCLUDE: "../wiki/tools/git-proxy.org" :lines "2-"
-#+INCLUDE: "../wiki/tools/magit.org" :lines "2-"
+#+INCLUDE: "./wiki/tools/full-reload.org" :lines "2-"
+#+INCLUDE: "./wiki/tools/git-proxy.org" :lines "2-"
+#+INCLUDE: "./wiki/tools/magit.org" :lines "2-"
 
 * 区块 9：端到端工作流
 
-#+INCLUDE: "../wiki/workflows/writing.org" :lines "2-"
-#+INCLUDE: "../wiki/workflows/reading-research.org" :lines "2-"
-#+INCLUDE: "../wiki/workflows/note-taking.org" :lines "2-"
+#+INCLUDE: "./wiki/workflows/writing.org" :lines "2-"
+#+INCLUDE: "./wiki/workflows/reading-research.org" :lines "2-"
+#+INCLUDE: "./wiki/workflows/note-taking.org" :lines "2-"
 
 * 区块 10：附录
 
-#+INCLUDE: "../wiki/appendix/custom-functions.org" :lines "2-"
-#+INCLUDE: "../wiki/appendix/known-issues.org" :lines "2-"
-#+INCLUDE: "../wiki/appendix/performance.org" :lines "2-"
-#+INCLUDE: "../wiki/appendix/gentoo.org" :lines "2-"
+#+INCLUDE: "./wiki/appendix/custom-functions.org" :lines "2-"
+#+INCLUDE: "./wiki/appendix/known-issues.org" :lines "2-"
+#+INCLUDE: "./wiki/appendix/performance.org" :lines "2-"
+#+INCLUDE: "./wiki/appendix/gentoo.org" :lines "2-"

@@ -185,4 +185,5 @@
        :desc "Stop timer"               "T" #'my/timer-stop
        :desc "Start pomodoro"           "s" #'my/pomodoro-start
        :desc "Stop pomodoro"            "S" #'my/pomodoro-stop
-       :desc "Pomodoro stats"           "v" #'my/pomodoro-show-stats))
+       :desc "Pomodoro stats"           "v" #'my/pomodoro-show-stats
+       :desc "Random password"          "p" #'my/random-password))

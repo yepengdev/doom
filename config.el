@@ -870,6 +870,17 @@ Delays 0.4s for browser window to appear."
 (map! :leader
       :desc "Full reload" "h r R" #'my/doom-full-reload)
 
+;; ─── doom sync 时编译自定义模块的 config.el ────────────────────
+(defun my/byte-compile-modules ()
+  (dolist (file (doom-module-locate-paths (doom-module-list) "config.el"))
+    (when (file-in-directory-p file doom-user-dir)
+      (let ((elc (byte-compile-dest-file file)))
+        (unless (and (file-exists-p elc)
+                     (not (file-newer-than-file-p file elc)))
+          (byte-compile-file file))))))
+
+(add-hook 'doom-after-sync-hook #'my/byte-compile-modules)
+
 ;;（cnotify/random 模块路径已移至 :tools pomodoro）
 
 ;;（番茄钟/计时器/密码工具已移至 :tools pomodoro 模块）

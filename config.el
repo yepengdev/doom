@@ -282,13 +282,22 @@
 
 (after! org
   ;; CJK 字符加入强调标记边界，使 _中文_ /中文/ *中文* 正确生效
-  (require 'org-element)
-  (let ((cjk "\\cC"))
-    (setq org-emphasis-regexp-components
-          `( ,(concat "- \t\n,." cjk)     ;; pre
-             ,(concat "- \t\n,." cjk)     ;; post
-             ,(concat " \t\n" cjk)        ;; border
-             "." 1)))
+  ;; `skip-chars-*' 不支持 \c 类别，需要显式列 Unicode 区间
+  (let* ((cjk (concat (char-to-string #x2E80) ?- (char-to-string #x2EFF)  ;; 部首
+                      (char-to-string #x3000) ?- (char-to-string #x303F)  ;; 符号
+                      (char-to-string #x3400) ?- (char-to-string #x4DBF)  ;; 扩展A
+                      (char-to-string #x4E00) ?- (char-to-string #x9FFF)  ;; 统一
+                      (char-to-string #xF900) ?- (char-to-string #xFAFF)  ;; 兼容
+                      (char-to-string #xFF00) ?- (char-to-string #xFFEF)  ;; 全角
+                      (char-to-string #x20000) ?- (char-to-string #x2A6DF) ;; 扩展B
+                      (char-to-string #x2A700) ?- (char-to-string #x2B73F) ;; 扩展C
+                      (char-to-string #x2B740) ?- (char-to-string #x2B81F) ;; 扩展D
+                      (char-to-string #x2B820) ?- (char-to-string #x2CEAF) ;; 扩展E
+                      (char-to-string #x2CEB0) ?- (char-to-string #x2EBE0) ;; 扩展F
+                      (char-to-string #x2F800) ?- (char-to-string #x2FA1F))) ;; 补充
+         (pre  (concat "- \t\n,." cjk))
+         (post (concat "- \t\n,.!?;:" cjk)))
+    (setq org-emphasis-regexp-components (list pre post " \t\n" "." 1)))
   (org-element-update-syntax)
 
   ;; 自定义 TODO 工作流：DRAFT（写作）→ REVIEW（编辑）→ DONE / CANCELLED。

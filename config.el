@@ -287,19 +287,13 @@
                           '((#x2E80 . #x2EFF)   ;; 部首
                             (#x3000 . #x303F)   ;; 符号
                             (#x3400 . #x4DBF)   ;; 扩展A
-                            (#x4E00 . #x9FFF)   ;; 统一
+                            (#x4E00 . #x9FFF)   ;; 统一汉字
                             (#xF900 . #xFAFF)   ;; 兼容
-                            (#xFF00 . #xFFEF)   ;; 全角
-                            (#x20000 . #x2A6DF) ;; 扩展B
-                            (#x2A700 . #x2B73F) ;; 扩展C
-                            (#x2B740 . #x2B81F) ;; 扩展D
-                            (#x2B820 . #x2CEAF) ;; 扩展E
-                            (#x2CEB0 . #x2EBE0) ;; 扩展F
-                            (#x2F800 . #x2FA1F)) ;; 补充
-                          ""))
+                            (#xFF00 . #xFFEF))  ;; 全角
+                          "")))
          (pre  (concat "- \t\n,." cjk))
          (post (concat "- \t\n,.!?;:" cjk)))
-    (setq org-emphasis-regexp-components (list pre post " \t\n" "." 1)))
+    (setq org-emphasis-regexp-components (list pre post " \t\n" "\\S" 1)))
 
   ;; 自定义 TODO 工作流：DRAFT（写作）→ REVIEW（编辑）→ DONE / CANCELLED。
   ;; 第三个管道段 `|` 分隔激活与非激活关键词。

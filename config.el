@@ -870,31 +870,6 @@ Delays 0.4s for browser window to appear."
 (map! :leader
       :desc "Full reload" "h r R" #'my/doom-full-reload)
 
-;; ─── 私人配置惰性编译（交互式 Emacs 空闲时）────────────────────
-;; CLI 环境缺少宏所需第三方包（general 等），无法编译配置 .el 文件，
-;; 因此在交互式 Emacs 完全初始化后，用轻量时间戳检查代替 SHA-256。
-
-(defun my/private-config--collect ()
-  (let (files seen)
-    (dolist (file (doom-module-locate-paths (doom-module-list) "config.el"))
-      (when (and (file-in-directory-p file doom-user-dir)
-                 (not (member file seen)))
-        (push file seen)
-        (push file files)))
-    (nreverse files)))
-
-(defun my/private-config--byte-compile ()
-  (dolist (file (my/private-config--collect))
-    (let ((elc (byte-compile-dest-file file)))
-      (unless (and (file-exists-p elc)
-                   (not (file-newer-than-file-p file elc)))
-        (with-demoted-errors "Private config compile: %S"
-          (byte-compile-file file))))))
-
-(add-hook 'doom-after-init-hook
-          (lambda ()
-            (run-with-idle-timer 3 nil #'my/private-config--byte-compile)))
-
 ;;（cnotify/random 模块路径已移至 :tools pomodoro）
 
 ;;（番茄钟/计时器/密码工具已移至 :tools pomodoro 模块）

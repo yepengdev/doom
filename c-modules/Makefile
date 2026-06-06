@@ -7,7 +7,9 @@ FFI_CFLAGS = $(shell pkg-config --cflags libffi)
 FFI_LIBS   = $(shell pkg-config --libs libffi)
 JIEBA_DIR  = cjieba
 
-all: cnotify-module.so count-cjk.so random.so dyncall.so jieba-module.so
+WAYLAND_LIBS = $(shell pkg-config --cflags --libs wayland-client) -lpthread
+
+all: cnotify-module.so count-cjk.so random.so dyncall.so jieba-module.so clipboard-wl.so
 
 cnotify-module.so: cnotify-module.c
 	$(CC) $(CFLAGS) -shared -o $@ $^ $(NOTIFY_LIBS)
@@ -32,7 +34,10 @@ $(JIEBA_DIR)/libjieba.a: $(JIEBA_DIR)/lib/jieba.cpp $(JIEBA_DIR)/lib/jieba.h
 	$(MAKE) -C $(JIEBA_DIR) \
 		CXX='$(CXX)' CXXFLAGS='$(CXXFLAGS)' CPPFLAGS='-DLOGGING_LEVEL=LL_WARNING -I./deps'
 
+clipboard-wl.so: clipboard-wl.c
+	$(CC) $(CFLAGS) -shared -o $@ $^ $(WAYLAND_LIBS)
+
 clean:
-	rm -f cnotify-module.so count-cjk.so random.so dyncall.so jieba-module.so
+	rm -f cnotify-module.so count-cjk.so random.so dyncall.so jieba-module.so clipboard-wl.so
 
 .PHONY: all clean jieba

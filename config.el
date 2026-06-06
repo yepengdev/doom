@@ -870,16 +870,16 @@ Delays 0.4s for browser window to appear."
 (map! :leader
       :desc "Full reload" "h r R" #'my/doom-full-reload)
 
-;; ─── doom sync 时编译所有用户配置（config.el + 模块 config.el）─
-(defun my/byte-compile-configs ()
-  "编译 config.el 和所有自定义模块的 config.el。
-`doom sync` 时触发，下次启动自动加载 .elc。"
-  (let ((files (doom-module-locate-paths (doom-module-list) "config.el")))
-    ;; 加入顶层 config.el
-    (push (expand-file-name "config.el" doom-user-dir) files)
-    ;; cli.el（如果存在）
-    (let ((cli (expand-file-name "cli.el" doom-user-dir)))
-      (when (file-exists-p cli) (push cli files)))
+;; ─── M-x my/byte-compile-config 手动编译配置 ───────────────────
+(defun my/byte-compile-config ()
+  "编译 config.el + cli.el + 所有自定义模块 config.el
+当前会话继续用 source，下次启动自动加载 .elc"
+  (interactive)
+  (let ((files (list (expand-file-name "config.el" doom-user-dir)))
+        (cli (expand-file-name "cli.el" doom-user-dir)))
+    (dolist (f (doom-module-locate-paths (doom-module-list) "config.el"))
+      (push f files))
+    (when (file-exists-p cli) (push cli files))
     (dolist (file (delete-dups (mapcar #'file-truename files)))
       (when (file-in-directory-p file doom-user-dir)
         (let ((elc (byte-compile-dest-file file)))

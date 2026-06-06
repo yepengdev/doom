@@ -870,16 +870,24 @@ Delays 0.4s for browser window to appear."
 (map! :leader
       :desc "Full reload" "h r R" #'my/doom-full-reload)
 
-;; ─── doom sync 时编译自定义模块的 config.el ────────────────────
-(defun my/byte-compile-modules ()
-  (dolist (file (doom-module-locate-paths (doom-module-list) "config.el"))
-    (when (file-in-directory-p file doom-user-dir)
-      (let ((elc (byte-compile-dest-file file)))
-        (unless (and (file-exists-p elc)
-                     (not (file-newer-than-file-p file elc)))
-          (byte-compile-file file))))))
+;; ─── doom sync 时编译所有用户配置（config.el + 模块 config.el）─
+(defun my/byte-compile-configs ()
+  "编译 config.el 和所有自定义模块的 config.el。
+`doom sync` 时触发，下次启动自动加载 .elc。"
+  (let ((files (doom-module-locate-paths (doom-module-list) "config.el")))
+    ;; 加入顶层 config.el
+    (push (expand-file-name "config.el" doom-user-dir) files)
+    ;; cli.el（如果存在）
+    (let ((cli (expand-file-name "cli.el" doom-user-dir)))
+      (when (file-exists-p cli) (push cli files)))
+    (dolist (file (delete-dups (mapcar #'file-truename files)))
+      (when (file-in-directory-p file doom-user-dir)
+        (let ((elc (byte-compile-dest-file file)))
+          (unless (and (file-exists-p elc)
+                       (not (file-newer-than-file-p file elc)))
+            (byte-compile-file file)))))))
 
-(add-hook 'doom-after-sync-hook #'my/byte-compile-modules)
+(add-hook 'doom-after-sync-hook #'my/byte-compile-configs)
 
 ;;（cnotify/random 模块路径已移至 :tools pomodoro）
 

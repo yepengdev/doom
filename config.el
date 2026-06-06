@@ -281,24 +281,10 @@
 (setq org-noter-notes-search-path '("~/org/deft/annotations"))
 
 (after! org
-  ;; 使 _中文_ /中文/ *中文* 正确生效
-  ;; `skip-chars-*' 不支持 \c 类别，需要显式列 Unicode 区间
-  (let* ((cjk (mapconcat (lambda (r) (format "%c-%c" (car r) (cdr r)))
-                          '((#x2E80 . #x2EFF)   ;; 部首
-                            (#x3000 . #x303F)   ;; 符号
-                            (#x3400 . #x4DBF)   ;; 扩展A
-                            (#x4E00 . #x9FFF)   ;; 统一汉字
-                            (#xF900 . #xFAFF)   ;; 兼容
-                            (#xFF00 . #xFFEF))  ;; 全角
-                          "")))
-         (pre  (concat "- \t\n,." cjk))
-         (post (concat "- \t\n,.!?;:" cjk)))
-    (setq org-emphasis-regexp-components (list pre post " \t\n" "\\S" 1)))
-
   ;; 自定义 TODO 工作流：DRAFT（写作）→ REVIEW（编辑）→ DONE / CANCELLED。
-  ;; 第三个管道段 `|` 分隔激活与非激活关键词。
-  (add-to-list 'org-todo-keywords
-               '(sequence "DRAFT(R)" "REVIEW(r)" "|" "CANCELLED(C)") t)
+  (when (boundp 'org-todo-keywords)
+    (add-to-list 'org-todo-keywords
+                 '(sequence "DRAFT(R)" "REVIEW(r)" "|" "CANCELLED(C)") t))
 
   ;; 小说创意捕获模板 — 包含角色、情绪和来源追踪的元数据丰富的条目。
   ;; 使用 prepend 使最新的在最前面。

@@ -281,7 +281,7 @@
 (setq org-noter-notes-search-path '("~/org/deft/annotations"))
 
 (after! org
-  ;; CJK 字符加入强调标记边界，使 _中文_ /中文/ *中文* 正确生效
+  ;; 使 _中文_ /中文/ *中文* 正确生效
   ;; `skip-chars-*' 不支持 \c 类别，需要显式列 Unicode 区间
   (let* ((cjk (concat (char-to-string #x2E80) ?- (char-to-string #x2EFF)  ;; 部首
                       (char-to-string #x3000) ?- (char-to-string #x303F)  ;; 符号
@@ -298,7 +298,6 @@
          (pre  (concat "- \t\n,." cjk))
          (post (concat "- \t\n,.!?;:" cjk)))
     (setq org-emphasis-regexp-components (list pre post " \t\n" "." 1)))
-  (org-element-update-syntax)
 
   ;; 自定义 TODO 工作流：DRAFT（写作）→ REVIEW（编辑）→ DONE / CANCELLED。
   ;; 第三个管道段 `|` 分隔激活与非激活关键词。

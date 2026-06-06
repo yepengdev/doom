@@ -22,7 +22,7 @@
 
        :completion
        ;;company           ; 终极代码补全后端
-       (corfu +orderless)  ; 使用 cap(f)、cape 补全，如羽毛般轻盈！
+       (corfu +orderless +dabbrev)  ; 使用 cap(f)、cape 补全，如羽毛般轻盈！
        ;;helm              ; *另一个*寻找爱与生活的搜索引擎
        ;;ido               ; 另一个*另一个*搜索引擎……
        ;;ivy               ; 一个寻找爱与生活的搜索引擎
@@ -51,7 +51,7 @@
        ;;vi-tilde-fringe   ; 在缓冲区末尾外显示波浪线
        ;; window-select     ; 可视化切换窗口
        workspaces        ; 标签模拟、持久化及独立工作区
-       ;;zen               ; 无干扰编码或写作
+       zen               ; 无干扰编码或写作
 
        :editor
        (evil +everywhere); 加入黑暗面，我们有好吃的饼干

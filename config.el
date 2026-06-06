@@ -281,17 +281,6 @@
 (setq org-noter-notes-search-path '("~/org/deft/annotations"))
 
 (after! org
-  ;; CJK 强调标记：/中文/ _中文_ *中文* 不依赖 Org 的 emphasis 系统。
-  ;; 用 font-lock-add-keywords 加独立规则，通过 \cC (Emacs category chinese) 匹配。
-  (font-lock-add-keywords 'org-mode
-    '(("\\(/\\)\\([^/\n]*\\cC[^/\n]*\\)\\(/\\)"
-       (1 'italic prepend) (2 'italic prepend) (3 'italic prepend))
-      ("\\(_\\)\\([^_\n]*\\cC[^_\n]*\\)\\(_\\)"
-       (1 'underline prepend) (2 'underline prepend) (3 'underline prepend))
-      ("\\(\\*\\)\\([^*\n]*\\cC[^*\n]*\\)\\(\\*\\)"
-       (1 'bold prepend) (2 'bold prepend) (3 'bold prepend)))
-    'append)
-
   ;; 自定义 TODO 工作流：DRAFT（写作）→ REVIEW（编辑）→ DONE / CANCELLED。
   (when (boundp 'org-todo-keywords)
     (add-to-list 'org-todo-keywords

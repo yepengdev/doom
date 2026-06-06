@@ -357,6 +357,12 @@ ul ul > li::marker { color: var(--accent2); }
 ul ul ul > li::marker { color: var(--accent3); }
 ol > li::marker { color: var(--accent); font-weight: 600; }
 
+/* ─── Underline (Org _text_) ─────────────────────────────────── */
+
+span.underline {
+  text-decoration: underline;
+}
+
 /* ─── Code ────────────────────────────────────────────────────── */
 
 code {

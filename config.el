@@ -34,23 +34,18 @@
 ;;   (set-fontset-font t 'han (font-spec :family "LXGW WenKai Mono Screen" :size 15)))
 
 (after! doom-ui
-  ;; 英文 → Maple Mono NF（纯英文等宽，含 Nerd Font 图标）
+  ;; 1. 等宽主体字体：拉丁部分用 Maple Mono NF
   (setq doom-font (font-spec :family "Maple Mono NF" :size 16))
-  ;; 散文 → 霞鹜文楷标准版（非等宽，楷体阅读更自然）
-  (setq doom-variable-pitch-font (font-spec :family "LXGW WenKai" :size 16))
-  ;; CJK 后备 → 霞鹜文楷等宽屏幕阅读版（仅固定宽度缓冲区生效）
-  (set-fontset-font t 'han (font-spec :family "LXGW WenKai Mono Screen"))
-  (set-fontset-font t 'kana (font-spec :family "LXGW WenKai Mono Screen"))
-  (set-fontset-font t 'cjk-misc (font-spec :family "LXGW WenKai Mono Screen")))
 
-;; zen 模式下：CJK 改用比例版 WenKai，配合 mixed-pitch
-;; 退出 zen 后：恢复等宽版，保持代码中英文对齐
-(defvar my/cjk-fontset-mono (font-spec :family "LXGW WenKai Mono Screen"))
-(defvar my/cjk-fontset-prop (font-spec :family "LXGW WenKai"))
-(defun my/zen-toggle-cjk-fontset (arg)
-  (dolist (script '(han kana cjk-misc))
-    (set-fontset-font t script (if arg my/cjk-fontset-prop my/cjk-fontset-mono))))
-(add-hook 'writeroom-mode-hook #'my/zen-toggle-cjk-fontset)
+  ;; 2. 变宽字体（用于写作、阅读）：比例版霞鹜文楷
+  (setq doom-variable-pitch-font (font-spec :family "LXGW WenKai" :size 16))
+
+  ;; 3. 为默认等宽字体集添加 CJK 回退 → 只影响 fixed-pitch 面
+  (set-fontset-font t 'han (font-spec :family "LXGW WenKai Mono Screen" :size 16))
+  (set-fontset-font t 'kana (font-spec :family "LXGW WenKai Mono Screen" :size 16))
+  (set-fontset-font t 'cjk-misc (font-spec :family "LXGW WenKai Mono Screen" :size 16)))
+
+(add-hook 'writeroom-mode-hook #'mixed-pitch-mode)
 
 ;; ─── 自动切换主题（日/夜）─────────────────────────────────────────────
 ;;

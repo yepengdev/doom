@@ -187,7 +187,7 @@
 ;; 在宽屏显示器上适合舒适阅读。隐藏模式行以减少散文缓冲区中的视觉噪音。
 ;;
 (use-package! olivetti
-  :hook (org-mode . olivetti-mode)
+  :hook ((org-mode . olivetti-mode))
   :custom
   (olivetti-body-width 100)
   (olivetti-hide-mode-line t)
@@ -213,7 +213,7 @@
 ;; 防止与光标位置冲突）。静默模式避免 mini-buffer 消息。
 ;;
 (use-package! super-save
-  :hook (doom-first-file . super-save-mode)
+  :hook ((doom-first-file . super-save-mode))
   :custom
   (super-save-auto-save-when-idle t)
   (super-save-silent t)
@@ -236,7 +236,7 @@
 ;;   T — 移至回收文件（<basename>.trash.<ext>）
 ;;
 (use-package! palimpsest
-  :hook (org-mode . palimpsest-mode)
+  :hook ((org-mode . palimpsest-mode))
   :config
   (map! :localleader
         :map org-mode-map
@@ -283,18 +283,20 @@
 (after! org
   ;; 使 _中文_ /中文/ *中文* 正确生效
   ;; `skip-chars-*' 不支持 \c 类别，需要显式列 Unicode 区间
-  (let* ((cjk (concat (char-to-string #x2E80) ?- (char-to-string #x2EFF)  ;; 部首
-                      (char-to-string #x3000) ?- (char-to-string #x303F)  ;; 符号
-                      (char-to-string #x3400) ?- (char-to-string #x4DBF)  ;; 扩展A
-                      (char-to-string #x4E00) ?- (char-to-string #x9FFF)  ;; 统一
-                      (char-to-string #xF900) ?- (char-to-string #xFAFF)  ;; 兼容
-                      (char-to-string #xFF00) ?- (char-to-string #xFFEF)  ;; 全角
-                      (char-to-string #x20000) ?- (char-to-string #x2A6DF) ;; 扩展B
-                      (char-to-string #x2A700) ?- (char-to-string #x2B73F) ;; 扩展C
-                      (char-to-string #x2B740) ?- (char-to-string #x2B81F) ;; 扩展D
-                      (char-to-string #x2B820) ?- (char-to-string #x2CEAF) ;; 扩展E
-                      (char-to-string #x2CEB0) ?- (char-to-string #x2EBE0) ;; 扩展F
-                      (char-to-string #x2F800) ?- (char-to-string #x2FA1F))) ;; 补充
+  (let* ((cjk (mapconcat (lambda (r) (format "%c-%c" (car r) (cdr r)))
+                          '((#x2E80 . #x2EFF)   ;; 部首
+                            (#x3000 . #x303F)   ;; 符号
+                            (#x3400 . #x4DBF)   ;; 扩展A
+                            (#x4E00 . #x9FFF)   ;; 统一
+                            (#xF900 . #xFAFF)   ;; 兼容
+                            (#xFF00 . #xFFEF)   ;; 全角
+                            (#x20000 . #x2A6DF) ;; 扩展B
+                            (#x2A700 . #x2B73F) ;; 扩展C
+                            (#x2B740 . #x2B81F) ;; 扩展D
+                            (#x2B820 . #x2CEAF) ;; 扩展E
+                            (#x2CEB0 . #x2EBE0) ;; 扩展F
+                            (#x2F800 . #x2FA1F)) ;; 补充
+                          ""))
          (pre  (concat "- \t\n,." cjk))
          (post (concat "- \t\n,.!?;:" cjk)))
     (setq org-emphasis-regexp-components (list pre post " \t\n" "." 1)))
@@ -737,6 +739,8 @@ Delays 0.4s for browser window to appear."
 ;; pdf-view-selection-style 'glyph：按字形边界（而非像素）选择文本 —
 ;; 复制粘贴更精确。
 ;;
+
+(add-hook! 'pdf-view-mode-hook #'pdf-view-roll-minor-mode #'evil-emacs-state)
 (after! pdf-tools
   (setq pdf-view-display-size 'fit-page
         pdf-view-resize-factor 1.1
@@ -744,7 +748,7 @@ Delays 0.4s for browser window to appear."
         pdf-view-use-scaling nil
         pdf-view-use-imagemagick nil
         pdf-view-selection-style 'glyph)
-  (add-hook! 'pdf-view-mode-hook #'pdf-view-roll-minor-mode #'evil-emacs-state))
+  )
 
 ;; FIXME: `org-noter-pdf--show-arrow` 错误的变通方案，在
 ;; `pdf-view-roll-minor-mode` 激活时触发。错误非致命（箭头

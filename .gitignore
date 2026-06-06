@@ -1,5 +1,4 @@
 c-modules/*.so
-c-modules/clipboard-wl.so
 c-modules/*.o
 c-modules/cjieba/demo
 tests-bench/flycheck_*

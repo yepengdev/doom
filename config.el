@@ -897,21 +897,6 @@ Delays 0.4s for browser window to appear."
 
 ;;（番茄钟/计时器/密码工具已移至 :tools pomodoro 模块）
 
-;; ─── Wayland 剪贴板（C 模块，直接走 wayland-client 协议）────────
-(when (and (getenv "WAYLAND_DISPLAY")
-           (file-exists-p (expand-file-name "c-modules/clipboard-wl.so" doom-user-dir)))
-  (module-load (expand-file-name "c-modules/clipboard-wl.so" doom-user-dir))
-  (setq interprogram-cut-function
-        (lambda (text &optional push)
-          (ignore push)
-          (when (fboundp 'clipboard-set)
-            (condition-case nil (clipboard-set "text/plain" text) (error nil)))))
-  (setq interprogram-paste-function
-        (lambda ()
-          (when (fboundp 'clipboard-get)
-            (condition-case nil (clipboard-get "text/plain") (error nil)))))
-  (message "🔧 Wayland clipboard: loaded"))
-
 ;; ─── 禁止 ispell 补全（未启用 :checkers spell 模块）─────────────
 ;; Emacs 29+ 自动在 text-mode 缓冲区启用 `ispell-completion-at-point`，
 ;; 但对中文环境（无对应字典）会触发 (setting-constant nil) 错误。

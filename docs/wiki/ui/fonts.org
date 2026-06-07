@@ -3,48 +3,69 @@
 
 * 配置
 
+当前字体栈 —— 区分三层的三字体策略：
+
 #+BEGIN_SRC emacs-lisp
 (after! doom-ui
-  (setq doom-font (font-spec :family "Monaspace Neon" :size 16)
-        doom-variable-pitch-font (font-spec :family "Monaspace Neon" :size 16))
-  (set-fontset-font t 'han (font-spec :family "LXGW WenKai Mono Screen" :size 16)))
+  (setq doom-font (font-spec :family "Maple Mono NF" :size 16))
+  (setq doom-variable-pitch-font (font-spec :family "LXGW WenKai" :size 16))
+  (set-fontset-font t 'han (font-spec :family "LXGW WenKai Mono Screen"))
+  (set-fontset-font t 'kana (font-spec :family "LXGW WenKai Mono Screen"))
+  (set-fontset-font t 'cjk-misc (font-spec :family "LXGW WenKai Mono Screen")))
+
+(add-hook 'writeroom-mode-hook #'mixed-pitch-mode)
 #+END_SRC
 
 * 选型理由
 
-**Monaspace Neon**
-- GitHub Next 出品，专为代码阅读设计
-- 1/l/I 明确区分（vs Iosevka 需要额外配置、Cascadia Code 不够锐利）
-- 比例字体也是同一家族，保证 prose 和 code 切换时视觉连续
-- 支持编程连字（如 /=~ 、-> 、>= 自动组合），但 ligatures 模块未启用
+** Maple Mono NF（等宽，拉丁主体）— ~doom-font~
 
-**LXGW WenKai Mono Screen**
-- 霞鹜文楷 Monospace Screen 版——楷体骨架 + 等宽适配
-- x-height 和字重与 Monaspace Neon 接近（中英文混排时行高均匀）
-- 简化字形（Screen 版裁剪了过度的书法笔画），屏幕阅读友好
+- [[https://github.com/subframe7536/Maple-font][Maple Mono]] 是开源等宽字体，专为编程设计，内置 Nerd Font 符号（NF = Nerd Font patched）。
+- 字母形状清晰：~1~ / ~l~ / ~I~ 容易区分，~0~ / ~O~ 差异明确。
+- 内置 Nerd Font 图标，意味着不需要额外安装 nerd-fonts 包；mode-line、which-key 等图标字体开箱即用。
+- 支持编程连字（如 ~!=~ ~->~ ~>=~ 等），光标移动时自动断裂，但本配置未启用 ligatures 模块。
+- 16pt 是现代高 DPI 显示器的甜点：14pt 偏小（长时间阅读疲劳），18pt 浪费水平空间。
 
-* 字体栈渲染
+** LXGW WenKai（变宽，散文）— ~doom-variable-pitch-font~
 
-- 拉丁字母 → Monaspace Neon (16pt)
-- CJK 表意文字 (U+4E00-U+9FFF, Ext A-H) → LXGW WenKai Mono Screen (16pt)
-- 日韩汉字 (U+3040-等) → Monaspace Neon fallback → 系统 fallback
-- Emoji → 系统表情字体
+- [[https://github.com/lxgw/LxgwWenKai][霞鹜文楷]] 比例版：楷体骨架 + 现代印刷字形，适合 prose 阅读（nov.el EPUB、org-mode 写作）。
+- ~writeroom-mode-hook~ 中启用 ~mixed-pitch-mode~：Org 文件中标题/正文使用比例字体（LXGW WenKai），代码块使用等宽字体（Maple Mono NF）。见 [[file:../editor/olivetti.org][olivetti.org]]。
 
-~set-fontset-font~ 的 ~t~ 参数表示 "修改默认 fontset"（即 frame 的默认字体集），
-~han~ 覆盖了 CJK 统一表意文字码段。
+** LXGW WenKai Mono Screen（等宽 CJK 后备）
 
-* 诊断
+- 霞鹜文楷 Monospace Screen 版 —— 与上文楷同源但适配等宽网格。
+- 不指定 ~:size~ 参数：继承当前 frame 等宽字体的字号，使 ~C-+~ / ~C--~ 缩放 CJK 和拉丁字体同步变化。
+- 覆盖三个字符集：~han~（CJK 统一表意文字 U+4E00–U+9FFF + 扩展）、~kana~（日文假名）、~cjk-misc~（保留的 CJK 符号）。
+
+* 字体栈渲染层级
+
+| 层 | 内容 | 字体 |
+|----+------+------|
+| 1  | ASCII 拉丁字母 | Maple Mono NF 16pt |
+| 2  | CJK 表意 + 日文假名 | LXGW WenKai Mono Screen（继承帧字号） |
+| 3  | 变宽散文语境 | LXGW WenKai 16pt（通过 ~mixed-pitch-mode~ 在 writeroom 中激活） |
+| 4  | Emoji | 系统表情字体 |
+
+~set-fontset-font~ 的第一个参数 ~t~ 表示修改默认 fontset（frame 创建时使用的字体集），而非创建一个新 fontset。
+
+* 诊断命令
 
 | 命令 | 用途 |
 |------+------|
 | ~fc-list :lang=zh~ | 检查系统安装的中文字体 |
-| ~M-x describe-font~ | 查看 frame 当前字体 |
-| ~M-x describe-char~ | 查看光标字符的实际渲染字体 |
-| ~C-u C-x =~ | 同上（字符信息） |
-| ~M-x doom/reload-font~ | 修改字体后立即生效 |
+| ~fc-list | grep -i "maple\|wenkai"~ | 确认 Maple Mono 和霞鹜文楷是否已安装 |
+| ~M-x describe-font~ | 查看当前 frame 的字体信息 |
+| ~M-x describe-char~（或 ~C-u C-x =~）| 查看光标位置字符的实际渲染字体 |
+| ~M-x doom/reload-font~ | 字体设置后立即生效（无需重启） |
+| ~M-x my/doom-full-reload~ | 完整重载，包括字体重新应用 |
+
+* 与 writeroom-mode 的集成
+
+~mixed-pitch-mode~ 在 ~writeroom-mode-hook~ 中启用，因此在 [[file:../editor/olivetti.org][olivetti.org]] 描述的写作环境中，标题和正文自动使用 LXGW WenKai（比例），代码块保持 Maple Mono NF（等宽）。详见 [[file:../editor/olivetti.org][olivetti.org: Hook 链]]。
 
 * 注意事项
 
-- 字体必须提前在操作系统中安装（不是放到 Emacs 目录就行）
-- 修改 ~doom-font~ 后必须 ~doom/reload-font~ 或重启
-- CJK 字体大小和 Latin 字体尺寸匹配是经验活——16 已经是调整后的值
+- 所有字体必须在操作系统中安装（放在 Emacs 目录中无效）。Linux 下安装到 ~/usr/local/share/fonts/~/ 或 ~/.local/share/fonts/～。
+- 修改 ~doom-font~ 后需要 ~doom/reload-font~ 或重启 Emacs 才能生效。
+- CJK 和 Latin 字体尺寸匹配是经验问题 —— 当前 16pt 已经过调整；若切换显示器分辨率可能需要微调。
+- 不指定 CJK 后备字体的 ~:size~ 意味着缩放 CJK 字体时会跟随 frame 默认字体大小，但中文和英文的 x-height 仍可能略有差异 —— 无法通过像素级对齐，但视觉上已足够。

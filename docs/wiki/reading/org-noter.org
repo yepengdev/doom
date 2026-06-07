@@ -1,11 +1,21 @@
 #+TITLE: org-noter 集成
+#+STARTUP: overview
 
 * 用途
 
-在 PDF 阅读时做批注笔记——选中段落 → ~SPC m n t~ 插入引用，批注内容保存在
-~/org/deft/annotations/~。
+在 PDF/DJVU 阅读时做批注笔记。选中段落 → ~SPC m n t~ 插入引用，
+笔记保存在 ~~/org/deft/annotations/~，不污染主笔记池。
 
-* 配置
+* 笔记搜索路径
+
+#+BEGIN_SRC emacs-lisp
+(setq org-noter-notes-search-path '("~/org/deft/annotations"))
+#+END_SRC
+
+~org-noter-notes-search-path~ 告诉 org-noter 在哪些目录中查找与文档关联的笔记文件。
+使用专用子目录 ~~/org/deft/annotations/~ 避免主笔记池（~~/org/deft/~）的混乱。
+
+* 配置：roll-minor-mode 兼容性
 
 #+BEGIN_SRC emacs-lisp
 (after! org-noter-pdf
@@ -21,11 +31,30 @@
     (condition-case nil (funcall orig-fn) (error nil))))
 #+END_SRC
 
-* 已知问题：Arrow timer 错误
+* 问题：Arrow timer 错误
 
 ~org-noter-pdf--show-arrow~ 在 ~pdf-view-roll-minor-mode~ 启用时偶发错误。
-原因是 roll mode 改变了页面 overlay 机制，~org-noter~ 的箭头显示函数
-在页边界处访问了不正确的 overlay。
+
+** 根因
+
+1. ~pdf-view-roll-minor-mode~ 改变了 PDF 页面的 overlay 管理机制
+2. ~org-noter-pdf~ 的箭头显示函数（~org-noter-pdf--show-arrow~）
+   在页面滚动的边界处尝试访问页码对应的 overlay
+3. 由于 roll mode 的 overlay 结构不同于逐页模式，访问到错误的 overlay 结构
+   或已销毁的 overlay，触发 ~(wrong-type-argument ...)~ 或 ~(error ...)~
+4. 错误是非致命的—箭头不显示，但 org-noter 的笔记功能不受影响
+
+** ~pdf-view-current-overlay~ 修复
+
+重新定义 ~pdf-view-current-overlay~ 函数：
+
+1. 先尝试标准路径（~image-mode-window-get 'overlay~ — 大多数 PDF 缓冲区的默认 overlay）
+2. 如果返回 nil 且启用了 ~pdf-view-roll-minor-mode~，则调用 ~pdf-roll-page-overlay~
+   获取当前页的 roll-mode overlay
+3. ~condition-case nil ... (error nil)~ 静默处理异常
+4. 回退机制确保即使在 roll mode 中也能获取正确的 overlay
+
+** ~+org-noter-pdf--show-arrow-a~ advice
 
 #+BEGIN_SRC emacs-lisp
 (defadvice! +org-noter-pdf--show-arrow-a (orig-fn)
@@ -33,4 +62,43 @@
   (condition-case nil (funcall orig-fn) (error nil)))
 #+END_SRC
 
-~:around~ advice 包裹原函数，任何错误静默吞掉。不影响其他 org-noter 功能。
+| 元素                    | 说明                                        |
+|-------------------------+---------------------------------------------|
+| ~:around~               | Advice 类型：包裹原函数，控制调用时机        |
+| ~orig-fn~               | 原始 ~org-noter-pdf--show-arrow~ 函数       |
+| ~condition-case nil ... (error nil)~ | 任何错误静默吞掉，不污染 ~*Messages*~ |
+
+副作用：
+
+- 箭头不在不可见的页面显示（功能降级而非完全失效）
+- org-noter 的其他全部功能不受影响
+- *Messages* 缓冲区不再被频繁的错误消息污染
+
+** 何时移除
+
+当 org-noter-pdf 上游修复了 roll-minor-mode 交互后，应移除：
+
+#+BEGIN_SRC emacs-lisp
+;; 移除此 block:
+(after! org-noter-pdf
+  (defun pdf-view-current-overlay (&optional window) ...)
+  (defadvice! +org-noter-pdf--show-arrow-a (orig-fn) ...))
+#+END_SRC
+
+* 工作流
+
+1. ~SPC o d~ 打开 PDF（pdf-tools）
+2. 导航到感兴趣的段落
+3. ~SPC m n t~ → org-noter 在当前笔记文件（或新文件）中插入引用
+4. 引用包含文档名、页码、选中文本的截图
+5. 在笔记 buffer 中写注释
+6. 下次打开同一 PDF，~SPC m n s~ 同步到笔记位置
+
+* 诊断命令
+
+| 命令                              | 用途                        |
+|-----------------------------------+-----------------------------|
+| ~M-x org-noter~                   | 手动启动 org-noter 会话     |
+| ~M-x org-noter-insert-note~       | 在当前文档位置插入笔记       |
+| ~M-x org-noter-sync-last-note~    | 同步到上一次插入的笔记位置   |
+| ~M-x org-noter-sync-current-note~ | 同步到当前笔记所在的文档位置 |

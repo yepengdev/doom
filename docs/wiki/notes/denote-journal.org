@@ -7,26 +7,46 @@
   :after denote
   :hook (calendar-mode . denote-journal-calendar-mode)
   :custom
-  (denote-journal-directory "journal")
-  (denote-journal-keyword '("日记"))
-  (denote-journal-title-format 'day-date-month-year))
+  (denote-journal-directory (concat denote-directory "/journal"))
+  (denote-journal-keyword '("journal"))
+  (denote-journal-title-format 'day-date-month-year)
+  :init
+  (map! :leader
+        (:prefix-map ("r d" . "Denote")
+         :desc "Journal entry" "j" #'denote-journal-new-or-existing-entry)))
 #+END_SRC
 
 * 参数
 
 | 选项 | 值 | 说明 |
 |------+-----+------|
-| ~denote-journal-directory~ | ~"journal"~ | 相对于 ~denote-directory~ 的子目录 |
-| ~denote-journal-keyword~ | ~'("日记")~ | 日记笔记的关键词 |
+| ~denote-journal-directory~ | ~(concat denote-directory "/journal")~ | 生成完整路径 ~/org/denote/journal/~。注意：是 ~concat~ 而非相对字符串（区别：相对字符串视为相对于 ~denote-directory~ 的相对路径，~concat~ 生成绝对路径） |
+| ~denote-journal-keyword~ | ~'("journal")~ (English!) | 日记笔记的关键词。使用英文 ~journal~ 而非中文"日记"，方便脚本/搜索/SELinux 兼容 |
 | ~denote-journal-title-format~ | ~'day-date-month-year~ | 标题格式：~Friday 22 March 2024~ |
+
+* Hook
+
+~calendar-mode~ 时启用 ~denote-journal-calendar-mode~，在 Emacs 日历（~M-x calendar~）中高亮有日记的日期。
 
 * 操作
 
 - ~SPC r d j~ — 打开或创建今日日记
-- ~C-u SPC r d j~ — 指定日期（补写/预写）
-- ~calendar-mode~ 中，有日记的日期自动高亮
+- ~C-u SPC r d j~ — 指定日期（补写/预写），~C-u~ 前缀触发 ~denote-journal-new-or-existing-entry~ 的日期提示
+- 在 ~calendar-mode~ 中，有日记条目的日期会自动高亮显示
 
 * 文件位置
 
-日记写入 ~/org/denote/journal/~，遵循 Denote 命名规范：
-~20240322T131856--Friday-22-March-2024__日记.org~
+日记文件写入 ~/org/denote/journal/~，遵循 Denote 命名规范：
+
+#+BEGIN_SRC text
+20240322T131856--Friday-22-March-2024__journal.org
+#+END_SRC
+
+- 标识符：~20240322T131856~（自动生成）
+- 标题：~Friday-22-March-2024~（由 ~day-date-month-year~ 格式自动转换）
+- 关键词：~journal~（英文关键词）
+- 扩展名：~.org~
+
+* 用途
+
+denote-journal 适用于每日记录、工作日志、学习日志等场景。与普通 Denote 笔记在同一目录树（~/org/denote/journal/）但关键词为 ~journal~，方便在 Denote Menu 或 consult-notes 中过滤筛选。

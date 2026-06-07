@@ -1,49 +1,95 @@
-#+TITLE: ADR-04: corfu+orderless 而非 company/ivy/helm
-#+DATE: 2024
+#+TITLE: ADR-04: corfu+orderless+dabbrev 而非 company/ivy/helm
+#+DATE: 2024-01-01
+#+UPDATED: 2026-06-07
 #+STATUS: accepted
 
 * Context
 
 Doom 支持四套补全/搜索方案：
+
 - **company** — 经典的 buffer 内补全弹窗（旧默认，被 corfu 取代）
 - **ivy/counsel/swiper** — 垂直搜索界面（旧默认）
 - **helm** — 分栏搜索界面
 - **corfu+vertico** — 新默认，corfu 负责补全弹窗，vertico 负责选择界面
 
-我使用的是 corfu + orderless（补全）+ vertico（搜索/选择）。
+我的选择是 corfu + orderless + dabbrev（补全）+ vertico（搜索/选择）。
 
 * Decision
 
+**模块声明**（=init.el= 第 25 行）：
+
+#+BEGIN_SRC emacs-lisp
+(corfu +orderless +dabbrev)
+#+END_SRC
+
 **补全弹窗 → corfu**
+
 - 用 child frame 而非 overlay，不干扰文本排版
 - 轻量——~800 行 vs company 的 ~4000 行
 - capf（completion-at-point-functions）原生，不需要 company 的 adapter 层
 - Doom 官方推荐
 
 **模糊过滤 → orderless**
+
 - 复合匹配：空格分隔多个 pattern，每个独立匹配
 - 支持字面量/正则/prefix/suffix 多组件
-- 配合 evil-pinyin 实现拼音搜索
+- 配合 evil-pinyin 实现拼音搜索（通过 ~my/orderless-regexp-pinyin~ filter-return advice）
+
+**缓冲区补全 → +dabbrev flag**
+
+- Doom 的 ~+dabbrev~ flag 启用 ~cape-dabbrev~ 作为后备补全源
+- ~dabbrev~ 在 ~corfu~ 中提供基于缓冲区内容的动态补全（类似 Vim 的 ~C-n~ / ~C-p~）
+- 不需要额外的 ~company-dabbrev~ 适配层
 
 **搜索/选择 → vertico**
-- 极简 core（~500 行），功能由 consult/orderless/marginalia/embark 等扩展
+
+- 极简 core（~500 行），功能由 ~consult~/~orderless~/~marginalia~/~embark~ 等扩展
 - 相比 ivy：无历史记录覆写、无模式侵入
 - 相比 helm：性能好（无分栏渲染开销）
+- 启用 +childframe +icons 标志（=init.el= 第 29 行）：~vertico +childframe +icons~
+
+**拼音搜索集成**
+
+在第 796-805 行定义 ~my/orderless-regexp-pinyin~，在 ~orderless-regexp~ 上加 :filter-return advice：
+
+- 仅对纯 ASCII 字母、长度 <10 的输入触发拼音展开
+- 防止超大正则导致的 "Regular expression too big" 错误
+- ~evil-pinyin-mode~ 全局开启
+
+#+BEGIN_SRC emacs-lisp
+(defun my/orderless-regexp-pinyin (regex)
+  (if (and (bound-and-true-p evil-pinyin-mode)
+           (stringp regex)
+           (not (string-empty-p regex))
+           (string-match-p "\\`[a-zA-Z]+\\'" regex)
+           (< (length regex) 10))
+      (evil-pinyin--build-regexp-string regex)
+    regex))
+(advice-add #'orderless-regexp :filter-return #'my/orderless-regexp-pinyin)
+#+END_SRC
 
 * Consequences
 
 **正面**
 
-- 启动快：corfu 默认 `:defer t`，vertico 在 `doom-first-input-hook` 后加载
-- 层次清晰：corfu=补全、vertico=选择、orderless=过滤、consult=搜索、embark=操作
-- 拼音搜索支持（见 [[file:../i18n/evil-pinyin.org][i18n/evil-pinyin]]）
+- **启动快**：corfu 默认 ~:defer t~，vertico 在 ~doom-first-input-hook~ 后加载
+- **层次清晰**：corfu=补全、vertico=选择、orderless=过滤、consult=搜索、embark=操作
+- **拼音搜索支持**（见 i18n/evil-pinyin.org）
+- **dabbrev 原生集成**：不需要额外配置 ~company-dabbrev~ 或 ~cape~ 包
+- **拼音 guard**：~my/orderless-regexp-pinyin~ 的 length/char-class guard 防止恶意大正则导致的性能问题
 
 **负面**
 
 - corfu child frame 在终端 Emacs (tty) 中退化为 overlay（功能正常但视觉效果不同）
-- corfu 不支持 company 的 `company-dabbrev` `company-yasnippet` 等后备——需要使用 cape 包提供
+- ~+dabbrev~ 只提供缓冲区补全，不提供 ~company-yasnippet~ 式的片段补全——需要 ~cape~ 包或手动配置 ~yasnippet~ 集成
+
+**后续考虑**
+
+- 如果 ~cape~ 包成熟，可考虑添加 ~cape-yasnippet~ 作为命令补全源
+- ~corfu-terminal~ 包可改善 tty 体验
 
 * 参考
 
-- ~/.config/doom/init.el 第 25-29 行
-- ~/.config/doom/config.el 第 756-768 行（orderless + evil-pinyin 集成）
+- =init.el= 第 25 行（~corfu +orderless +dabbrev~ 模块声明）
+- =init.el= 第 29 行（~vertico +childframe +icons~ 模块声明）
+- ~$DOOMDIR/config.el~ 第 788-812 行（orderless + evil-pinyin + ace-pinyin 集成）

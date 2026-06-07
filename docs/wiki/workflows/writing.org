@@ -1,42 +1,186 @@
 #+TITLE: 写作工作流
 
+* 概述
+
+完整的写作工作流从灵感捕捉到最终导出，覆盖小说、散文、学术写作等场景。
+系统围绕 Org mode 组织，辅以 Denote（笔记管理）、Olivetti（专注写作）、
+Palimpsest（文本搬移）、Super-save（自动保存）和多种导出后端。
+
 * 阶段 1：灵感捕捉
 
-**方法 A：Org Capture**
+写作始于一个想法、一段对话、或一个突发灵感。有两个入口：
+
+** 方法 A：Org Capture（小说创意）
+
+适合：带元数据结构的灵感记录
 
 ~SPC X w~（~M-x org-capture~ → 选择 ~w~ 模板）
-- 弹出迷你编辑窗口
-- 填写标题、来源、人物、情绪、备注
-- ~C-c C-c~ 保存 → 存入 ~/org/novel-inbox.org~
 
-**方法 B：Denote Fleeting Note**
+弹出 capture 窗口，填写：
 
-~SPC r d n~（~M-x denote~）
-- 输入标题
-- 选择关键词
-- Denote 自动命名文件、存入 ~/org/denote/~
+| 字段 | 说明 | 快捷键 |
+|------+------+--------|
+| 标题 | 创意标题 | ~C-c C-c~ 保存 |
+| 标签 | Org 标签（~:tag1:tag2:~） | ~C-c C-c~ 保存 |
+| Source | 灵感来源（URL/书名/聊天） | ~C-c C-c~ 保存 |
+| Character | 关联人物 | ~C-c C-c~ 保存 |
+| Mood | 情绪基调 | ~C-c C-c~ 保存 |
+| Notes | 详细备注 | ~C-c C-c~ 保存 |
+
+保存后存入 ~~/org/novel-inbox.org~ 的 ~Inspiration inbox~ 标题下。
+
+模板定义：
+#+BEGIN_SRC emacs-lisp
+(add-to-list 'org-capture-templates
+             '("w" "Novel idea" entry
+               (file+headline "~/org/novel-inbox.org" "Inspiration inbox")
+               "* %^{Title} :%^g\n  :PROPERTIES:\n  :CREATED: %U\n  :Source: %^{Source}\n  :Character: %^{Character}\n  :Mood: %^{Mood}\n  :Notes: %^{Notes}\n  :END:\n\n  %?\n  - From: %a"
+               :prepend t
+               :empty-lines 1))
+#+END_SRC
+
+** 方法 B：Denote Fleeting Note
+
+适合：省去模板结构，快速备注
+
+~SPC r d n~（~M-x denote~）→ 输入标题 → 选关键词 → 自动命名文件存入 ~~/org/denote/~
 
 * 阶段 2：展开与写作
 
-1. 在 ~/org/novel-inbox.org~ 中打开一条灵感 → ~C-c C-w~ 归档到 Denote 笔记
-2. 或者用 ~denote-org-extract-org-subtree~（~SPC m D x~）将子标题拆为独立笔记
-3. 正式写作：
+** 从灵感到草稿
 
-- **专注模式**：Olivetti 自动开启（~org-mode-hook~），居中 + 隐藏 mode-line + 隐藏行号
-- **自动保存**：Super-save idle 时自动保存
-- **搬移文本**：选中 → ~SPC m P t/b/T~
-- **字数统计**：~SPC r n c~
+将 capture 的灵感转为正式笔记：
+
+1. 打开 ~~/org/novel-inbox.org~ → 找到灵感条目
+2. ~C-c C-w~（~org-archive-subtree~）→ 归档到正式的 Denote 笔记
+3. 或者 ~SPC m D x~（~denote-org-extract-org-subtree~）→ 将子标题拆为独立笔记
+
+** 写作环境
+
+| 特性 | 激活方式 | 效果 |
+|------+----------+------|
+| Olivetti | ~org-mode-hook~ 自动开启 | 居中对齐（宽 100 字符）、隐藏 mode-line |
+| 行号 | Olivetti 开启时自动关闭 | 减少视觉噪音 |
+| Variable-pitch | ~writeroom-mode-hook~ → ~mixed-pitch-mode~ | 散文等宽 vs 比例字体混合 |
+| 自动保存 | ~super-save-mode~（~doom-first-file~ 时开启） | 空闲时自动保存、去尾部空白 |
+| 搬移文本 | ~SPC m P t/b/T~（Palimpsest） | 移动到顶部/底部/回收文件 |
+| 字数统计 | ~SPC r n c~ / ~M-=~ / ~SPC r n w~ | CJK + 英文综合统计 |
+| Modeline 统计 | ~SPC r n s~（~my/writing-stats-mode~） | 实时显示中/英/标点计数 |
+
+** Palimpsest 文本搬移
+
+在写作过程中，有些段落你可能想暂时搁置而非删除：
+- ~SPC m P t~：移至缓冲区顶部（视野外）
+- ~SPC m P b~：移到底部
+- ~SPC m P T~：移至回收文件（~<basename>.trash.<ext>~）
+
+这让你可以大胆删改 — 后悔了还能从回收文件找回。
+
+** Super-save 细节
+
+#+BEGIN_SRC emacs-lisp
+(use-package! super-save
+  :hook ((doom-first-file . super-save-mode))
+  :custom
+  (super-save-auto-save-when-idle t)        ; 空闲时自动保存
+  (super-save-silent t)                     ; 不输出消息
+  (super-save-when-focus-lost nil)          ; 不要焦点事件触发
+  (super-save-when-buffer-switched nil)     ; 不要切换 buffer 触发
+  (super-save-delete-trailing-whitespace    ; 保存时去尾部空白
+   'except-current-line))
+#+END_SRC
 
 * 阶段 3：导出
 
-| 目标格式 | 方法 | 配置 |
-|----------+------+------|
-| PDF (LaTeX) | ~SPC m e l p~ | ctexbook 类、XeLaTeX、latexmk |
-| docx (Word) | ~SPC m e p d~ | Pandoc、参考模板、Lua filter |
-| HTML | ~SPC m e h h~ | Minimal CSS 主题 |
-| Markdown | ~SPC m e m m~ | Pandoc Markdown |
+支持四种导出路径，通过 Org 的导出框架调用：
+
+** PDF（LaTeX + XeLaTeX + latexmk）
+
+~SPC m e l p~ 或 ~C-c C-e l p~
+
+- 使用自定义 ~ctexbook~ LaTeX 类（详见 ~modules/ctexbook-org.cls~）
+- XeLaTeX 引擎 — 原生支持中文、OpenType 字体
+- latexmk 自动执行多次编译（处理目录/交叉引用）
+- 自定义标题格式化：TODO 关键字带颜色、~\\texorpdfstring~ 包装
+- 代码高亮使用 minted（需 pygments）
+- 源映射输出目录（~-output-directory=%%o~）
+
+#+BEGIN_SRC emacs-lisp
+(let* ((modules-dir (expand-file-name "modules" doom-user-dir))
+       (cmd (concat "env TEXINPUTS=%s//: latexmk -xelatex -shell-escape "
+                    "-interaction=nonstopmode -f -output-directory=%%o %%f")))
+  (setq org-latex-pdf-process (list cmd)))
+#+END_SRC
+
+共享导出选项通过 ~#+SETUPFILE: ~/org/.export-settings~ 统一管理。
+
+** docx（Word，Pandoc）
+
+~SPC m e p d~
+
+- 使用自定义参考模板（~pandoc/templates/template-default.docx~）
+- Lua filter（~pandoc/markdown-to-docx.lua~）进行后处理
+- 适合提交给不使用 LaTeX 的编辑/合作者
+
+** HTML
+
+~SPC m e h h~
+
+- 不使用 org 默认的 HTML 样式（~org-html-head-include-default-style nil~）
+- 自定义 CSS（~org/export/minimal/css/~）：整洁的类打印布局
+- 零 JavaScript（除非启用了实时预览）
+- CSS 文件：
+  - ~org.css~：主样式
+  - ~htmlize.css~：代码高亮样式
+
+** Markdown（Pandoc）
+
+~SPC m e m m~
+
+- 通过 Pandoc 导出为 GFM 风格 Markdown
+- 适合发布到博客/论坛等平台
+
+** 实时预览
+
+~M-x my/org-live-preview~ → 启动 HTTP 服务器 + 浏览器实时预览
+
+- 每次 ~C-x C-s~ 后浏览器自动刷新
+- Python 3 + SSE 机制
+- 使用相同的 HTML 导出 CSS
+- 再次执行关闭
 
 * 阶段 4：版本管理
 
-~SPC g g~ → ~magit-status~ → 编写 commit → ~C-c C-c~ 提交。
-~my/denote-git-auto-commit~ 确保新笔记即使忘了手动提交也保留历史。
+写作完成后，使用 Magit 管理版本：
+
+~SPC g g~ → ~magit-status~ → 编写 commit → ~C-c C-c~ 提交
+
+自动安全网的两种方式：
+
+| 方式 | 说明 | 触发 |
+|------+------+------|
+| Denote Git 自动提交 | 每次创建笔记时自动 ~git commit~ | ~denote-after-new-note-hook~ |
+| Super-save | 空闲时自动写入文件 | idle timer |
+| Magit 手动提交 | 精细控制 commit message | 写作阶段结束时 |
+
+* 完整流程图解
+
+```
+灵感 (Capture/Denote)
+     │
+     ▼
+novel-inbox.org ──→ 归档/拆分为 Denote 笔记
+     │                    │
+     ▼                    ▼
+  Olivetti (专注写作)   Palimpsest (搬移)
+  Super-save (自动保存)   Count (字数统计)
+     │
+     ▼
+  导出 ──→ PDF (LaTeX) ──→ 印刷/提交
+     │    ─→ docx (Word) ──→ 编辑/合作
+     │    ─→ HTML ──→ 网页发布
+     │    ─→ Markdown ──→ 博客/论坛
+     │
+     ▼
+  Magit commit → Git 历史
+```

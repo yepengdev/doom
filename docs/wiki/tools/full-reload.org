@@ -1,60 +1,135 @@
-#+TITLE: my/doom-full-reload
+#+TITLE: Full Reload & Byte Compile
 
 * 用途
 
-比 ~doom/reload~ 更彻底的配置重载。适用于 ~config.el~ 修改后快速应用。
-注意：不适用于 ~init.el~ / ~packages.el~ 修改（那些需要 ~doom sync~）。
+Doom Emacs 的 ~doom/reload~（~SPC h r r~）仅重新求值 ~config.el~，但在以下场景
+中不够彻底：
 
-* 绑定
+- 修改了 ~packages.el~（新增包声明）后 → 需要 ~doom/reload-packages~
+- 修改了自动加载文件（~autoload.el~ 等）后 → 需要 ~doom/reload-autoloads~
+- 切换了主题/字体后 → ~doom/reload~ 不会重新触发它们
+- 修改了 ~cli.el~ 或自定义模块的 ~config.el~ 后 → 需要编译或重新加载
 
-~SPC h r R~
+本配置文件提供两个工具：
+- ~my/doom-full-reload~（~SPC h r R~）：比 ~doom/reload~ 更彻底的完整重载
+- ~my/byte-compile-config~：手动编译所有配置 ~.el~ 文件
 
-* 实现
+注意：两者都不适用于 ~init.el~ 修改 — 那需要 ~doom sync~。
+
+* 完整重载：my/doom-full-reload
+
+** 绑定
+
+~SPC h r R~（大写 R，区别于小写 r 的 ~doom/reload~）
+
+** 实现
 
 #+BEGIN_SRC emacs-lisp
+(after! doom
+  (add-hook 'doom-after-reload-hook #'my/doom-full-reload--apply))
+
 (defun my/doom-full-reload--apply (&rest _)
+  "在 doom/reload 后重新应用主题和字体。"
   (my/theme-apply (my/theme-for-hour))
   (when (fboundp 'doom/reload-font)
     (doom/reload-font))
-  (when (daemonp)
-    (dolist (frame (frame-list))
-      (when (display-graphic-p frame)
-        (with-selected-frame frame
-          (run-hooks 'server-after-make-frame-hook)))))
-  (when (fboundp 'doom--startup-loaddefs-doom)
-    (ignore-errors (doom--startup-loaddefs-doom)))
-  (message "Full reload complete (config + theme + font + frames)"))
+  (message "Full reload complete (config + theme + font)"))
 
 (defun my/doom-full-reload ()
+  "重新加载自动加载、包和配置。
+绑定到 SPC h r R。"
   (interactive)
   (when (fboundp 'doom/reload-autoloads)
-    (ignore-errors (doom/reload-autoloads)))
+    (with-demoted-errors "Full reload: %S" (doom/reload-autoloads)))
   (when (fboundp 'doom/reload-packages)
-    (ignore-errors (doom/reload-packages)))
+    (with-demoted-errors "Full reload: %S" (doom/reload-packages)))
   (when (fboundp 'doom/reload)
-    (ignore-errors
-      (add-hook 'doom-after-reload-hook #'my/doom-full-reload--apply)
-      (doom/reload))))
+    (with-demoted-errors "Full reload: %S" (doom/reload))))
+
+(map! :leader
+      :desc "Full reload" "h r R" #'my/doom-full-reload)
 #+END_SRC
 
-* 步骤分解
+** 步骤分解
 
 | 步骤 | 函数 | 作用 |
 |------+------+------|
-| 1 | ~doom/reload-autoloads~ | 重新扫描 autoloads（检测新增文件） |
-| 2 | ~doom/reload-packages~ | 重新加载 ~packages.el~（检测新包） |
-| 3 | ~doom/reload~ | 重新加载 ~config.el~ |
+| 1 | ~doom/reload-autoloads~ | 重新扫描 autoloads（检测新增的命令/宏） |
+| 2 | ~doom/reload-packages~ | 重新求值 ~packages.el~（检测新包声明） |
+| 3 | ~doom/reload~ | 重新求值 ~config.el~（核心配置） |
 | 4a | ~my/theme-apply~ | 重新应用主题（~doom/reload~ 不会自动做） |
-| 4b | ~doom/reload-font~ | 重新应用字体 |
-| 4c | ~server-after-make-frame-hook~ | 重新运行 frame 初始化钩子 |
-| 4d | ~doom--startup-loaddefs-doom~ | 重新加载模块的 autoloads |
+| 4b | ~doom/reload-font~ | 重新应用字体设置 |
 
-* 为什么需要这个
+** 为什么需要这个
 
-~doom/reload~ 只重新 evaluate ~config.el~，但：
-- 不会重载 autoloads（新模块命令不识别）
-- 不会重载 packages（新包不加载）
-- 不会重新触发 ~doom-switch-frame-hook~（主题、字体、spacious-padding 不生效）
-- 不会重新运行 frame 初始化（daemon 模式下 frame 相关设置丢失）
+~doom/reload~ 的不足：
 
-~my/doom-full-reload~ 填补所有这些缺口。
+| 场景 | ~doom/reload~ | ~my/doom-full-reload~ |
+|------+---------------+---------------+-----------------------|
+| 修改 ~config.el~ | ✓ 重新加载 | ✓ |
+| 新增 ~autoload.el~ 函数 | ✗ 不识别 | ✓ 重新扫描 |
+| 修改 ~packages.el~ | ✗ 不加载 | ✓ 重新求值 |
+| 切换主题 | ✗ 不应用 | ✓ 重新应用 |
+| 切换字体 | ✗ 不变 | ✓ 重新加载 |
+
+** 变更历史
+
+旧版本（inline hook 模式）将 ~my/doom-full-reload--apply~ 动态添加到
+~doom-after-reload-hook~ 中，但重复调用会导致 hook 累积。当前版本在顶层
+（~after! doom~ 中）一次性注册，安全幂等。
+
+* 字节编译：my/byte-compile-config
+
+** 用途
+
+手动编译所有配置 ~.el~ 文件为 ~.elc~ 字节码，提升下次启动速度。
+当前会话继续用源码，下次启动自动加载编译后的 ~.elc~ 版本。
+
+** 实现
+
+#+BEGIN_SRC emacs-lisp
+;;;###autoload
+(defun my/byte-compile-config ()
+  "编译 config.el + cli.el + 所有自定义模块 config.el。"
+  (interactive)
+  (let ((files (list (expand-file-name "config.el" doom-user-dir)))
+        (cli (expand-file-name "cli.el" doom-user-dir)))
+    (dolist (f (doom-module-locate-paths (doom-module-list) "config.el"))
+      (push f files))
+    (when (file-exists-p cli) (push cli files))
+    (dolist (file (delete-dups (mapcar #'file-truename files)))
+      (when (file-in-directory-p file doom-user-dir)
+        (let ((elc (byte-compile-dest-file file)))
+          (unless (and (file-exists-p elc)
+                       (not (file-newer-than-p-file file elc)))
+            (byte-compile-file file)))))))
+#+END_SRC
+
+** 编译范围
+
+| 文件 | 说明 |
+|------+------|
+| ~$DOOMDIR/config.el~ | 主配置文件 |
+| ~$DOOMDIR/cli.el~ | CLI 钩子文件（如存在） |
+| ~$DOOMDIR/modules/*/*/config.el~ | 所有自定义 Doom 模块配置 |
+
+跳过已是最新的 ~.elc~（基于时间戳比较）。范围自动限于 ~doom-user-dir~ 内。
+
+*** 与 native-comp 的关系
+
+~native-comp-speed 2~ 处理的是运行时 ~*.eln~ 编译，而 ~my/byte-compile-config~
+处理的是 ~*.elc~ 字节码。两者互补：
+
+- 字节码（~.elc~）：加速 Emacs 加载文件的速度
+- 原生编译（~.eln~）：加速运行时函数执行速度
+- 本配置两者都启用
+
+* 何时使用哪个
+
+| 场景 | 命令 |
+|------+------|
+| 修改了 ~config.el~（键绑定、设置） | ~M-x doom/reload~（~SPC h r r~） |
+| 新增了一个 ~my/*~ 函数（autoload） | ~M-x my/doom-full-reload~（~SPC h r R~） |
+| 修改了 ~packages.el~ | ~M-x my/doom-full-reload~ 然后 ~doom sync~ |
+| 想加速下次启动 | ~M-x my/byte-compile-config~ |
+| 修改了 ~init.el~ | ~doom sync~（唯一方式） |

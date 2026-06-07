@@ -1,7 +1,7 @@
 #+TITLE: Org 基础设置与 Capture
 #+STARTUP: overview
 
-* 目录
+* 目录结构
 
 #+BEGIN_SRC emacs-lisp
 (setq org-directory "~/org/")
@@ -23,11 +23,17 @@
              '(sequence "DRAFT(R)" "REVIEW(r)" "|" "CANCELLED(C)") t)
 #+END_SRC
 
-流程：~DRAFT~(R) → ~REVIEW~(r) → ~DONE~（默认） / ~CANCELLED~(c)
+工作流（三态 + 终止态）：
 
-~|~ 是分隔标记，右侧的关键词（~CANCELLED~）不可直接转为 ~DONE~。
+| 状态 | 快捷键 | 含义 | 后续流向 |
+|------+--------+------+----------|
+| ~DRAFT~ | ~R~ | 草稿撰写中 | → REVIEW / CANCELLED |
+| ~REVIEW~ | ~r~ | 等待编辑审校 | → DONE / CANCELLED |
+| ~CANCELLED~ | ~C~ | 放弃/搁置 | 终止态（分隔符 ~|~ 右侧） |
 
-~R~ / ~r~ / ~C~ 是快捷键字母。
+- ~|~ 是分隔标记，右侧关键词（~CANCELLED~）不可直接转为 ~DONE~
+- 快捷键字母继承自 Evil 的 ~R~/~r~（调用 ~org-todo~ 时的输入）
+- 默认 ~DONE~ 状态仍有效（~C-c C-t~ 或 ~SPC m t~）
 
 * Capture 模板：小说灵感
 
@@ -35,36 +41,40 @@
 (add-to-list 'org-capture-templates
              '("w" "Novel idea" entry
                (file+headline "~/org/novel-inbox.org" "Inspiration inbox")
-               "* %^{Title} :%^g\n
-  :PROPERTIES:\n
-  :CREATED: %U\n
-  :Source: %^{Source}\n
-  :Character: %^{Character}\n
-  :Mood: %^{Mood}\n
-  :Notes: %^{Notes}\n
-  :END:\n\n
-  %?\n
-  - From: %a"
+               "* %^{Title} :%^g\n  :PROPERTIES:\n  :CREATED: %U\n  :Source: %^{Source}\n  :Character: %^{Character}\n  :Mood: %^{Mood}\n  :Notes: %^{Notes}\n  :END:\n\n  %?\n  - From: %a"
                :prepend t
                :empty-lines 1))
 #+END_SRC
 
-- 按键 ~w~ → ~SPC X w~
-- 目标：~/org/novel-inbox.org~ 的 ~Inspiration inbox~ 标题下
+- 按键 ~w~ → ~SPC X w~（Doom 的 capture 快捷键）
+- 目标文件：~/org/novel-inbox.org，目标标题：~Inspiration inbox~
 - ~:prepend t~ → 新条目插在顶部（最新最前）
-- 字段：Title、Source、Character、Mood、Notes
-- ~%U~ → 创建时间戳（带时区）
-- ~%a~ → 来源上下文（调用 capture 时的 buffer/位置）
-- ~%?~ → capture 后光标位置
+- ~:empty-lines 1~ → 条目之间空一行
+
+** 模板字段说明
+
+| 模板语法 | 提示词 | 输出 |
+|----------+--------+------|
+| ~%^{Title}~ | 输入框 "Title" | 条目标题 |
+| ~%^g~ | 输入标签 | 以 ~:~ 分隔的标签 |
+| ~%U~ | 自动 | 带时区的时间戳 |
+| ~%^{Source}~ | 输入框 "Source" | 来源说明 |
+| ~%^{Character}~ | 输入框 "Character" | 涉及角色 |
+| ~%^{Mood}~ | 输入框 "Mood" | 情绪基调 |
+| ~%^{Notes}~ | 输入框 "Notes" | 补充备注 |
+| ~%a~ | 自动 | 调用 capture 时的位置链接 |
+| ~%?~ | 自动 | capture 结束后光标位置 |
 
 * 辅助函数：~org-capture-goto-target~
 
 #+BEGIN_SRC emacs-lisp
 (defun org-capture-goto-target (&optional template-key)
+  "跳转到捕获模板的目标位置而不实际执行捕获。
+在提交前预览捕获会落在哪里时很有用。"
   (interactive)
   (require 'org-capture)
   (let ((entry (org-capture-select-template template-key)))
-    (unless entry (error "No capture template selected"))
+    (unless entry (error "No capture template selected — use C-u to specify a template key"))
     (org-capture-set-plist entry)
     (org-capture-set-target-location)
     (pop-to-buffer-same-window (org-capture-get :buffer))
@@ -72,11 +82,97 @@
 #+END_SRC
 
 ~org-capture-goto-target~ 模拟 capture 的定位过程但不创建条目，用于：
-- 预览 capture 目标位置
-- 在目标文件追加内容
+- 预览 capture 目标位置（检查文件/标题是否存在）
+- 直接跳转到目标文件追加内容
 - 调试 capture 模板路径
 
-* 其他设置
+调用方式：~M-x org-capture-goto-target~，可选 ~C-u~ 指定模板快捷键。
 
-- ~org-hide-emphasis-markers~ = t（~*bold*~ 等标记隐藏，只显示效果）
-- ~.html~ / ~.xhtml~ 关联 ~xdg-open~（外部浏览器打开）
+* 其他 Org 设置
+
+#+BEGIN_SRC emacs-lisp
+(setq org-hide-emphasis-markers t)
+(add-to-list 'org-file-apps '("\\.x?html?\\'" . "xdg-open %s"))
+#+END_SRC
+
+- ~org-hide-emphasis-markers~ = t：隐藏 ~=~、~*~、~~~ 等标记，字体化效果（斜体/粗体/等宽）仍保留
+- ~.html~ / ~.xhtml~ 关联 ~xdg-open~：Org 链接时外部浏览器打开，而非 Emacs 内建 shr/eww
+
+* 外部 URL 打开
+
+#+BEGIN_SRC emacs-lisp
+(setq browse-url-browser-function #'browse-url-xdg-open)
+#+END_SRC
+
+所有 Org 链接（~C-c C-o~）和 ~browse-url~ 调用使用系统默认浏览器。
+
+** niri WM 焦点修复
+
+Wayland 下的 ~xdg-open~ 打开浏览器后不会自动将焦点切换到新窗口。以下函数在打开 URL 后
+通过 niri IPC 主动切焦。
+
+#+BEGIN_SRC emacs-lisp
+(defun my/niri-focus-by-app-id (app-id)
+  (let ((data (shell-command-to-string "niri msg --json windows")))
+    (when (and data (not (string-empty-p data)))
+      (let* ((json-object-type 'plist)
+             (json-array-type 'list)
+             (windows (json-read-from-string data))
+             (match (seq-find (lambda (w) (equal (plist-get w :app_id) app-id))
+                              windows))
+             (id (and match (plist-get match :id))))
+        (when id
+          (call-process "niri" nil 0 nil
+                        "msg" "action" "focus-window"
+                        "--id" (format "%d" id)))))))
+
+(defun my/open-url-and-focus (url)
+  (interactive (list (read-string "URL: ")))
+  (let ((process-connection-type nil))
+    (start-process "xdg-open" nil "xdg-open" url)
+    (run-at-time 0.4 nil
+                 (lambda ()
+                   (my/niri-focus-by-app-id "brave-browser")))))
+(setq +lookup-open-url-fn #'my/open-url-and-focus)
+#+END_SRC
+
+** 自定义搜索引擎
+
+追加到默认 Google/Wikipedia 等之后。
+
+#+BEGIN_SRC emacs-lisp
+(setq +lookup-provider-url-alist
+      (append +lookup-provider-url-alist
+              '(("Bing"         "https://www.bing.com/search?q=%s")
+                ("Bilibili"     "https://search.bilibili.com/all?keyword=%s")
+                ("Douyin"       "https://www.douyin.com/search/%s")
+                ("Emacs China"  "https://emacs-china.org/search?q=%s")
+                ("Emacs Wiki"   "https://emacswiki.org/emacs?search=%s")
+                ("知乎"          "https://www.zhihu.com/search?type=content&q=%s")
+                ("术语在线"      "https://www.termonline.cn/search?k=%s")
+                ("求闻百科"      "https://www.qiuwenbaike.cn/index.php?search=%s"))))
+#+END_SRC
+
+调用：~SPC s o~（+lookup/online），输入关键词后选择引擎。
+
+* SETUPFILE：共享导出选项
+
+所有导出相关的 Org 文件通过以下设置集中管理共享选项：
+
+#+begin_example
+#+SETUPFILE: ~/org/.export-settings
+#+end_example
+
+SETUPFILE 内容（~/org/.export-settings）：
+
+#+BEGIN_SRC text
+#+LATEX_CLASS: ctexbook
+#+LANGUAGE: zh-CN
+#+EXCLUDE_TAGS: noexport
+#+OPTIONS: toc:nil num:nil ^:nil tags:nil pri:nil author:nil email:nil creator:nil H:5
+#+END_SRC
+
+- ~#+LATEX_CLASS: ctexbook~ → LaTeX 导出使用自定义 ctexbook 类
+- ~#+LANGUAGE: zh-CN~ → 语言标记（影响 Pandoc 的 locale 和 LaTeX 的 babel/polyglossia）
+- ~#+EXCLUDE_TAGS: noexport~ → 标记 ~:noexport:~ 的子树在导出中完全不可见，可在写作文件中保留注释/草稿而不污染输出
+- ~#+OPTIONS: ...~ → 无目录、无章节编号、无 ^ 转义、无标签/优先级/作者/邮箱/创建者

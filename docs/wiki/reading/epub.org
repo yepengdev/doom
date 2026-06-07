@@ -1,38 +1,80 @@
 #+TITLE: EPUB 阅读 (nov.el)
+#+STARTUP: overview
 
 * 用途
 
-在 Emacs 中阅读 EPUB 文件，无需离开编辑器。
+在 Emacs 中阅读 EPUB 文件，无需离开编辑器。通过 nov.el 将 EPUB 渲染为带样式的 HTML，
+配合 visual-line-mode + variable-pitch-mode + olivetti-mode 获得接近电子书阅读器的体验。
 
 * 配置
 
 #+BEGIN_SRC emacs-lisp
 (use-package! nov
   :mode ("\\.epub\\'" . nov-mode)
-  :hook ((nov-mode . visual-line-mode)
-         (nov-mode . variable-pitch-mode)
-         (nov-mode . (lambda () (hl-line-mode -1))))
+  :init
+  (add-hook 'nov-mode-hook #'visual-line-mode)
+  (add-hook 'nov-mode-hook #'variable-pitch-mode)
+  (add-hook 'nov-mode-hook (lambda () (hl-line-mode -1)))
   :custom
   (nov-text-width t)
   (nov-variable-pitch-mode t)
   (nov-save-place-file (concat doom-cache-dir "nov-places"))
   :config
   (add-hook 'nov-mode-hook #'olivetti-mode)
-  (add-hook 'nov-mode-hook #'(lambda () (setq-local adaptive-fill-mode nil))))
+  (defun my/nov-disable-adaptive-fill ()
+    (setq-local adaptive-fill-mode nil))
+  (add-hook 'nov-mode-hook #'my/nov-disable-adaptive-fill))
 #+END_SRC
 
 * Hook 链
 
-EPUB 打开触发：~nov-mode → visual-line-mode → variable-pitch-mode → hl-line-mode -1 → olivetti-mode~
+EPUB 文件打开时按顺序触发以下 hook 链：
 
-| Hook | 用途 |
-|------+------|
-| ~visual-line-mode~ | 软折行（按窗口宽度自动换行） |
-| ~variable-pitch-mode~ | 比例字体（阅读更舒适 vs 等宽） |
-| ~hl-line-mode -1~ | 阅读时不需要高亮当前行 |
-| ~olivetti-mode~ | 居中正文（width=100，隐藏 mode-line） |
+#+begin_example
+nov-mode → visual-line-mode → variable-pitch-mode → hl-line-mode -1
+         → olivetti-mode → my/nov-disable-adaptive-fill
+#+end_example
 
-* 阅读进度
+| Hook                     | 用途                             |
+|--------------------------+----------------------------------|
+| ~nov-mode~               | 文件类型关联（~.epub~ → nov）    |
+| ~visual-line-mode~       | 软折行（按窗口宽度自动换行）      |
+| ~variable-pitch-mode~    | 比例字体（阅读更舒适 vs 等宽）    |
+| ~hl-line-mode -1~        | 阅读时不需要高亮当前行            |
+| ~olivetti-mode~          | 居中正文（width=100，隐藏 mode-line） |
+| ~my/nov-disable-adaptive-fill~ | 禁用自适应填充（nov 的 HTML 渲染不需要） |
 
-~nov-save-place-file~ 保存到 ~doom-cache-dir/nov-places~，下次打开同一 EPUB 时
-自动跳转到上次位置。
+* 设置说明
+
+| 选项                              | 值      | 说明                                     |
+|-----------------------------------+---------+------------------------------------------|
+| ~nov-text-width~                  | ~t~     | 限制文本宽度（不铺满全屏）                 |
+| ~nov-variable-pitch-mode~         | ~t~     | EPUB 内部启用 variable-pitch（比例字体）  |
+| ~nov-save-place-file~             | ~doom-cache-dir/nov-places~ | 保存阅读位置到持久文件       |
+
+* 阅读位置持久化
+
+~nov-save-place-file~ 保存阅读位置到 ~doom-cache-dir/nov-places~。
+
+- 每本书的当前章节 + 滚动位置记录在此文件中
+- 下次打开同一 EPUB 时自动跳转到上次位置
+- 使用 ~doom-cache-dir~（即 ~/.config/emacs/.local/cache/nov-places~）而非用户目录，避免污染 ~$HOME~
+
+* Olivetti 交互细节
+
+~olivetti-mode~ 在 ~:config~ 中添加（而非 ~:init~ 的 hook 列表），因为 ~:init~ 中的 hook
+在包加载前注册，而 ~:config~ 中的 hook 在包加载后注册 — 二者效果相同。
+
+Olivetti 同时禁用行号（通过 ~my/olivetti-toggle-line-numbers-h~，定义在 ~config.el~
+的全局 olivetti 配置中），为 EPUB 提供干净的阅读界面。
+
+* adaptive-fill 问题
+
+nov.el 的 HTML 渲染缓冲区不需要 Emacs 的 ~adaptive-fill~ 机制（自动填充/对齐）。
+保留 ~adaptive-fill-mode~ 可能导致 nov 的 HTML 文本中的列表/引用的填充异常。
+
+~my/nov-disable-adaptive-fill~ 是一个命名函数（而非 lambda），作用：
+
+1. 易于调试 — ~C-h f my/nov-disable-adaptive-fill~ 可查看
+2. 可安全地从 hook 中移除
+3. 使用 ~setq-local~（而非 ~setq~）将更改限制在当前 nov 缓冲区

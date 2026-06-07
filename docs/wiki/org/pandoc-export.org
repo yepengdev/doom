@@ -4,6 +4,7 @@
 * 用途
 
 将 Org 文件导出为 Microsoft Word (.docx) 格式，用于与不使用 LaTeX/Org 的协作者交换文稿。
+通过 Pandoc 管线实现：Org → Markdown → (reference-doc + Lua filter) → docx。
 
 * 资源目录
 
@@ -11,7 +12,7 @@
 (defvar my/pandoc-dir (expand-file-name "pandoc" doom-user-dir))
 #+END_SRC
 
-所有 Pandoc 资源位于 ~/.config/doom/pandoc/~。
+所有 Pandoc 资源位于此目录下（模板、Lua 过滤器）。
 
 * 默认配置
 
@@ -19,47 +20,77 @@
 (after! ox-pandoc
   (setq org-pandoc-options-for-docx
         `((reference-doc . ,(expand-file-name
-                             "templates/template_标题不编号-列表第二行顶格.docx"
+                             "templates/template-default.docx"
                              my/pandoc-dir))
           (lua-filter . ,(expand-file-name "markdown-to-docx.lua" my/pandoc-dir)))))
 #+END_SRC
 
-- 参考文档（reference-doc）：docx 模板，pandoc 从中提取样式定义
-- Lua filter：pandoc 的 lua 过滤器管线入口
+- ~reference-doc~：docx 样式模板，pandoc 从中提取段落/字符样式定义
+- ~lua-filter~：pandoc 的 Lua 过滤器管线入口，用于后处理 Markdown → docx 的中间 AST
 
-* 模板清单
+* SETUPFILE
 
-~pandoc/templates/~ 下 7 个模板：
+所有导出的 Org 文件通过 ~#+SETUPFILE: ~/org/.export-settings~ 继承共享选项：
 
-| 模板 | 特点 | 适用场景 |
-|------+------+----------|
-| ~template_sci论文-标题不编号~ | 学术论文风格，无编号 | 论文 |
-| ~template_sci论文-标题编号~ | 编号 | 论文 |
-| ~template_标题不编号-列表第二行缩进~ | 无编号、缩进 | 一般写作 |
-| ~template_标题不编号-列表第二行顶格-无首行缩进~ | 无编号、顶格、无首行缩进 | 公文 |
-| ~template_标题不编号-列表第二行顶格~ | ★ 默认：无编号、顶格 | 一般写作 |
-| ~template_标题编号-列表第二行缩进~ | 编号、缩进 | 技术文档 |
-| ~template_标题编号-列表第二行顶格~ | 编号、顶格 | 技术文档 |
+#+BEGIN_SRC text
+#+LATEX_CLASS: ctexbook
+#+LANGUAGE: zh-CN
+#+EXCLUDE_TAGS: noexport
+#+OPTIONS: toc:nil num:nil ^:nil tags:nil pri:nil author:nil email:nil creator:nil H:5
+#+END_SRC
+
+- ~:noexport:~ 标签：标记为 ~:noexport:~ 的子树在导出（含 Pandoc docx）中完全不可见。
+  用于在写作文件中保留注释、备选段落、草稿片段而不污染输出。
 
 * Lua Filter 管线
 
-~markdown-to-docx.lua~ 调用 ~pandoc/lua/~ 下的子过滤器：
+入口文件 ~markdown-to-docx.lua~ 调用 ~pandoc/lua/~ 下的子过滤器：
 
 | 过滤器 | 作用 |
 |--------+------|
-| ~add-inline-code.lua~ | 内联代码格式处理 |
+| ~add-inline-code.lua~ | 内联代码格式处理（保留等宽字体） |
 | ~image-title-to-caption.lua~ | 图片标题转为 Word 题注 |
 | ~image-title-to-caption-add-number.lua~ | 同上 + 自动编号 |
-| ~markdown-html-recognition.lua~ | 识别 Markdown 中的 HTML |
-| ~preserve-font-color.lua~ | 保留字色 |
+| ~markdown-html-recognition.lua~ | 识别 Markdown 中的 HTML 标签（翻译成 docx 元素） |
+| ~preserve-font-color.lua~ | 保留字色（~font color=~） |
 
-* 切换模板
+过滤器串联在 pandoc 的 Lua filter 管线中，按顺序依次处理 AST。
 
-~C-u C-c C-e~ 进入导出菜单，选择 Pandoc → docx。或在 ~SPC m e~
-导出菜单中临时修改 ~org-pandoc-options-for-docx~ 中的 ~reference-doc~。
+* 参考文档模板
+
+~pandoc/templates/~ 下预设 7 个 docx 模板，默认使用 ~template-default.docx~：
+
+| 模板 | 特点 | 适用场景 |
+|------+------+----------|
+| ~template-default.docx~ | ★ 默认：无编号、列表第二行顶格 | 一般写作 |
+| ~template-sci-no-number.docx~ | 学术论文风格，无编号 | 论文 |
+| ~template-sci-numbered.docx~ | 学术论文风格，编号 | 论文 |
+| ~template-no-number-indent.docx~ | 无编号、列表第二行缩进 | 一般写作 |
+| ~template-no-number-flush-noindent.docx~ | 无编号、顶格、无首行缩进 | 公文 |
+| ~template-numbered-flush.docx~ | 编号、列表第二行顶格 | 技术文档 |
+| ~template-numbered-indent.docx~ | 编号、列表第二行缩进 | 技术文档 |
+
+切换模板：修改 ~org-pandoc-options-for-docx~ 中的 ~reference-doc~，或在导出时
+通过 ~C-u C-c C-e~ 临时指定。
+
+* 导出流程
+
+#+BEGIN_SRC text
+Org file
+  │  C-c C-e p d  (Pandoc → docx)
+  ▼
+ox-pandoc  (Org → Markdown)
+  │
+  ▼
+Pandoc  (Markdown → docx)
+  │  --reference-doc=template-default.docx
+  │  --lua-filter=markdown-to-docx.lua
+  ▼
+Output.docx
+#+END_SRC
 
 * 依赖
 
-- Pandoc（系统安装）
+- Pandoc（系统安装，~pandoc~ 命令）
 - Lua（pandoc 内置，无需额外安装）
-- Lua filter 所需的 lua 库（~pandoc/lua/~）
+- Lua filter 所需的子过滤器（~org/pandoc/lua/~）

@@ -5,11 +5,10 @@
 #+BEGIN_SRC emacs-lisp
 (use-package! denote
   :after-call doom-first-buffer-hook
-  :hook
-  (dired-mode . denote-dired-mode-in-directories)
-  (text-mode . denote-fontify-links-mode)
+  :hook ((dired-mode . denote-dired-mode-in-directories)
+         (text-mode . denote-fontify-links-mode))
   :custom
-  (denote-directory (expand-file-name "~/org/denote"))
+  (denote-directory "~/org/denote")
   (denote-dired-directories (list denote-directory))
   (denote-dired-directories-include-subdirectories t)
   (denote-known-keywords '("创作" "学习" "工作" "生活" "技术" "思考" "索引"))
@@ -20,25 +19,48 @@
   (denote-save-buffers nil)
   (denote-rename-confirmations '(rewrite-front-matter modify-file-name))
   (denote-link-description-format "%t")
-  ;; ...
-  )
+  :init
+  ;; keybindings (see denote-keybindings.org)
+  :config
+  (denote-rename-buffer-mode 1))
 #+END_SRC
 
 * 配置项详解
 
 | 选项 | 值 | 说明 |
 |------+-----+------|
-| ~denote-directory~ | ~/org/denote/ | 笔记根目录 |
-| ~denote-known-keywords~ | ~'("创作" "学习" "工作" "生活" "技术" "思考" "索引")~ | 预定义关键词，minibuffer 补全用 |
-| ~denote-infer-keywords~ | t | 从文件名推断关键词（如果文件名含 ~__思考~，自动添加思考标签） |
-| ~denote-sort-keywords~ | t | 关键词按字母排序（多关键词文件命名一致） |
-| ~denote-prompts~ | ~'(title keywords)~ | 新建笔记时提示顺序：先输标题，再选关键词 |
-| ~denote-date-prompt-use-org-read-date~ | t | 指定日期时使用 Org 的日历选择 |
-| ~denote-save-buffers~ | nil | 创建后不自动 ~save-buffer~（由 super-save 负责） |
-| ~denote-rename-confirmations~ | ~'(rewrite-front-matter modify-file-name)~ | 重命名时确认修改 front-matter 和文件名两部分 |
-| ~denote-link-description-format~ | ~"%t"~ | 链接的描述格式：~%t~ = 笔记标题，~%i~ = identifier，~%k~ = keywords |
+| ~denote-directory~ | ~"~/org/denote"~ (plain string, 无 ~expand-file-name~) | 笔记根目录，所有 Denote 笔记存放在此 |
+| ~denote-dired-directories~ | ~(list denote-directory)~ | Dired 中启用 ~denote-dired-mode~ 的目录列表 |
+| ~denote-dired-directories-include-subdirectories~ | ~t~ | 子目录也启用 ~denote-dired-mode~（如 journal 目录） |
+| ~denote-known-keywords~ | ~'("创作" "学习" "工作" "生活" "技术" "思考" "索引")~ | 预定义关键词列表，minibuffer 补全和 jieba 匹配用 |
+| ~denote-infer-keywords~ | ~t~ | 从文件名推断关键词：文件名含 ~__思考~ 时自动将"思考"加入文件关键词列表 |
+| ~denote-sort-keywords~ | ~t~ | 关键词按字母/汉字排序，保证多关键词文件命名一致 |
+| ~denote-prompts~ | ~'(title keywords)~ | 创建笔记时交互提示顺序：先输入标题，再选择关键词 |
+| ~denote-date-prompt-use-org-read-date~ | ~t~ | 使用 Org 的 ~org-read-date~ 日历选择日期，而非纯文本输入 |
+| ~denote-save-buffers~ | ~nil~ | 创建后不自动 ~save-buffer~（由 super-save 或其他机制负责保存） |
+| ~denote-rename-confirmations~ | ~'(rewrite-front-matter modify-file-name)~ | 重命名时逐一确认：先确认修改 front-matter 中的 ~#+title~ / ~#+filetags~，再确认修改文件名 |
+| ~denote-link-description-format~ | ~"%t"~ | 链接描述格式：~%t~ = 笔记标题，~%i~ = identifier（时间戳），~%k~ = 关键词 |
 
-* RENAME BUFFER
+* 加载时机
 
-~denote-rename-buffer-mode 1~ 让 Denote 文件的 buffer 名显示为笔记标题而非文件名，
-在多笔记打开时更容易识别。
+~:after-call doom-first-buffer-hook~：延迟加载，在 Emacs 首次进入 buffer 后才加载 denote，不影响启动速度。
+
+* Hook 启用
+
+- ~dired-mode . denote-dired-mode-in-directories~：在 ~denote-dired-directories~ 指定的目录中自动启用 ~denote-dired-mode~，新增 Denote 专用操作菜单
+- ~text-mode . denote-fontify-links-mode~：在 ~text-mode~ buffer 中高亮 Denote 链接（~denote:...~ 格式）
+
+* RENAME BUFFER 模式
+
+#+BEGIN_SRC emacs-lisp
+:config
+(denote-rename-buffer-mode 1)
+#+END_SRC
+
+启用 ~denote-rename-buffer-mode~ 后，Emacs buffer 名称显示为笔记标题而非文件名。
+
+例如：
+- 关闭时 buffer 名：~20240322T131856--读书笔记__思考.org~
+- 开启后 buffer 名：~读书笔记.org~
+
+在多笔记同时打开时极大提升辨识度。

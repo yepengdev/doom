@@ -1,14 +1,15 @@
-#+TITLE: Super-save 空闲保存
+#+TITLE: Super-save — 空闲自动保存
+#+STARTUP: overview
 
 * 用途
 
-空闲时自动保存缓冲区，替代手动 ~C-x C-s~，避免在 flow 状态中被保存动作打断。
+在空闲时自动将缓冲区保存到原文件，替代手动 ~C-x C-s~，避免在 flow 状态中被保存动作打断。与 Emacs 原生 auto-save（写到 ~#file#~ 崩溃恢复文件）互补。
 
 * 配置
 
 #+BEGIN_SRC emacs-lisp
 (use-package! super-save
-  :hook (doom-first-file . super-save-mode)
+  :hook ((doom-first-file . super-save-mode))
   :custom
   (super-save-auto-save-when-idle t)
   (super-save-silent t)
@@ -24,17 +25,39 @@
 
 | 选项 | 值 | 理由 |
 |------+-----+------|
-| ~doom-first-file~ | hook 触发点 | 用户打开第一个文件后才启用，不影响启动时性能 |
-| ~auto-save-when-idle~ | t | 空闲时自动保存，而非切换 buffer/焦点时 |
-| ~silent~ | t | 不在 minibuffer 中显示 "Saved" 消息 |
-| ~when-focus-lost~ | nil | 离开 Emacs 时不触发（避免在 emacsclient 中意外状态） |
-| ~when-buffer-switched~ | nil | 切换 buffer 时不触发 |
-| ~delete-trailing-whitespace~ | except-current-line | 保存时清理，但保留当前行（防止移动光标到行末的挫败感） |
-| ~super-save-predicates~ | + not buffer-read-only | 只读文件（如 magit 中的文件）不触发 |
+| ~doom-first-file~ | hook 触发点 | 用户打开第一个文件后启用，不影响 Emacs 启动性能。守护进程模式下，~doom-first-file-hook~ 在第一个 ~emacsclient~ 打开文件时触发。 |
+| ~super-save-auto-save-when-idle~ | t | 空闲时保存，而非切换 buffer 或窗口时。写作/编辑过程中切换 buffer 是常态，空闲触发更不打扰流程。 |
+| ~super-save-silent~ | t | 不在 minibuffer 中显示 "Saved" 消息 —— 减少视觉噪音。 |
+| ~super-save-when-focus-lost~ | nil | 离开 Emacs 窗口时不触发。（在 emacsclient 中 focus 切换频繁，会导致不必要的磁盘写入。） |
+| ~super-save-when-buffer-switched~ | nil | 切换到其他 buffer 时不触发。 |
+| ~super-save-delete-trailing-whitespace~ | ~'except-current-line~ | 保存时自动清理行尾空白，但保留当前行 —— 防止正在编辑的行末空格被删除导致的挫败感。 |
+| ~super-save-predicates~ | + ~(not buffer-read-only)~ | 只读缓冲区（如 magit diff、浏览 help 页面、elfeed 条目等）不触发保存。 |
 
 * 与原生 auto-save 的关系
 
-- ~auto-save-timeout~ = 30（原生 auto-save 在 30s 无操作后触发）
-- ~auto-save-interval~ = 300（原生 auto-save 在 300 次击键后触发）
-- super-save 在 idle 时触发 ~save-buffer~（而非 ~auto-save-buffer~），保存到原文件
-- 两者互补：原生负责 crash 恢复（~#file#~），super-save 负责日常持久化
+| 机制 | 文件 | 触发条件 | 用途 |
+|------+------+----------+------|
+| Emacs ~auto-save~ | ~#file#~ | ~auto-save-timeout~ 30s / ~auto-save-interval~ 300 keys | 崩溃恢复 |
+| Super-save | 原文件 | Emacs 空闲时 | 日常持久化 |
+
+~auto-save-timeout~ 和 ~auto-save-interval~ 由 config.el 顶层设置：
+
+#+BEGIN_SRC emacs-lisp
+(setq auto-save-timeout 30
+      auto-save-interval 300)
+#+END_SRC
+
+两者互补而非冲突：~auto-save~ 负责操作系统崩溃的恢复（写入 ~#file#~），super-save 负责将更改持久化到原文件（~save-buffer~）。
+
+* ~super-save-predicates~ 详解
+
+~super-save-predicates~ 是一个函数列表，每个函数接受当前 buffer 并返回非 nil 以允许保存。添加到列表末尾的 ~(lambda () (not buffer-read-only))~ 意味着：
+
+- ~buffer-read-only~ 为 t 的 buffer（magit、help-mode、dired 等）不会自动保存。
+- 这比使用 ~super-save-allowed-buffers~ 更精确 —— 可以动态适配任何 major-mode。
+- 注意：如果某个 major-mode 在 ~buffer-list-update-hook~ 中设置 ~buffer-read-only~ 为 t，则 super-save 会正确跳过。
+
+* 与其他配置文件的互动
+
+- ~olivetti-mode~（[[file:olivetti.org][olivetti.org]]）和 ~palimpsest~（[[file:palimpsest.org][palimpsest.org]]）在写作流程中与 super-save 互补：olivetti 提供专注界面、palimpsest 提供搬移而非删除、super-save 确保数据不丢失。
+- 只读谓词特别重要：在 ~magit~ 中查看差异或在 ~dired~ 中导航时，super-save 不会错误地尝试保存，避免了 "Buffer is read-only" 错误消息（即使 super-save-silent 开启，错误仍会弹出）。

@@ -1,48 +1,120 @@
-#+TITLE: 笔记管理流
+#+TITLE: 笔记管理工作流
+
+* 概述
+
+笔记系统围绕 Denote（文件命名 + 元数据为核心的个人笔记系统）构建。
+所有笔记为纯文本 Org 文件，通过标识符（identifier）、关键词（keywords）和
+签名（signature）组织。全程 Git 版本管理。
 
 * 阶段 1：创建
 
-| 场景 | 方法 |
-|------+------|
-| 今日日记 | ~SPC r d j~ |
-| 知识笔记 | ~SPC r d n~ → 输入标题 + 选关键词 |
-| 指定日期 | ~C-u SPC r d d~ |
-| 序列笔记 | ~SPC r d s~ → 选父笔记 + 输入签名 |
-| 快速 fleeting note | ~SPC n n~ → Deft 目录 |
+| 场景 | 方法 | 键绑定 | 说明 |
+|------+------+--------+------|
+| 今日日记 | ~denote-journal-entry~ | ~SPC r d j~ | 自动用日期命名，可选关键词 |
+| 知识笔记 | ~denote~ | ~SPC r d n~ | 输入标题 + 选关键词 → 自动命名 |
+| 指定日期 | ~denote-date~ | ~C-u SPC r d d~ | 指定任意日期而非今天 |
+| 序列笔记 | ~denote-sequence~ | ~SPC r d s~ | 选父笔记 + 输入签名 → 自动递增序列号 |
+| 快速 fleeting | Deft | ~SPC n n~ | 打开 Deft 目录，~C-x C-f~ 创建新文件 |
+| 捕获模板 | Org Capture | ~SPC X w~ | 结构化灵感记录（见写作工作流） |
+
+** Denote 文件命名约定
+
+一条笔记的文件名格式：
+
+#+BEGIN_SRC text
+20260607T103000--my-note-title__keyword1_keyword2.org
+#+END_SRC
+
+| 部分 | 说明 | 示例 |
+|------+------+------|
+| 时间戳 | ISO 格式的创建时间 | ~20260607T103000~ |
+| 分隔符 | ~--~ | |
+| 标题 | Slug 化的标题 | ~my-note-title~ |
+| 分隔符 | ~__~ | |
+| 关键词 | 下划线连接的关键词 | ~keyword1_keyword2~ |
+| 扩展 | 固定为 ~.org~ | |
 
 * 阶段 2：链接与关联
 
-| 操作 | 方法 |
-|------+------|
-| 链接到已有笔记 | ~SPC r d i~ → 输入标题 |
-| 链接到标题级别 | ~SPC m D h~ → 选文件 → 选标题 |
-| 查看反向链接 | ~SPC m D b~ |
-| 查看标题级别反向链接 | ~SPC r d H~ |
+** 链接操作
+
+| 操作 | 键绑定 | 命令 | 说明 |
+|------+--------+------+------|
+| 链接到笔记 | ~SPC r d i~ | ~denote-org-link~ | 搜索标题 → 插入链接 |
+| 链接到标题 | ~SPC m D h~ | ~denote-org-link-to-heading~ | 选文件 → 选标题 → 链接 |
+| 反向链接 | ~SPC m D b~ | ~denote-org-backlinks~ | 显示指向当前文件的所有链接 |
+| 标题级反向链接 | ~SPC r d H~ | ~denote-org-backlinks-for-heading~ | 更精细的反向链接 |
+
+** 链接类型
+
+Denote 支持三种 Org 链接类型：
+
+| 类型 | 格式 | 链接到 |
+|------+------+--------|
+| 笔记链接 | ~denote:IDENTIFIER~ | 整篇笔记 |
+| 标题链接 | ~denote:IDENTIFIER::heading~ | 笔记内的标题 |
+| 自定义 ID | ~id:CUSTOM_ID~ | Org 自定义 ID 目标 |
 
 * 阶段 3：组织与分类
 
-| 方法 | 说明 |
-|------+------|
-| 关键词筛选 | ~SPC r d m~ → ~/ k~ |
-| 重命名关键词 | ~SPC r d k~ |
-| 按关键词/正则筛选 | ~SPC r d m~ → ~/ r~ ~/ k~ ~/ o~ |
-| 提取子树为独立笔记 | ~SPC m D x~ |
+** 关键词管理
+
+| 操作 | 键绑定 | 说明 |
+|------+--------+------|
+| 按关键词筛选 | ~SPC r d m~ → ~/ k~ | Denote Menu 中按关键词过滤 |
+| 重命名关键词 | ~SPC r d k~ | 批量重命名笔记中的某个关键词 |
+| 添加/移除关键词 | ~SPC r d K~ | 对单条或批量笔记操作 |
+
+** 子树提取
+
+~SPC m D x~（~denote-org-extract-org-subtree~）：
+将当前 Org 标题拆为独立的 Denote 笔记，原位置保留链接。
+
+适用于：当某个子主题在写作过程中发展得足够重要，值得成为独立笔记。
+
+** Denote Menu 筛选表达式
+
+~SPC r d m~ 打开 Denote Menu，支持多条件组合筛选：
+
+| 筛选 | 命令 | 说明 |
+|------+------+------|
+| ~/ r~ | ~denote-menu-filter-by-regexp~ | 正则匹配标题/内容 |
+| ~/ k~ | ~denote-menu-filter-by-keywords~ | 关键词交集筛选 |
+| ~/ K~ | ~denote-menu-filter-by-keywords-all~ | 关键词并集筛选 |
+| ~/ o~ | ~denote-menu-filter-by-prompts~ | 自定义 prompts 筛选 |
+| ~/ f~ | ~denote-menu-filter-by-file-type~ | 按文件类型筛选 |
+| ~/ d~ | ~denote-menu-filter-by-date~ | 按日期范围筛选 |
 
 * 阶段 4：发现与探索
 
-| 操作 | 说明 |
-|------+------|
-| ~SPC r d e c~ | 查看笔记总数 |
-| ~SPC r d e C~ | 关键词频次 |
-| ~SPC r d e r~ | 随机笔记（发现自己写过的但忘了的内容） |
-| ~SPC r d e n~ | d3.js 网络图 |
-| ~denote-menu-menu~ 筛选 | 符合条件的笔记列表 |
+| 操作 | 键绑定 | 命令 | 说明 |
+|------+--------+------+--------|
+| 笔记总数 | ~SPC r d e c~ | ~denote-explore-count-notes~ | 按文件类型统计 |
+| 关键词频次 | ~SPC r d e C~ | ~denote-explore-count-keywords~ | 关键词使用频率 |
+| 随机笔记 | ~SPC r d e r~ | ~denote-explore-random~ | 随机打开一条笔记 |
+| 网络图 | ~SPC r d e n~ | ~denote-explore-network~ | d3.js 交互式网络图 |
+| 词汇云 | ~SPC r d e w~ | ~denote-explore-keywords-wordcloud~ | 关键词词云 |
+
+这些工具帮你发现笔记间的潜在联系，回顾自己写过的但已经忘记的内容。
 
 * 阶段 5：维护
 
-| 操作 | 说明 |
-|------+------|
-| Git 自动提交 | 每次 ~denote-after-new-note-hook~ 自动 ~git commit~ |
-| 死链接检查 | ~denote-explore-check-dead-links~ |
-| 孤立笔记 | ~denote-explore-check-orphan-notes~ |
-| 重复 ID | ~denote-explore-check-duplicate-identifiers~ |
+** Git 版本管理
+
+Denote 笔记目录全程 Git 版本控制：
+
+| 操作 | 自动/手动 | 说明 |
+|------+-----------+------|
+| 新笔记提交 | 自动 | ~denote-after-new-note-hook~ → ~my/denote-git-auto-commit~ |
+| 手动提交 | 手动 | ~SPC g g~ → Magit |
+
+自动提交只在创建笔记时触发，后续编辑需要手动 Magit 管理。
+
+** 健康检查
+
+| 操作 | 命令 | 说明 |
+|------+------+------|
+| 死链接检查 | ~denote-explore-check-dead-links~ | 找出所有指向不存在的笔记的链接 |
+| 孤立笔记检查 | ~denote-explore-check-orphan-notes~ | 找出没有其他笔记链接的笔记 |
+| 重复 ID 检查 | ~denote-explore-check-duplicate-identifiers~ | 标识符冲突检测 |
+| 文件重命名 | ~denote-rename-file~ | 重命名笔记并更新所有链接 |

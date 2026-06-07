@@ -1,44 +1,170 @@
 #+TITLE: 已知问题与 Workaround
 
-* PDF org-noter arrow timer 错误
+* PDF org-noter + pdf-view-roll 箭头错误
 
-**现象**：org-noter 使用中不定期报错 ~org-noter-pdf--show-arrow~
+** 现象
 
-**原因**：~pdf-view-roll-minor-mode~ 改变了 PDF 页面的 overlay 机制，
-~org-noter-pdf--show-arrow~ 在页边界处访问了不正确的 overlay。
+~org-noter~ 使用中不定期报错：
 
-**Workaround**：~:around~ advice 静默捕获错误（config.el 第 691-693 行）。
+#+BEGIN_SRC text
+Error in post-command-hook (org-noter-pdf--show-arrow): (error "Wrong type argument: number-or-marker-p, nil")
+#+END_SRC
 
-* so-long 与 Org 大文件处理冲突
+错误非致命（指向的箭头仅在滚动页面时不显示），但会污染 ~*Messages*~ buffer。
 
-**现象**：大 Org 文件打开后仍然卡顿，或者 so-long 意外触发。
+** 原因
 
-**原因**：~so-long~ 是 Emacs 内置的大文件优化，但自定义的 ~my/org-maybe-disable-prettification~
-做了更精细的控制。
+- ~pdf-view-roll-minor-mode~ 改变了 PDF 页面的 overlay 机制
+- ~org-noter-pdf--show-arrow~ 在页边界处访问到不正确的 overlay
+- 根本原因：滚动模式维护了额外的页面缓存，org-noter 的箭头定位逻辑未考虑
+- 上游：需 org-noter-pdf 修复；尚无正式修复
 
-**Workaround**：禁用 so-long 在 org-mode 的触发（config.el 第 308-311 行）。
+** Workaround
 
-* denote-org-link-to-heading 绑定位置
+~:around~ advice 静默捕获 ~org-noter-pdf--show-arrow~ 的错误：
 
-**现象**：将 ~denote-org-link-to-heading~ 绑定到 ~SPC r d h~ 时报错 "Symbol's function definition is void"。
+#+BEGIN_SRC emacs-lisp
+(after! org-noter-pdf
+  (defadvice! +org-noter-pdf--show-arrow-a (orig-fn)
+    :around #'org-noter-pdf--show-arrow
+    (condition-case nil (funcall orig-fn) (error nil))))
+#+END_SRC
 
-**原因**：~denote-org-link-to-heading~ 在 ~denote-org.el~ 定义，如果绑定放在 ~use-package! denote~ 的 ~:init~
-中，此时 ~denote-org~ 尚未加载。
+此外需补全 ~pdf-view-current-overlay~ 对滚动模式的 overlay 支持：
 
-**Workaround**：将绑定移到 ~use-package! denote-org~ 的 ~:init~ 中（config.el 第 609-614 行）。
+#+BEGIN_SRC emacs-lisp
+(after! org-noter-pdf
+  (defun pdf-view-current-overlay (&optional window)
+    (or (image-mode-window-get 'overlay window)
+        (when (and (bound-and-true-p pdf-view-roll-minor-mode)
+                   (fboundp 'pdf-roll-page-overlay))
+          (condition-case nil
+              (pdf-roll-page-overlay (pdf-view-current-page) window)
+            (error nil))))))
+#+END_SRC
 
-* corfu child frame 在 tty 中退化
+** 何时移除
 
-**现象**：终端 Emacs 中 corfu 弹窗不是浮动 child frame，而是 overlay。
+当 upstream org-noter-pdf 正式支持 ~pdf-view-roll-minor-mode~ 后。
 
-**原因**：终端不支持 child frame。这是 corfu 的设计限制，属于正常退化行为。
+* ispell 补全 setting-constant 错误
 
-**Workaround**：无需处理，功能正常。如果在意视觉效果，可在终端中使用 company 而非 corfu。
+** 现象
+
+在 ~text-mode~ 或其他文本缓冲区中输入时，~*Messages~* 中出现：
+
+#+BEGIN_SRC text
+Error (use-package): corfu--debug ... (setting-constant nil) ...
+#+END_SRC
+
+~M-x doctor~ 也可能触发 ~(setting-constant nil)~ 错误。
+
+** 原因
+
+- Emacs 29+ 自动在 ~text-mode~ 缓冲区启用 ~ispell-completion-at-point~
+- 当 ~LC_CTYPE~ 为 ~zh_CN.UTF-8~ 时，ispell 找不到 ~zh_CN~ 字典
+- Doom 的 ~:checkers spell~ 模块未启用，但有 ~:completion corfu~，
+  Corfu 会尝试调用所有 ~completion-at-point-functions~
+- 虽然 Doom 有错误处理，但 ~corfu--debug~ 仍会先打印错误
+
+** Workaround
+
+#+BEGIN_SRC emacs-lisp
+(after! text-mode
+  (setq text-mode-ispell-word-completion nil)
+  (remove-hook 'completion-at-point-functions #'ispell-completion-at-point))
+#+END_SRC
+
+强制设置字典（即使不启用拼写检查也设置，防止 ispell 猜测）：
+#+BEGIN_SRC emacs-lisp
+(setq ispell-dictionary "en_US")
+#+END_SRC
+
+* so-long 与自定义 Org 大文件处理冲突
+
+** 现象
+
+大型 Org 文件（≥1 MiB）打开后仍然卡顿，或 ~so-long~ 意外触发并覆盖
+自定义美化禁用逻辑。
+
+** 原因
+
+- ~so-long~ 是 Emacs 27+ 内置的大文件全局优化模式，自动检测长行并禁用
+  所有次要模式
+- 自定义的 ~my/org-maybe-disable-prettification~ 做了更精细的 Org 专用
+  美化禁用（保留语法高亮，只去掉性能开销大的装饰）
+- 两者同时生效时，~so-long~ 可能先于自定义 hook 运行，产生冲突
+
+** Workaround
+
+禁用 ~so-long~ 在 org-mode 的触发，完全由自定义函数接管：
+
+#+BEGIN_SRC emacs-lisp
+(after! so-long
+  (setq so-long-predicate
+        (lambda () (and (not (derived-mode-p 'org-mode))
+                        (doom-so-long-p)))))
+#+END_SRC
+
+自定义禁用策略（~my/org-maybe-disable-prettification~）：
+- 禁用：~org-modern-mode~、~org-appear-mode~、~org-indent-mode~
+- 禁用：~prettify-symbols-mode~、~variable-pitch-mode~、~olivetti-mode~
+- 重置：字体化变量、~org-hide-leading-stars~、~org-ellipsis~
+
+* Large Org 文件字体化性能
+
+** 现象
+
+~600 KiB~ / ~5000 行~ / ~50 个标题~ 左右的 Org 文件在 2022 年笔记本 CPU 上
+已可能出现数秒的 ~font-lock~ 暂停。
+
+** 原因
+
+Org-mode 的 font-lock 关键字数量远多于其他模式：
+- TODO / DONE / 优先级 face
+- 引用块、诗句块、标题面
+- ~org-modern~ 的覆盖层（额外 face 和 composition）
+- ~prettify-symbols~ 每个符号插入都触发正则匹配
+
+** Workaround
+
+见上文 ~so-long~ 冲突的处理。阈值可通过 ~my/org-large-file-size-threshold~ 调整。
+
+* CJK 字体在 terminal 下退化
+
+** 现象
+
+在终端（~emacsclient -t~）中，CJK 字体使用终端的字体设置，而非 Emacs 的
+~set-fontset-font~ 设置。
+
+** 原因
+
+- 终端 Emacs 不处理图形字体渲染，完全依赖终端模拟器
+- ~set-fontset-font~ 仅在 GUI 模式下生效
+
+** Workaround
+
+无 Emacs 侧的解决方案。确保终端模拟器字体包含 CJK 覆盖：
+- kitty：~font_family~ 设置中文字体
+- Alacritty：~font.family~ + ~font.offset~ 确保 CJK 字符宽度一致
+- foot：~font~ 使用包含 CJK 的字体
 
 * LaTeX 导出 inputenc 警告
 
-**现象**：Org → LaTeX 导出时日志中出现 "inputenc 包不存在" 的警告。
+** 现象
 
-**原因**：主动移除了 ~inputenc~（XeLaTeX 不需要）。这是正常行为。
+Org → LaTeX 导出时日志中出现：
 
-**Workaround**：无需处理。参见 [[file:../org/latex-export.org][org/latex-export]] 了解移除理由。
+#+BEGIN_SRC text
+Package inputenc Warning: inputenc package not loaded
+#+END_SRC
+
+** 原因
+
+主动移除了 ~inputenc~ 包 — XeLaTeX 原生使用 UTF-8，不需要 ~inputenc~。
+详见 [[file:../org/latex-export.org][org/latex-export]]。
+
+** Workaround
+
+无需处理。这是正常行为，不影响 PDF 输出。如果想消除日志噪音，
+可配置 latexmk 忽略该警告。

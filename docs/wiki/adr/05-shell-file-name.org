@@ -1,44 +1,56 @@
 #+TITLE: ADR-05: shell-file-name=bash 但 vterm-shell=fish
-#+DATE: 2024
+#+DATE: 2024-01-01
+#+UPDATED: 2026-06-07
 #+STATUS: accepted
 
 * Context
 
-Zsh/Fish 等现代 shell 有 POSIX 兼容问题。Emacs 内部使用 `shell-file-name` 执行
-~shell-command~、~compile~、进程通信等；而交互式终端 (~vterm~、~M-x shell~)
-的用户体验应该用用户偏好的 shell。
+Zsh/Fish 等现代 shell 有 POSIX 兼容问题。Emacs 内部使用 ~shell-file-name~ 执行 ~shell-command~、~compile~、进程通信等；而交互式终端（~vterm~、~M-x shell~）的用户体验应该用用户偏好的 shell。
 
 * Decision
 
-双 shell 策略：
+双 shell 策略，使用 ~executable-find~ 做安全性 guard（~$DOOMDIR/config.el~ 第 168-171 行）：
 
 #+BEGIN_SRC emacs-lisp
 ;; 内部命令 → bash（POSIX 兼容）
 (setq shell-file-name (executable-find "bash"))
 
 ;; 交互终端 → fish（用户友好）
-(setq-default vterm-shell "/usr/bin/fish")
-(setq-default explicit-shell-file-name "/usr/bin/fish")
+(when-let ((fish (executable-find "fish")))
+  (setq-default vterm-shell fish
+                explicit-shell-file-name fish))
 #+END_SRC
 
-- ~shell-file-name~：Emacs 的 ~call-process~、~shell-command~ (~M-!~) 等使用
-- ~vterm-shell~：~vterm~ 启动的 shell
-- ~explicit-shell-file-name~：~M-x shell~ 启动的 shell
+**目的**：
+
+- ~shell-file-name~：Emacs 的 ~call-process~、~shell-command~（~M-!~）、~compile~ 等使用 bash。确保 POSIX 兼容性，避免 fish 的语法差异（如 ~export FOO=bar~ vs ~set -x FOO bar~、~if [ ... ]~ vs ~if test ...~）
+- ~vterm-shell~：~vterm~ 启动的 shell 用 fish，享受自动建议、语法高亮、web 搜索等 fish 特有的交互功能
+- ~explicit-shell-file-name~：~M-x shell~ 启动的 shell 也用 fish，与 vterm 体验一致
+
+**安全性**：
+
+使用 ~executable-find~ 而非硬编码路径（如 ~"/usr/bin/bash"~）：
+- 跨发行版兼容（bash/fish 可能安装在 ~/usr/local/bin~、~$HOME/.nix-profile/bin~ 等位置）
+- 不存在的 shell 路径不会导致错误：如果 fish 未安装，~when-let~ 条件为假，不设置 ~vterm-shell~
 
 * Consequences
 
 **正面**
 
-- ~M-!~ ~compile~ ~async-shell-command~ 等用 bash 执行，避免 fish 的语法差异
-  （如 ~export FOO=bar~ vs ~set -x FOO bar~、~if [ ... ]~ vs ~if test ...~）
+- ~M-!~、~compile~、~async-shell-command~ 等用 bash 执行，避免 fish 的语法差异
 - ~vterm~ 中用 fish，享受自动建议、语法高亮、web 搜索等 fish 特有的交互功能
 - ~M-x shell~ 中也用 fish（~explicit-shell-file-name~），用户一致体验
 
 **负面**
 
 - 初学者容易混淆：为什么 ~M-!~ 不能用 fish 语法？
-- 某些 Elisp 包假设 ~shell-file-name~ 是交互 shell
+- 某些 Elisp 包假设 ~shell-file-name~ 是交互 shell（例如 ~eshell~ 的某些扩展）
+
+**后续考虑**
+
+- 如果未来 ~shell-file-name~ 的 POSIX sh 兼容性不再必要（如所有 Emacs 包都适配了 fish），可统一使用 fish
+- ~executable-find~ 的 guard 模式可用于其他 shell 相关配置
 
 * 参考
 
-- ~/.config/doom/config.el 第 116-121 行
+- ~$DOOMDIR/config.el~ 第 167-173 行（完整配置：~shell-file-name~、~vterm-shell~、~explicit-shell-file-name~ + ~server-raise-frame~ 相关设置）

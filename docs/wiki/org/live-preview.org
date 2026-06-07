@@ -1,0 +1,226 @@
+#+TITLE: Org HTML 实时预览
+#+STARTUP: overview
+
+* 概述
+
+~my/org-live-mode~ 是一个 buffer-local minor mode，提供 Org 文件的 HTML 实时预览。
+保存文件后浏览器自动刷新，无需手动导出或切换窗口。
+
+调用方式：
+- ~M-x my/org-live-preview~ — 切换（启动/停止）当前 buffer 的实时预览
+- 再次执行同一命令即停止
+
+* 架构
+
+#+BEGIN_SRC text
+┌─────────────────────────────────────────────────────────┐
+│                     Emacs                               │
+│  ┌──────────┐   ┌──────────────┐   ┌─────────────────┐  │
+│  │ Org file │──→│ org-export   │──→│ index.html      │  │
+│  │ (edit)   │   │ to HTML      │   │ + CSS + script  │  │
+│  └────┬─────┘   └──────────────┘   └────────┬────────┘  │
+│       │ save                                │ touch     │
+│       ▼                                     │ .live     │
+│  ┌──────────┐                               │           │
+│  │ after-   │  ┌──────────────────────────┐ │           │
+│  │ save-hook│──│ my/org-live--on-save     │─┘           │
+│  └──────────┘  │ → re-export + touch .live │             │
+│                └──────────────────────────┘             │
+└─────────────────────────────────────────────────────────┘
+                          │
+                          │ HTTP / SSE
+                          ▼
+┌─────────────────────────────────────────────────────────┐
+│               Python server (127.0.0.1:PORT)             │
+│  ┌────────────────┐   ┌──────────────────────────────┐  │
+│  │ GET /          │   │ GET /live (SSE)             │  │
+│  │ → index.html  │   │ → poll .live mtime          │  │
+│  │   + CSS + JS  │   │ → mtime changed → push      │  │
+│  └────────────────┘   │   "data:reload"             │  │
+│                        └──────────────────────────────┘  │
+└─────────────────────────────────────────────────────────┘
+                          │
+                          ▼
+┌─────────────────────────────────────────────────────────┐
+│                    Browser                               │
+│  EventSource('/live') → onmessage → location.reload()   │
+└─────────────────────────────────────────────────────────┘
+#+END_SRC
+
+* 代码
+
+#+BEGIN_SRC emacs-lisp
+(defvar my/org-live--dir  nil)
+(defvar my/org-live--proc nil)
+(defvar my/org-live--url  nil)
+(defvar my/org-live-server-py
+  (expand-file-name "scripts/org-live-server.py" doom-user-dir))
+(defvar my/org-live-python
+  (or (executable-find "python3") (executable-find "python")))
+
+(define-minor-mode my/org-live-mode
+  "Org HTML 实时预览 minor mode。开启 → 导出 → 启动服务器 → 打开浏览器。
+关闭 → 清理进程和临时文件。"
+  :lighter " Live"
+  :global nil
+  (if my/org-live-mode
+      (my/org-live--open)
+    (my/org-live--close)))
+
+(defun my/org-live--open ()
+  (unless (derived-mode-p 'org-mode)
+    (setq my/org-live-mode nil)
+    (user-error "Not an Org buffer"))
+  (unless (file-exists-p my/org-live-server-py)
+    (setq my/org-live-mode nil)
+    (user-error "缺少 %s" my/org-live-server-py))
+  (unless my/org-live-python
+    (setq my/org-live-mode nil)
+    (user-error "Python 3 未找到"))
+  (let* ((dir (make-temp-file "org-live-" t))
+         (url (my/org-live--start-server dir)))
+    (setq my/org-live--dir dir
+          my/org-live--url url)
+    (my/org-live--export)
+    (add-hook 'after-save-hook #'my/org-live--on-save nil t)
+    (add-hook 'kill-buffer-hook #'my/org-live-mode nil t)
+    (browse-url url)
+    (message "🍅 Live preview: %s" url)))
+
+(defun my/org-live--close ()
+  (when my/org-live--proc
+    (delete-process my/org-live--proc)
+    (setq my/org-live--proc nil))
+  (when my/org-live--dir
+    (delete-directory my/org-live--dir t)
+    (setq my/org-live--dir nil))
+  (setq my/org-live--url nil)
+  (remove-hook 'after-save-hook #'my/org-live--on-save t)
+  (remove-hook 'kill-buffer-hook #'my/org-live-mode t)
+  (message "🍅 Live preview stopped"))
+
+(defun my/org-live-preview ()
+  "Toggle Org live preview."
+  (interactive)
+  (my/org-live-mode 'toggle))
+#+END_SRC
+
+* 保存时自动刷新
+
+#+BEGIN_SRC emacs-lisp
+(defun my/org-live--on-save ()
+  (when my/org-live--dir (my/org-live--export)))
+
+(defun my/org-live--export ()
+  (let ((output (expand-file-name "index.html" my/org-live--dir)))
+    (condition-case err
+        (progn
+          (org-export-to-file 'html output nil nil nil nil nil nil)
+          (my/org-live--copy-css output)
+          (my/org-live--fix-css-paths output)
+          (my/org-live--inject-script output)
+          (with-temp-file (expand-file-name ".live" my/org-live--dir)))
+      (error (message "🍅 Export failed: %s" (error-message-string err)) (ding)))))
+#+END_SRC
+
+导出步骤：
+1. ~org-export-to-file~ — Org → HTML（临时目录下的 ~index.html~）
+2. ~my/org-live--copy-css~ — 将 ~org-export-assets-dir/css/~ 复制到临时目录
+3. ~my/org-live--fix-css-paths~ — 将 CSS 绝对路径替换为相对路径 ~css/~
+4. ~my/org-live--inject-script~ — 在 ~</body>~ 前插入 SSE 客户端脚本
+5. ~touch .live~ — 更新 mtime，触发 SSE 推送 ~reload~ 事件
+
+* CSS 路径处理
+
+#+BEGIN_SRC emacs-lisp
+(defun my/org-live--copy-css (output)
+  (let ((dst (expand-file-name "css" (file-name-directory output)))
+        (src (expand-file-name "css" my/org-export-assets-dir)))
+    (when (and (file-exists-p src) (not (file-exists-p dst)))
+      (copy-directory src dst t t t))))
+
+(defun my/org-live--fix-css-paths (file)
+  (with-temp-buffer
+    (insert-file-contents file)
+    (goto-char (point-min))
+    (let ((abs-pat (concat "href=\""
+                           (regexp-quote
+                            (file-name-as-directory
+                             (expand-file-name "css" my/org-export-assets-dir))))))
+      (while (re-search-forward abs-pat nil t)
+        (replace-match "href=\"css/")))
+    (write-region (point-min) (point-max) file nil 'silent)))
+#+END_SRC
+
+由于 ~org-export~ 在 ~org-html-head~ 中使用了绝对路径（~file://~），实时预览时
+需要将 CSS 复制到临时目录，并将引用改为相对路径 ~css/~。
+
+* SSE 脚本注入
+
+#+BEGIN_SRC emacs-lisp
+(defun my/org-live--inject-script (file)
+  (with-temp-buffer
+    (insert-file-contents file)
+    (when (re-search-forward "</body>" nil t)
+      (goto-char (match-beginning 0))
+      (insert "<script>new EventSource('/live').onmessage=()=>location.reload()</script>")
+      (write-region (point-min) (point-max) file nil 'silent))))
+#+END_SRC
+
+注入的 ~<script>~ 在浏览器中创建 ~EventSource('/live')~ 连接。当服务器推送
+~data:reload~ 时调用 ~location.reload()~ 刷新页面。
+
+* Python 服务器
+
+#+BEGIN_SRC emacs-lisp
+(defun my/org-live--start-server (dir)
+  (let* ((buf (get-buffer-create "*org-live-httpd*"))
+         proc port)
+    (with-current-buffer buf (erase-buffer))
+    (setq proc (make-process
+                :name "org-live-httpd" :buffer buf :noquery t
+                :command (list my/org-live-python my/org-live-server-py "--dir" dir)
+                :connection-type 'pipe
+                :sentinel (lambda (p e)
+                            (when (and (not (process-live-p p)) (eq p my/org-live--proc))
+                              (setq my/org-live--proc nil
+                                    my/org-live--dir nil
+                                    my/org-live--url nil)
+                              (when my/org-live-mode
+                                (my/org-live-mode -1))
+                              (message "🍅 Live server stopped")))))
+    (setq my/org-live--proc proc)
+    (with-current-buffer buf
+      (while (and (process-live-p proc) (not port))
+        (accept-process-output proc 0.5)
+        (goto-char (point-min))
+        (when (re-search-forward "^PORT:\\([0-9]+\\)$" nil t)
+          (setq port (string-to-number (match-string 1)))))
+      (unless port
+        (delete-process proc)
+        (error "org-live-server failed: %s"
+               (truncate-string-to-width (buffer-string) 200 nil nil t))))
+    (format "http://127.0.0.1:%d/" port)))
+#+END_SRC
+
+服务器实现见 ~scripts/org-live-server.py~：
+- 侦听 ~127.0.0.1:0~（随机端口），在 stdout 输出 ~PORT:N~ 用于通信
+- ~GET /~ → 静态文件（~index.html~ + CSS）
+- ~GET /live~ → SSE 端点，轮询 ~.live~ 文件 mtime
+- 当 ~.live~ mtime 更新时推送 ~data:reload~
+- ~daemon_threads~ 使 SSE 连接不阻塞其他请求
+
+* 清理机制
+
+| 触发时机 | 清理内容 |
+|----------+----------|
+| ~my/org-live-mode~ 关闭 | 删除 Python 进程、删除临时目录、移除所有 hook |
+| buffer 被 kill | ~kill-buffer-hook~ 自动调用 ~my/org-live-mode~ |
+| Python 进程意外退出 | sentinel 检测到 ~process-live-p~ 为 false 后自动清理 |
+| ~after-save-hook~ | 仅在 ~my/org-live--dir~ 非 nil 时执行导出 |
+
+* 依赖
+
+- Python 3（~python3~ 或 ~python~）
+- ~scripts/org-live-server.py~（Doom 配置目录下的脚本）
+- ~my/org-export-assets-dir~（HTML 导出 CSS 主题）

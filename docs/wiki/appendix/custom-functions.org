@@ -1,49 +1,181 @@
 #+TITLE: 自定义函数索引
 
-| 函数 | 定义位置 | 用途 |
-|------+----------+------|
-| ~my/doom-full-reload~ | config.el | 完整重载配置 + 主题 + 字体 + frames |
-| ~my/doom-full-reload--apply~ | config.el | full-reload 的后置 hook |
-| ~my/theme-for-hour~ | config.el | 根据小时返回主题符号 |
-| ~my/theme-apply~ | config.el | 设置并刷新主题 |
-| ~my/theme-switch-maybe~ | config.el | 首次 frame 切换时自卸式检查主题 |
-| ~my/enable-spacious-padding--fn~ | config.el | 启用 spacious-padding（daemon-safe） |
-| ~my/dired-open-externally~ | config.el | 外部程序打开标记文件 |
-| ~my/deft-parse-title~ | config.el | 解析 Org 标题（大小写不敏感） |
-| ~my/denote-git-auto-commit~ | config.el | 笔记创建后自动 git commit |
-| ~my/org-latex-format-headline~ | config.el | 带颜色 /texorpdfstring 的 LaTeX 标题格式 |
-| ~my/org-maybe-disable-prettification~ | config.el | ≥1 MiB Org 文件关闭美化 |
-| ~my/count-chinese-chars~ | config.el | 中文字数统计（~SPC r n c~，C 模块） |
-| ~my/count-words~       | config.el | 中英综合统计（~M-=~，C 模块） |
-| ~my/word-count~        | config.el | 中英字数统计（~SPC r t w~，C 模块） |
-| ~my/timer-start~       | config.el | 倒计时器（~SPC r t t~） |
-| ~my/timer-stop~        | config.el | 停止计时器（~SPC r t T~） |
-| ~my/pomodoro-start~    | config.el | 开始番茄钟（~SPC r t s~） |
-| ~my/pomodoro-stop~     | config.el | 停止番茄钟（~SPC r t S~） |
-| ~my/pomodoro-show-stats~ | config.el | 番茄钟统计（~SPC r t v~） |
-| ~my/random-password~    | config.el | 生成随机密码并复制到剪贴板（~SPC r t p~，C 模块） |
-| ~random-password~       | random.so | C 函数：生成随机密码字符串（内核熵池） |
-| ~my/random-bytes~       | random.so | C 函数：返回 N 个随机字节 |
-| ~my/random-int~         | random.so | C 函数：返回 [0, N-1] 随机整数 |
-| ~my/random-in-range~    | random.so | C 函数：返回 [MIN, MAX] 随机整数 |
-| ~org-capture-goto-target~ | config.el | 跳转到 capture 模板目标位置 |
+* 说明
 
-* 变量
+本页面列出所有 ~my/*~ 前缀的自定义函数、变量和 minor mode，
+按模块分组。函数名后括号内为源代码定义的行号（近似）。
 
-| 变量 | 用途 |
-|------+------|
-| ~my/theme-day~ | 白天主题符号（~doom-one-light~） |
-| ~my/theme-night~ | 夜间主题符号（~doom-tokyo-night~） |
-| ~my/theme-day-start~ | 白天切换小时（7） |
-| ~my/theme-night-start~ | 夜间切换小时（19） |
-| ~my/enable-spacious-padding--done~ | ~spacious-padding~ 一次性 guard |
-| ~my/org-large-file-size-threshold~ | 大文件阈值（~1024*1024~） |
-| ~my/cjk-so~ | C 模块路径（~c-modules/count-cjk.so~） |
+C 模块提供的函数用 ~(so: c-module.so)~ 标注。
 
-  | ~my/cnotify-so~ | cnotify 模块路径（~c-modules/cnotify-module.so~） |
+* config.el
 
-  | ~my/random-so~ | random 模块路径（~c-modules/random.so~） |
-| ~my/pomodoro-log-file~ | 番茄钟日志文件路径 |
-| ~my/pomodoro-default-task~ | 默认番茄钟任务名 |
-| ~my/cnotify-indicator~ | 模式行计时器指示器字符串 |
-| ~my/cnotify-update-timer~ | 模式行刷新定时器 |
+** UI 相关
+
+| 函数/变量 | 用途 | 绑定 |
+|-----------+------+------|
+| ~my/theme-for-hour~ | 根据当前小时返回日/夜主题符号 | — |
+| ~my/theme-apply~ | 应用并刷新主题 | — |
+| ~my/theme-switch-maybe~ | ~doom-switch-frame-hook~ 上自动切换日/夜主题 | — |
+| ~my/enable-spacious-padding--fn~ | 首个图形帧上启用 ~spacious-padding-mode~ | — |
+| ~my/theme-day~ (const) | 日间主题符号（~doom-one-light~） | — |
+| ~my/theme-night~ (const) | 夜间主题符号（~doom-tokyo-night~） | — |
+| ~my/theme-day-start~ (const) | 日间切换小时（7） | — |
+| ~my/theme-night-start~ (const) | 夜间切换小时（19） | — |
+| ~my/enable-spacious-padding--done~ | ~spacious-padding~ 一次性 guard | — |
+
+** Org 写作
+
+| 函数/变量 | 用途 | 绑定 |
+|-----------+------+------|
+| ~my/olivetti-toggle-line-numbers-h~ | ~olivetti-mode~ 切换时自动开关行号 | ~olivetti-mode-hook~ |
+| ~my/org-maybe-disable-prettification~ | ≥1 MiB Org 文件禁用美化 | ~org-mode-hook~ |
+| ~my/org-large-file-size-threshold~ | 大文件阈值（1024*1024） | — |
+| ~my/org-live-mode~ (minor) | Org HTML 实时预览 minor mode | ~M-x my/org-live-preview~ |
+| ~my/org-live-preview~ | 开关 Org 实时预览 | ~M-x my/org-live-preview~ |
+| ~my/org-live--open~ | 开启实时预览服务器 | (内部) |
+| ~my/org-live--close~ | 关闭并清理 | (内部) |
+| ~my/org-live--export~ | 导出 HTML | (内部) |
+| ~my/org-live--copy-css~ | 复制 CSS 文件到输出目录 | (内部) |
+| ~my/org-live--fix-css-paths~ | 修正 HTML 中的 CSS 路径为相对路径 | (内部) |
+| ~my/org-live--inject-script~ | 注入 SSE 刷新脚本 | (内部) |
+| ~my/org-live--start-server~ | 启动 Python HTTP+SSE 服务器 | (内部) |
+| ~my/org-live--dir/proc/url~ | 实时预览内部状态变量 | (内部) |
+| ~my/org-live-server-py~ | 服务器脚本路径 | — |
+| ~my/org-live-python~ | Python 3 可执行文件路径 | — |
+| ~my/org-export-assets-dir~ | HTML 导出 CSS 资源目录 | — |
+| ~my/org-latex-format-headline~ | LaTeX 标题格式化（TODO/优先级带颜色） | ~org-latex-format-headline-function~ |
+| ~my/pandoc-dir~ | Pandoc 参考 docx 和 Lua 过滤器目录 | — |
+| ~org-capture-goto-target~ | 跳转到 capture 模板目标位置（非 ~my/*~） | ~M-x~ |
+
+** 阅读
+
+| 函数/变量 | 用途 | 绑定 |
+|-----------+------+------|
+| ~my/dired-open-externally~ | Dired 中用 OS 默认程序打开标记文件 | ~E~ in ~dired-mode-map~ |
+| ~my/nov-disable-adaptive-fill~ | Nov EPUB 阅读中禁用自适应填充 | ~nov-mode-hook~ |
+
+** 搜索 / 国际化
+
+| 函数/变量 | 用途 | 绑定 |
+|-----------+------+------|
+| ~my/niri-focus-by-app-id~ | 通过 niri IPC 按 ~app_id~ 聚焦窗口 | (内部) |
+| ~my/open-url-and-focus~ | xdg-open 浏览器后自动聚焦 niri 窗口 | ~+lookup-open-url-fn~ |
+| ~my/orderless-regexp-pinyin~ | ~orderless-regexp~ 的拼音模糊过滤器 | ~orderless-regexp~ advice |
+
+** 全面重载 / 工具
+
+| 函数/变量 | 用途 | 绑定 |
+|-----------+------+------|
+| ~my/doom-full-reload~ | 完整重载（autoloads + 包 + 配置 + 主题 + 字体） | ~SPC h r R~ |
+| ~my/doom-full-reload--apply~ | ~doom-after-reload-hook~ 后置处理器 | (hook) |
+| ~my/byte-compile-config~ | 编译 ~config.el~ + ~cli.el~ + 模块 ~config.el~ | ~M-x~ |
+
+* modules/tools/pomodoro/config.el
+
+| 函数/变量 | 用途 | 绑定 |
+|-----------+------+------|
+| ~my/cnotify--ensure~ | 惰性加载 ~cnotify-module.so~ | (内部) |
+| ~my/cnotify-so~ | cnotify .so 文件路径 | — |
+| ~my/cnotify-indicator~ | Modeline 倒计时指示器字符串 | ~mode-line-misc-info~ |
+| ~my/cnotify-update-timer~ | modeline 刷新定时器 | (内部) |
+| ~my/cnotify-refresh~ | 检查状态 + 更新 modeline 指示器 | (内部) |
+| ~my/cnotify-start-poll~ | 启动 modeline 轮询 | (内部) |
+| ~my/pomodoro-start~ | 开始番茄钟（25+5 分钟默认） | ~SPC r t s~ |
+| ~my/pomodoro-stop~ | 停止番茄钟 | ~SPC r t S~ |
+| ~my/pomodoro-show-stats~ | 显示番茄钟统计 | ~SPC r t v~ |
+| ~my/pomodoro-log-read~ | 读取番茄钟日志 | (内部) |
+| ~my/pomodoro-log-write~ | 写入番茄钟日志 | (内部) |
+| ~my/pomodoro-log-entry~ | 记录一个完成的番茄钟 | (内部) |
+| ~my/pomodoro-log-file~ | 日志文件路径 | — |
+| ~my/pomodoro-default-task~ | 默认任务名 | — |
+| ~my/pomodoro--prev-phase~ | 上一阶段缓存 | (内部) |
+| ~my/pomodoro--current-task~ | 当前任务名 | (内部) |
+| ~my/pomodoro--current-work-min~ | 当前工作时长 | (内部) |
+| ~my/timer-start~ | 开始自定义倒计时 | ~SPC r t t~ |
+| ~my/timer-stop~ | 停止计时器 | ~SPC r t T~ |
+| ~my/random--ensure~ | 惰性加载 ~random.so~ | (内部) |
+| ~my/random-so~ | random .so 文件路径 | — |
+| ~my/random-password~ | 生成随机密码（24 字符，复制到剪贴板） | ~SPC r t p~ |
+
+* modules/tools/cjk/config.el
+
+** 文档统计
+
+| 函数/变量 | 用途 | 绑定 |
+|-----------+------+------|
+| ~my/count-chinese-chars~ | 中文字数统计 | ~SPC r n c~ |
+| ~my/count-words~ | 中英综合字数统计 | ~M-=~ |
+| ~my/word-count~ | 中英字数统计（带 region 检测） | ~SPC r n w~ |
+| ~my/cjk-so~ | ~count-cjk.so~ 文件路径 | — |
+| ~my/cjk-src~ | ~count-cjk.c~ 源文件路径 | — |
+| ~my/cjk-module-outdated-p~ | 检查 .so 是否需要重新编译 | (内部) |
+| ~my/build-cjk-module~ | 重新编译并加载 C 模块 | ~SPC r n b~ |
+| ~my/load-cjk-module~ | 加载时检查过期/缺失 | ~my/load-cjk-module~ |
+| ~my/ensure-cjk-module~ | 确保 C 模块可用（自动编译） | (内部) |
+| ~my/--fmt-num~ | 大数字格式化（"1.23万""1.23亿"） | (内部) |
+
+** Modeline 实时写作统计
+
+| 函数/变量 | 用途 | 绑定 |
+|-----------+------+------|
+| ~my/writing-stats-mode~ (minor) | Modeline 实时写作统计开关 | ~SPC r n s~ |
+| ~my/writing-stats--refresh~ | 更新统计数据 | (内部, idle timer) |
+| ~my/writing-stats--str~ | 缓存统计字符串 (buffer-local) | (内部) |
+| ~my/writing-stats--timer~ | Idle timer | (内部) |
+| ~my/writing-stats--seg-added~ | 防止 ~doom-modeline~ 段重复添加 | (内部) |
+
+** 中文词典（萌典 + mapull）
+
+| 函数/变量 | 用途 | 绑定 |
+|-----------+------+------|
+| ~my/mapull-data-dir~ | mapull JSON 数据目录 | — |
+| ~my/mapull-db~ | mapull SQLite 数据库路径 | — |
+| ~my/moedict-db~ | 萌典 SQLite 数据库路径 | — |
+| ~my/mapull--base-url~ | mapull 原始数据下载 URL | — |
+| ~my/mapull--json-files~ | 需要下载的 mapull 文件列表 | — |
+| ~my/dict--faces~ | 词典渲染用 face alist | — |
+| ~my/mapull-import~ | 下载并导入 mapull 数据 | ~M-x my/mapull-import~ |
+| ~my/mapull--download-missing~ | 下载缺失的 mapull JSON | (内部) |
+| ~my/mapull--read-ndjson~ | 读取 NDJSON 文件 | (内部) |
+| ~my/mapull--import-char-base~ | 导入汉字基础数据 | (内部) |
+| ~my/mapull--import-char-detail~ | 导入汉字详细信息 | (内部) |
+| ~my/mapull--import-words~ | 导入词语数据 | (内部) |
+| ~my/mapull--import-idioms~ | 导入成语数据 | (内部) |
+| ~my/mapull--cjk-p~ | 判断字符串是否含中文 | (内部) |
+| ~my/mapull--fmt~ | 同 ~my/--fmt-num~ | (内部) |
+| ~my/mapull--moedict-query~ | 查询萌典数据库 | (内部) |
+| ~my/mapull--moedict-insert-row~ | 插入一行萌典查询结果到 buffer | (内部) |
+| ~my/mapull--open-db~ | 打开 mapull 数据库（自动导入） | (内部) |
+| ~my/mapull--query-char~ | 查询汉字档案 | (内部) |
+| ~my/mapull--query-words~ | 查询词语 | (内部) |
+| ~my/mapull--query-idioms~ | 查询成语 | (内部) |
+| ~my/dict--render-section~ | 渲染词典章节标题 | (内部) |
+| ~my/dict--render-char-archive~ | 渲染汉字档案 | (内部) |
+| ~my/dict--render-word-results~ | 渲染词语结果 | (内部) |
+| ~my/dict--render-idiom-results~ | 渲染成语结果 | (内部) |
+| ~my/dict--render~ | 词典主渲染函数 | (内部) |
+| ~my/+lookup-dictionary-definition-a~ | ~+lookup/dictionary-definition~ 的 advice | ~SPC o d~ / ~K~ |
+
+* C 模块（动态链接库）
+
+| 函数 | 所在模块 | 用途 | 签名 |
+|------+----------+------+------|
+| ~my/count-cjk~ | ~count-cjk.so~ | 返回 ~(汉字数 . 标点数)~ | ~(string) → cons~ |
+| ~my/count-text~ | ~count-cjk.so~ | 返回 ~[cjk punct en-words en-chars total]~ | ~(string) → vector~ |
+| ~random-password~ | ~random.so~ | 生成随机密码字符串 | ~(int length) → string~ |
+| ~cnotify-pomodoro-start~ | ~cnotify-module.so~ | 启动番茄钟（工作/休息分钟） | ~(int work int break)~ |
+| ~cnotify-pomodoro-stop~ | ~cnotify-module.so~ | 停止番茄钟 | ~()~ |
+| ~cnotify-timer-start~ | ~cnotify-module.so~ | 启动倒计时 | ~(int seconds string message)~ |
+| ~cnotify-timer-stop~ | ~cnotify-module.so~ | 停止倒计时 | ~()~ |
+| ~cnotify-poll-action~ | ~cnotify-module.so~ | 弹出通知（如有） | ~() → bool~ |
+| ~cnotify-status~ | ~cnotify-module.so~ | 查询状态 ~(remaining . phase)~ | ~() → cons~ |
+
+* 配置变量（非 ~my/*~ 但相关）
+
+| 变量 | 来源 | 用途 |
+|------+------+------|
+| ~doom-font~ | config.el | 主字体 ~Maple Mono NF 16~ |
+| ~doom-variable-pitch-font~ | config.el | 变宽字体 ~LXGW WenKai 16~ |
+| ~magit-diff-refine-hunk~ | config.el | 关闭 Magit 行内差异高亮 |
+| ~+lookup-provider-url-alist~ | config.el | 扩展在线搜索引擎列表 |
+| ~+lookup-open-url-fn~ | config.el | 自定义 URL 打开函数（niri 聚焦） |

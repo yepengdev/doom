@@ -1,0 +1,172 @@
+#+TITLE: Jieba 中文关键词自动推断
+
+* 用途
+
+每次创建新笔记时，自动用 jieba TF-IDF 提取正文中的中文关键词，
+与 ~denote-known-keywords~ 匹配，命中的关键词自动写入 front-matter 并重命名文件。
+实现"写完内容后自动打标签"的半自动化流程。
+
+* 配置
+
+#+BEGIN_SRC emacs-lisp
+(defun my/denote-jieba-infer-keywords ()
+  "用 jieba TF-IDF 提取关键词，与 `denote-known-keywords' 匹配后自动添加标签。
+若提取的关键词命中已知标签列表，则自动更新文件 front-matter。"
+  (when (and buffer-file-name
+             (derived-mode-p 'org-mode)
+             (require 'jieba-module nil t))
+    (condition-case nil
+        (let* ((text (buffer-string))
+               (top-kw (mapcar #'car (my/jieba-extract text 5)))
+               (existing (denote--file-keywords buffer-file-name))
+               (matched (seq-intersection top-kw
+                                          (append denote-known-keywords existing)
+                                          #'equal)))
+          (when matched
+            (denote-rename-file-keywords buffer-file-name
+                                         (delete-dups (append existing matched)))))
+      (error nil))))
+(add-hook 'denote-after-new-note-hook #'my/denote-jieba-infer-keywords 80)
+#+END_SRC
+
+* 流水线详解
+
+整个流程在 ~denote-after-new-note-hook~ 中运行，优先级 80（在 git auto-commit 之前执行）。
+
+#+BEGIN_SRC text
+[创建新笔记] → [denote-after-new-note-hook]
+                         |
+                   优先级 80: my/denote-jieba-infer-keywords
+                         |
+            ┌────────────┼────────────┐
+            v            v            v
+      buffer-file-name  org-mode   jieba-module
+         非空时继续     派生时继续    可用时继续
+            │            │            │
+            └────────────┴────────────┘
+                         |
+                    [TF-IDF 提取]
+                    (my/jieba-extract text 5)
+                         |
+                    top 5 关键词列表
+                         |
+                   ┌─────┴─────┐
+                   v           v
+           denote-known-keywords + existing keywords
+                       （并集）
+                         |
+                    seq-intersection
+                    (找到匹配的关键词)
+                         |
+                    如果有匹配
+                         |
+                    denote-rename-file-keywords
+                    (更新 front-matter + 文件名)
+                         |
+                    [含新关键词的笔记]
+#+END_SRC
+
+* 各步骤详解
+
+** 1. 守卫条件
+
+#+BEGIN_SRC emacs-lisp
+(when (and buffer-file-name
+           (derived-mode-p 'org-mode)
+           (require 'jieba-module nil t))
+#+END_SRC
+
+三个条件必须全部满足才执行：
+1. ~buffer-file-name~ 非 nil：文件已关联到磁盘
+2. ~(derived-mode-p 'org-mode)~：buffer 是 Org 模式（或其派生模式）
+3. ~(require 'jieba-module nil t)~：jieba 模块可用（~t~ 表示不报错，返回 nil 继续）
+
+** 2. TF-IDF 提取
+
+#+BEGIN_SRC emacs-lisp
+(let* ((text (buffer-string))
+       (top-kw (mapcar #'car (my/jieba-extract text 5)))
+#+END_SRC
+
+- ~(buffer-string)~：获取整个 buffer 的正文文本
+- ~my/jieba-extract~：调用 jieba 的 TF-IDF 关键词提取函数（定义在 ~modules/tools/cjk/config.el~ 中）
+- 提取 top 5 个关键词
+- ~mapcar #'car~：从 ~(("关键词" . 权重) ...)~ 列表中取出关键词字符串
+
+** 3. 获取已有关键词
+
+#+BEGIN_SRC emacs-lisp
+(existing (denote--file-keywords buffer-file-name))
+#+END_SRC
+
+~denote--file-keywords~ 从文件的 front-matter（~#+filetags:~）中读取已有关键词列表。
+
+** 4. 匹配算法
+
+#+BEGIN_SRC emacs-lisp
+(matched (seq-intersection top-kw
+                           (append denote-known-keywords existing)
+                           #'equal))
+#+END_SRC
+
+- ~append denote-known-keywords existing~：将已知关键词和已有关键词合并为匹配池
+- ~seq-intersection ... #'equal~：取 top-kw 和匹配池的交集
+- ~#'equal~：精确字符串匹配（中文关键词，区分汉字）
+- 也就是说：如果一个笔记已被手动打了"思考"标签，jieba 提取到"思考"时不会重复添加
+
+关键设计：匹配池包含已有关键词，因此不会重复添加已经存在的标签。
+
+** 5. 重命名
+
+#+BEGIN_SRC emacs-lisp
+(when matched
+  (denote-rename-file-keywords buffer-file-name
+                               (delete-dups (append existing matched))))
+#+END_SRC
+
+- 只有当有新的匹配关键词时才执行（避免无意义的空重命名）
+- ~append existing matched~：合并已有关键词和新匹配的关键词
+- ~delete-dups~：去重（虽理论上已去重，但作为安全措施）
+- ~denote-rename-file-keywords~：更新文件 front-matter 中的 ~#+filetags:~ 并重命名文件名（触发 ~denote-rename-confirmations~）
+
+** 6. 错误处理
+
+#+BEGIN_SRC emacs-lisp
+(condition-case nil
+    ...
+  (error nil))
+#+END_SRC
+
+任何错误（如 jieba 模块崩溃、文件锁定等）被静默吞掉，不影响笔记创建流程。
+
+* Hook 优先级
+
+| 优先级 | Hook 函数 | 在当前配置中的位置 |
+|--------+-----------+-------------------|
+| 0 (默认) | ~my/denote-git-auto-commit~ | 在 ~:config~ 中最后 ~add-hook~（无优先级参数） |
+| 80 | ~my/denote-jieba-infer-keywords~ | 显式指定优先级 80，因此在 git commit ~之前~ 执行 |
+
+这意味着文件先被 jieba 重命名（添加关键词），然后被 git 提交——commit 的内容包含新增的关键词。
+
+* 与 ~denote-known-keywords~ 的关系
+
+jieba 匹配依赖于 ~denote-known-keywords~ 列表：
+
+#+BEGIN_SRC emacs-lisp
+(denote-known-keywords '("创作" "学习" "工作" "生活" "技术" "思考" "索引"))
+#+END_SRC
+
+只有列表中的关键词才会被自动添加。如果 jieba 提取的 top 5 关键词中没有命中这些词，
+则不会做任何修改。
+
+这意味着：
+- 如果笔记内容中有"技术"相关的词汇，~技术~ 关键词会被自动添加
+- 如果笔记内容中有"电脑"但 ~denote-known-keywords~ 中没有 ~电脑~，则不会被添加
+- 可以通过扩展 ~denote-known-keywords~ 来增加自动匹配的覆盖范围
+
+* 前置条件
+
+- C 模块 ~jieba-module.so~（通过 ~make -C c-modules/ jieba-module.so~ 构建）
+- C++ 编译器（g++，C++11）+ ~libjieba.a~ 静态库
+- 首次使用 jieba 时 ~1-2s~ 加载字典，后续调用即时返回
+- ~my/jieba-extract~ 函数定义在 ~modules/tools/cjk/config.el~ 中

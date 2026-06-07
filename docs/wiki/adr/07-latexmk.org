@@ -1,52 +1,82 @@
-#+TITLE: ADR-07: 用 latexmk 替代四步编译
-#+DATE: 2024
+#+TITLE: ADR-07: latexmk + TEXINPUTS + 自定义 ctexbook 类
+#+DATE: 2024-01-01
+#+UPDATED: 2026-06-07
 #+STATUS: accepted
 
 * Context
 
-Org → LaTeX → PDF 的编译流程。默认的 ~org-latex-pdf-process~ 是硬编码的四步：
+Org → LaTeX → PDF 的编译流程。需要一个支持中文排版（XeLaTeX + ctexbook）、代码高亮（minted）和自定义类的构建系统。
 
-#+BEGIN_SRC emacs-lisp
-;; Doom/Org 默认: (latex → bibtex → latex → latex)
-"latexmk -pdf -%latex -interaction=nonstopmode -output-directory=%o %f"
-#+END_SRC
+默认的 ~org-latex-pdf-process~ 是硬编码的四步：
+- ~latexmk -pdf -%latex -interaction=nonstopmode -output-directory=%o %f~
 
-但四步流程有缺陷：
-1. 无论是否需要，总是运行 bibtex（无 .bib 文件时浪费）
-2. 无论是否需要，总是运行 3 次 latex（即使 1 次就够了）
-3. 不检测 makeindex / nomencl 等额外流程
+但此默认有缺陷：
+1. 不指定引擎，可能使用 PDFTeX（不支持中文）
+2. 不设 ~TEXINPUTS~，无法找到自定义类
+3. 四步流程不论是否需要都跑三次 latex + bibtex
 
 * Decision
 
-使用 latexmk 的单命令模式：
+使用 latexmk 的定制模式，配合 TEXINPUTS 环境变量和自定义 ~ctexbook-org~ 类。
+
+**编译命令**（~$DOOMDIR/config.el~ 第 640-643 行）：
 
 #+BEGIN_SRC emacs-lisp
-(setq org-latex-pdf-process
-      '("latexmk -xelatex -shell-escape -interaction=nonstopmode -f -output-directory=%o %f"))
+(let* ((modules-dir (expand-file-name "modules" doom-user-dir))
+       (cmd (format "env TEXINPUTS=%s//: latexmk -xelatex -shell-escape -interaction=nonstopmode -f -output-directory=%%o %%f"
+                    modules-dir)))
+  (setq org-latex-pdf-process (list cmd)))
 #+END_SRC
 
-latexmk 的特点是：
-- 自动检测需要多少次编译
-- 自动检测是否需要 bibtex/biber/makeindex
-- 仅在必要时重跑
-- 支持 ~-f~（强制即使错误也继续）
+**选项解释**：
+
+| 参数 | 作用 |
+|------|------|
+| ~env TEXINPUTS=modules-dir//:~ | 使 latexmk/XeLaTeX 在 ~$DOOMDIR/modules/~ 中递归搜索 ~.cls~ 和 ~.sty~ 文件 |
+| ~-xelatex~ | 使用 XeLaTeX 引擎（支持中文、OpenType 字体） |
+| ~-shell-escape~ | 开启 shell escape（minted 需要调用 pygments 进行代码高亮） |
+| ~-interaction=nonstopmode~ | 错误时继续编译（避免弹出交互式终端） |
+| ~-f~ | 强制即使错误也继续 |
+| ~-output-directory=%o~ | 输出目录由 Org 导出参数指定 |
+
+**自定义 LaTeX 类**：~ctexbook-org~（=modules/ctexbook-org.cls=）：
+
+- 基类：~ctexbook~（UTF8 + fandol 字体 + 中文排版）
+- ~secnumdepth{0}~：所有章节不编号（正文干净），PDF 书签保留
+- 代码环境：~fvextra~ + ~minted~（~org-latex-src-block-backend 'minted~）
+- 颜色、微排版、超链接、表格等包预加载
+
+**Org 导出配置**（~$DOOMDIR/config.el~ 第 632-655 行）：
+
+#+BEGIN_SRC emacs-lisp
+(setq org-latex-default-class "ctexbook")
+(setq org-latex-src-block-backend 'minted)
+#+END_SRC
 
 * Consequences
 
 **正面**
 
-- 小型文档：latexmk 1-2 轮即退出（vs 硬编码 3 轮），速度提升 30-50%
-- 大型文档：latexmk 智能检测交叉引用变化，不多跑也不少跑
-- 统一命令：不需要区分 ~C-c C-c LaTeX~、~C-c C-c BibTeX~ 等组合
-- 配合 ~-xelatex~ 省去手动设置编译引擎
+- **中文支持**：XeLaTeX + ~ctexbook~ 原生支持 CJK、OpenType 字体，不需要额外配置 ~CJKutf8~ 或 ~xeCJK~
+- **自定义类**：~TEXINPUTS~ 指向 =modules/= 目录，~ctexbook-org~ 自动被发现，无需安装到 TeX Live 系统目录
+- **智能编译**：latexmk 自动检测需要多少次编译、是否需要 bibtex/biber/makeindex，仅在必要时重跑
+- **代码高亮**：~minted~ + ~pygments~ 支持 300+ 语言，比 ~listings~ 更美观、更准确
+- **干净文档**：~secnumdepth{0}~ 使 PDF 正文不显示章节编号，适合书籍/报告类文档；PDF 书签保留编号和层级
+- **模块化 class 文件**：所有 LaTeX 包从 =modules/ctexbook-org.cls= 统一加载，Org 文件头部只需 ~#+LATEX_CLASS: ctexbook~
 
 **负面**
 
 - 依赖 latexmk（Perl 脚本），不是所有系统预装
-- ~-shell-escape~ 开启 shell escape（安全风险：minted 需要它调用 pygments）
+- ~-shell-escape~ 开启 shell escape（安全风险；minted 需要它调用 pygments）
 - latexmk 的输出格式和标准 latex/bibtex 不同，需要适应
+- ~TEXINPUTS~ 环境变量可能与其他编辑器/工具链冲突
+
+**后续考虑**
+
+- 如果安全要求高，可限制 ~shell-escape~ 只允许特定命令（~-shell-restricted~）
+- 若 TeX Live 版本升级支持更好，可考虑 LuaLaTeX（~-lualatex~）作为长期替代
 
 * 参考
 
-- ~/.config/doom/config.el 第 357-358 行
-- ~/org/latexmkrc（如果存在——latexmk 的全局配置）
+- ~$DOOMDIR/config.el~ 第 598-655 行（LaTeX 完整配置：引擎、编译命令、自定义类、导出设置）
+- =modules/ctexbook-org.cls=（完整 LaTeX 类文件）

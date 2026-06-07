@@ -1,60 +1,56 @@
 #+TITLE: map! 键位一览
+#+STARTUP: overview
+
+本页记录 config.el 中 ~map!~ 宏定义的键位。所有绑定使用 Doom 的 ~map!~ 宏（非 ~define-key~ 或 ~global-set-key~）。
 
 * 全局键
 
 | 键 | 命令 | 说明 |
 |-----+---------+-------------|
-| ~M-!~ | ~eshell-command~ | 执行单行 shell 命令并回显 |
+| ~M-!~ | ~eshell-command~ | 执行 shell 命令并在 minibuffer 回显（替代默认的 ~shell-command~） |
 
-实现使用 ~map! :g~：
+~:g~（global）表示在所有 major-mode 和 Evil state 中生效：
 
 #+BEGIN_SRC emacs-lisp
 (map! :g "M-!" #'eshell-command)
 #+END_SRC
 
-* Denote 前缀 (~SPC r d~)
+* Denote 前缀（~SPC r d~）
 
-使用 ~:prefix-map~ 声明嵌套前缀：
+使用 ~:prefix-map~ 声明嵌套前缀菜单。在 [[file:../notes/denote-keybindings.org][notes/denote-keybindings]] 中有完整列表。以下是定义入口和摘要：
 
 #+BEGIN_SRC emacs-lisp
 (map! :leader
       (:prefix-map ("r d" . "Denote")
-       :desc "New note"  "n" #'denote
-       ...))
+       :desc "New note"                "n" #'denote
+       :desc "Date note"               "d" #'denote-date
+       :desc "Select type"             "t" #'denote-type
+       :desc "Open or create"          "o" #'denote-open-or-create
+       :desc "Find link"               "l" #'denote-find-link
+       :desc "Link or create"          "i" #'denote-link-or-create
+       :desc "New sequence"            "s" #'denote-sequence
+       :desc "Rename keywords"         "k" #'denote-rename-file-keywords
+       :desc "Rename file"             "r" #'denote-rename-file
+       :desc "Rename front matter"     "R" #'denote-rename-file-using-front-matter
+       :desc "Search notes"            "f" #'consult-notes
+       :desc "Find backlinks"          "b" #'denote-find-backlink
+       :desc "Dired notes"             "D" #'denote-dired
+       :desc "Grep notes"              "g" #'denote-grep
+       :desc "List notes"              "m" #'list-denotes
+       :desc "Journal entry"           "j" #'denote-journal-new-or-existing-entry
+       (:prefix-map ("e" . "Explore")
+        :desc "Count notes"         "c" #'denote-explore-count-notes
+        :desc "Count keywords"      "C" #'denote-explore-count-keywords
+        :desc "Random note"         "r" #'denote-explore-random-note
+        :desc "Random link"         "l" #'denote-explore-random-link
+        :desc "Knowledge network"   "n" #'denote-explore-network)))
 #+END_SRC
 
-~SPC r d~ 的完整键位见 [[file:../notes/denote-keybindings.org][notes/denote-keybindings]]。
+上述代码在 ~modules/tools/notes/config.el~ 中定义。详见 [[file:../notes/denote-keybindings.org][Denote 键位一览]]。
 
-* Palimpsest 本地 leader (~SPC m P~)
+* Denote Org 本地 leader（~SPC m D~）
 
-使用 ~:localleader~ + ~:prefix~ 在 org-mode-map 内注册：
-
-#+BEGIN_SRC emacs-lisp
-(map! :localleader
-      :map org-mode-map
-      :prefix ("P" . "Palimpsest")
-      :desc "Move to top"    "t" #'palimpsest-move-region-to-top
-      :desc "Move to bottom" "b" #'palimpsest-move-region-to-bottom
-      :desc "Move to trash"  "T" #'palimpsest-move-region-to-trash)
-#+END_SRC
-
-* PDF 模式 (~g z~)
-
-#+BEGIN_SRC emacs-lisp
-(map! :map pdf-view-mode-map
-      :n "g z" (cmd! (when-let ((f (buffer-file-name)))
-                       (start-process "zathura" nil "zathura" f))))
-#+END_SRC
-
-* 中文计数 (~SPC r n c~)
-
-#+BEGIN_SRC emacs-lisp
-(map! :leader
-      (:prefix-map ("r n" . "Count")
-       :desc "Chinese chars" "c" #'my/count-chinese-chars))
-#+END_SRC
-
-* Denote org-mode 本地 leader (~SPC m D~)
+在 Org 缓冲区中使用 ~SPC m D~ 调用 Denote Org 集成命令（链接/反向链接/子树提取）：
 
 #+BEGIN_SRC emacs-lisp
 (map! :localleader
@@ -65,17 +61,70 @@
       :desc "Extract subtree"     "x" #'denote-org-extract-org-subtree)
 #+END_SRC
 
+* Palimpsest 本地 leader（~SPC m P~）
+
+在 Org 缓冲区中使用 ~SPC m P~ 搬移文本（非删除）：
+
+#+BEGIN_SRC emacs-lisp
+(map! :localleader
+      :map org-mode-map
+      :prefix ("P" . "Palimpsest")
+      :desc "Move to top"    "t" #'palimpsest-move-region-to-top
+      :desc "Move to bottom" "b" #'palimpsest-move-region-to-bottom
+      :desc "Move to trash"  "T" #'palimpsest-move-region-to-trash)
+#+END_SRC
+
+详见 [[file:palimpsest.org][palimpsest.org]]。
+
+* PDF 模式（~g z~）
+
+在 pdf-view-mode 中 ~g z~ 调用外部 Zathura 打开当前 PDF：
+
+#+BEGIN_SRC emacs-lisp
+(map! :map pdf-view-mode-map
+      :n "g z" (cmd! (when-let ((f (buffer-file-name)))
+                       (start-process "zathura" nil "zathura" f))))
+#+END_SRC
+
+~:n~ 表示仅 normal state 生效。~cmd!~ 是 Doom 的 ~command!~ 宏的别名，用于内联交互式 lambda。
+
+* 中文计数前缀（~SPC r n~）
+
+#+BEGIN_SRC emacs-lisp
+(map! :leader
+      (:prefix-map ("r n" . "Count")
+       :desc "CJK chars"  "c" #'my/count-cjk
+       :desc "Text stats" "w" #'my/count-text
+       :desc "Rebuild"    "b" #'my/count-cjk--ensure))
+#+END_SRC
+
+~SPC r n~ 命名空间覆盖 CJK 和通用文本统计。命令基于 C 模块（~count-cjk.so~），见 [[file:../i18n/count-chinese.org][i18n/count-chinese.org]]。
+
+* 完整重载（~SPC h r R~）
+
+#+BEGIN_SRC emacs-lisp
+(map! :leader
+      :desc "Full reload" "h r R" #'my/doom-full-reload)
+#+END_SRC
+
+详见 [[file:../tools/full-reload.org][tools/full-reload.org]]。
+
 * ~map!~ 语法参考
 
 | 关键字 | 含义 |
 |--------+------|
-| ~:g~ | global（所有模式） |
+| ~:g~ | global（所有模式、所有 Evil state） |
 | ~:n~ | normal state |
 | ~:v~ | visual state |
-| ~:i~ | insert state |
+| ~:i~ | insert state（混合插入状态见 [[file:evil-insert-hybrid.org][evil-insert-hybrid.org]]） |
 | ~:leader~ | ~SPC~ 前缀 |
-| ~:localleader~ | ~SPC m~ 前缀 |
-| ~:map~ | 指定 mode map |
-| ~:prefix~ | 子前缀 |
-| ~:prefix-map~ | 声明 leader 前缀菜单 |
-| ~:desc~ | which-key 显示的描述 |
+| ~:localleader~ | ~SPC m~ 前缀（major-mode 本地） |
+| ~:map~ | 指定 mode map（如 ~org-mode-map~、~pdf-view-mode-map~） |
+| ~:prefix~ | 在指定 map 内创建子前缀 |
+| ~:prefix-map~ | 声明 leader 前缀的菜单条目（which-key 会显示子菜单） |
+| ~:desc~ | which-key 显示的描述文字 |
+
+~:prefix~ 和 ~:prefix-map~ 的区别：
+
+- ~:prefix-map~ 在 leader 前缀中使用，声明一个新的命名前缀菜单。
+- ~:prefix~ 在指定 keymap 中使用（常与 ~:map~ 搭配），不做自动 which-key 菜单注册。

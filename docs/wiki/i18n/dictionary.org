@@ -1,0 +1,325 @@
+#+TITLE: 中文词典（萌典 + mapull）
+#+STARTUP: overview
+
+* 用途
+
+在 Emacs 内查询中文词典 — ~SPC o d~（或 ~K~ 在 help-mode 等 lookup 上下文）。
+输入中文后自动切换后端：单字查萌典+mapull，多字查 mapull，非中文回退到英语后端。
+
+* 数据源概览
+
+| 数据源                   | 类型     | 内容                     | 大小    | 获取方式                     |
+|--------------------------+----------+--------------------------+---------+------------------------------|
+| 萌典（dict.sqlite3）      | 离线 SQLite | 单字释义、部首、笔画、注音 | ~61MB | 需自行准备                   |
+| mapull（mapull.db）       | 离线 SQLite | 汉字档案、词语、成语      | ~100MB | 首次查询自动下载并导入        |
+
+两个数据源互补：萌典提供权威的单字释义（来自教育部重編國語辭典），
+mapull 提供更大的覆盖范围和词语/成语句料。
+
+* 入口点和路由逻辑
+
+#+BEGIN_SRC emacs-lisp
+(defun my/+lookup-dictionary-definition-a (fn identifier &optional arg)
+  (if (and identifier (my/mapull--cjk-p identifier))
+      (my/dict--render identifier)
+    (funcall fn identifier arg)))
+(advice-add '+lookup/dictionary-definition :around #'my/+lookup-dictionary-definition-a)
+#+END_SRC
+
+** 查询路由
+
+#+begin_example
+用户输入（SPC o d / K）
+       │
+       ├─ 包含中文字符 ──→ my/dict--render
+       │                    │
+       │                    ├─ 单字符 ──→ 萌典释义 + mapull 汉字档案 + 词语 + 成语
+       │                    │
+       │                    └─ 多字符 ──→ mapull 词语 + 成语
+       │
+       └─ 无中文字符 ──→ 原始 +lookup/dictionary-definition 后端
+                          （英语词典等）
+#+end_example
+
+** CJK 检测函数
+
+#+BEGIN_SRC emacs-lisp
+(defun my/mapull--cjk-p (string)
+  "判断 STRING 是否包含中文字符（使用 Emacs 的 chinese category）。"
+  (string-match (rx (category chinese)) string))
+#+END_SRC
+
+使用 Emacs 的字符 category 系统（~(category chinese)~），而非 Unicode 码点范围，
+确保与 Emacs 的字体回退系统和语言环境一致。
+
+* 数据目录
+
+#+BEGIN_SRC emacs-lisp
+(defvar my/mapull-data-dir
+  (expand-file-name "dict" doom-local-dir)
+  "mapull JSON 文件所在目录。")
+
+(defvar my/mapull-db
+  (expand-file-name "mapull.db" my/mapull-data-dir)
+  "mapull sqlite3 数据库路径。")
+
+(defvar my/moedict-db
+  (expand-file-name "dict/dict.sqlite3" doom-local-dir))
+#+END_SRC
+
+最终路径：
+
+| 文件                | 路径                                                  |
+|---------------------+-------------------------------------------------------|
+| 萌典 SQLite         | ~/.config/emacs/.local/dict/dict.sqlite3~             |
+| mapull SQLite       | ~/.config/emacs/.local/dict/mapull.db~                |
+| mapull 原始 JSON    | ~/.config/emacs/.local/dict/*.json~                   |
+
+使用 ~doom-local-dir~（而非 ~user-emacs-directory~）符合 Doom 惯例，
+所有持久数据集中在 ~.local/~ 中，避免与配置目录（~.config/doom/~）混合。
+
+* 萌典查询流程
+
+** 数据格式
+
+萌典（Moedict）源自 [[https://www.moedict.tw/][萌典]]，数据来自中华民国教育部的《重編國語辭典修訂本》。
+~dict.sqlite3~ 包含三个核心表：
+
+#+begin_src sql
+entries       (id, title, radical, stroke_count, non_radical_stroke_count)
+heteronyms    (id, entry_id, bopomofo, bopomofo2, pinyin)
+definitions   (id, heteronym_id, type, def, example, quote, link, synonyms, antonyms)
+#+end_src
+
+** SQL 查询
+
+#+BEGIN_SRC emacs-lisp
+(sqlite-select db "
+SELECT e.title, e.radical, e.stroke_count, e.non_radical_stroke_count,
+       h.bopomofo, h.bopomofo2, h.pinyin,
+       d.type, d.def, d.example, d.quote, d.link,
+       d.synonyms, d.antonyms
+FROM entries e, heteronyms h, definitions d
+WHERE e.title = ?
+  AND h.entry_id = e.id
+  AND d.heteronym_id = h.id" (list word))
+#+END_SRC
+
+返回结果包含每个读音下的所有释义行。
+
+* mapull 数据与导入
+
+** 数据源
+
+mapull 数据来自 [[https://github.com/mapull/chinese-dictionary][mapull/chinese-dictionary]]，
+使用 GitHub 代理下载：
+
+#+BEGIN_SRC emacs-lisp
+(defvar my/mapull--base-url
+  "https://gh-proxy.com/https://raw.githubusercontent.com/mapull/chinese-dictionary/main/")
+#+END_SRC
+
+** 文件清单
+
+#+BEGIN_SRC emacs-lisp
+(defvar my/mapull--json-files
+  '(("character/char_base.json"   . "char_base.json")
+    ("character/char_detail.json" . "char_detail.json")
+    ("word/word.json"             . "word.json")
+    ("idiom/idiom.json"           . "idiom.json"))
+  "需要下载的 mapull 文件列表：源路径 → 本地文件名。")
+#+END_SRC
+
+| JSON 文件              | SQLite 表名  | 行数（估计） | 用途           |
+|------------------------+--------------+--------------+----------------|
+| ~char_base.json~       | ~chars~      | ~13,000+~    | 汉字档案       |
+| ~char_detail.json~     | ~chars~（更新） | ~13,000+~  | 补充定义       |
+| ~word.json~            | ~words~      | ~50,000+~    | 词语表         |
+| ~idiom.json~           | ~idioms~     | ~5,000+~     | 成语表         |
+
+** 自动下载
+
+#+BEGIN_SRC emacs-lisp
+(defun my/mapull--download-missing ()
+  "下载缺失的 mapull JSON 文件到 `my/mapull-data-dir'。"
+  (let ((data-dir my/mapull-data-dir))
+    (unless (file-exists-p data-dir)
+      (make-directory data-dir t))
+    (dolist (pair my/mapull--json-files)
+      (let ((dest (expand-file-name (cdr pair) data-dir)))
+        (unless (file-exists-p dest)
+          (message "词典数据：下载 %s ..." (cdr pair))
+          (condition-case err
+              (url-copy-file
+               (concat my/mapull--base-url (car pair)) dest t)
+            (error
+             (message "下载 %s 失败：%s，跳过" (cdr pair) (error-message-string err))
+             nil)))))))
+#+END_SRC
+
+- 仅在文件缺失时下载
+- 下载失败时跳过（不影响其他文件）
+- 使用 ~url-copy-file~（Emacs 内置 HTTP 客户端，不需要 curl/wget）
+
+** 导入过程
+
+~M-x my/mapull-import~ 或首次查询时自动触发。
+
+#+BEGIN_SRC emacs-lisp
+(defun my/mapull-import (&optional base detail words idioms)
+  (interactive)
+  (let ((data-dir my/mapull-data-dir))
+    (unless (file-exists-p data-dir)
+      (make-directory data-dir t))
+    (my/mapull--download-missing)
+    (when (or base (not (or base detail words idioms)))
+      (my/mapull--import-char-base))
+    (when (or detail (not (or base detail words idioms)))
+      (my/mapull--import-char-detail))
+    (when (or words (not (or base detail words idioms)))
+      (my/mapull--import-words))
+    (when (or idioms (not (or base detail words idioms)))
+      (my/mapull--import-idioms))
+    (message "mapull 导入完成！")))
+#+END_SRC
+
+| 步骤       | 表            | SQL 操作                                   |
+|------------+---------------+--------------------------------------------|
+| char_base  | ~chars~       | ~CREATE TABLE + INSERT OR REPLACE~          |
+| char_detail | ~chars~（更新） | ~UPDATE definition WHERE char = ~          |
+| words      | ~words~       | ~CREATE TABLE + INSERT + CREATE INDEX~      |
+| idioms     | ~idioms~      | ~CREATE TABLE + INSERT + CREATE INDEX~      |
+
+导入过程中每隔 ~1000~ / ~5000~ 行打印进度消息。
+
+* 渲染系统
+
+** 面定义
+
+#+BEGIN_SRC emacs-lisp
+(defvar my/dict--faces
+  '((title    . (:foreground "#ff8700" :bold t :height 1.2))
+    (radical  . (:foreground "#ffffff" :background "#a40000"))
+    (bopomofo . (:foreground "#008700" :background "#d7ff87"))
+    (pinyin   . (:foreground "#008700" :background "#d7ff87"))
+    (type     . (:foreground "#ffffd7" :background "#525252"))
+    (def      . (:foreground "#1f5bff"))
+    (example  . (:foreground "#525252"))
+    (quote    . (:foreground "#ff4ea3" :slant italic))
+    (link     . (:foreground "#00a775"))
+    (synonyms . (:foreground "#9a08ff"))
+    (antonyms . (:foreground "#9a08ff"))
+    (section  . (:foreground "#626262" :underline t)))
+  "词典渲染用的面 alist。")
+#+END_SRC
+
+| 面         | 用途                     | 外观                           |
+|------------+--------------------------+--------------------------------|
+| ~title~    | 查词标题（汉字本身）      | 橙色、加粗、120% 字号           |
+| ~radical~  | 部首和笔画信息            | 白字红底                       |
+| ~bopomofo~ | 注音符号                  | 绿字浅绿底                     |
+| ~pinyin~   | 拼音                      | 绿字浅绿底                     |
+| ~type~     | 词性标签（名/动/形等）     | 浅黄字灰底                     |
+| ~def~      | 释义正文                  | 蓝色                           |
+| ~example~  | 例句                      | 灰色                           |
+| ~quote~    | 引用/文献例句             | 粉红色、斜体                   |
+| ~link~     | 参见链接                  | 绿色                           |
+| ~synonyms~ | 同义词                    | 紫色                           |
+| ~antonyms~ | 反义词                    | 紫色                           |
+| ~section~  | 分隔线和区域标题          | 灰色、下划线                   |
+
+** 输入示例
+
+- ~SPC o d 好~ → 输出示例：
+
+#+begin_example
+  萌典 · mapull: 好
+──────────────────────────────────────────────────
+  部首:女  笔画:6(+3)
+好  ㄏㄠˇ  hào
+ [形] 美、善，理想的。如：「好東西」、「好風景」...
+  這朵花好香。
+  天生麗質難自棄，一朝選在君王側。
+ [同] 善、嘉、美
+ [反] 壞、歹
+
+──────────────────────────────────────────────────
+  汉字档案
+笔画:6  部首:女  结构:左右  拼音:hao3  频次:常用0
+繁体:好
+
+──────────────────────────────────────────────────
+  词语（42 条）
+好像  hào xiàng
+  彷彿、似乎、好似
+
+好人  hǎo rén
+  品德好、行為正當的人
+   ...
+
+──────────────────────────────────────────────────
+  成语（5 条）
+好好先生  hǎo hǎo xiān shēng
+  不分是非、不得罪任何的人
+   ...
+#+end_example
+
+** 渲染函数
+
+#+BEGIN_SRC emacs-lisp
+(defun my/dict--render (word)
+  (let ((buf (get-buffer-create "*萌典*")))
+    (with-current-buffer buf
+      (let ((inhibit-read-only t) db)
+        (erase-buffer)
+        ;; 1. 尝试打开 mapull.db
+        (setq db (condition-case nil
+                     (sqlite-open my/mapull-db)
+                   (error nil)))
+        ;; 2. 单字 → 萌典释义
+        (when (= (length word) 1)
+          (condition-case nil
+              (my/mapull--moedict-query word)
+            (error
+             (my/dict--render-section "萌典释义")
+             (insert (propertize (format "（萌典未收录「%s」）" word)
+                                 'face (cdr (assq 'def my/dict--faces))))))
+          ;; 3. 单字 → mapull 汉字档案
+          (when db
+            (my/dict--render-char-archive db word)))
+        ;; 4. 任意长度 → mapull 词语 + 成语
+        (when db
+          (my/dict--render-word-results db word)
+          (my/dict--render-idiom-results db word))
+        ;; 5. 错误处理
+        (condition-case err
+            nil
+          (error
+           (insert (format "错误: %s" (error-message-string err)))))
+        (when db (ignore-errors (sqlite-close db)))
+        ;; 6. 无结果
+        (when (= (buffer-size) 0)
+          (insert (format "没有找到「%s」的相关结果" word)))
+        (goto-char (point-min))
+        (special-mode)
+        (setq buffer-read-only t
+              header-line-format (format "  萌典 · mapull: %s" word)))
+      (display-buffer buf))))
+#+END_SRC
+
+渲染流程：
+
+1. 创建或获取 ~*萌典*~ buffer
+2. 设置 ~inhibit-read-only~ ~t~（后续 ~special-mode~ 会设置 read-only）
+3. 清空 buffer，打开 mapull 数据库（如存在）
+4. 单字 → 萌典查询 + 渲染每行释义 → mapull 汉字档案
+5. 所有中文 → mapull 词语搜索结果 → mapull 成语搜索结果
+6. 设置 ~special-mode~（禁止编辑、支持 ~q~ 退出）
+7. ~header-line-format~ 显示查询词
+
+* 注意事项
+
+- ~dict.sqlite3~（萌典）不随配置提供，需自行从萌典项目获取或从备份恢复
+- ~mapull.db~ 首次查询时自动下载 ~100MB~ JSON 并导入，网络环境不好的话可能较慢
+- ~gh-proxy.com~ 代理地址可能失效，如遇下载失败可切换原始 GitHub 地址或手动下载
+- 渲染使用 ~special-mode~，可用 ~n~ / ~p~ 导航行，~q~ 关闭

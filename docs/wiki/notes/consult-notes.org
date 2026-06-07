@@ -2,7 +2,7 @@
 
 * 用途
 
-使用 Consult 的界面搜索 Denote 笔记标题和关键词，支持实时预览。
+使用 Consult 的界面搜索 Denote 笔记标题和关键词，支持实时预览、narrowing、自动创建。
 
 * 配置
 
@@ -15,18 +15,48 @@
   (consult-notes-denote-mode))
 #+END_SRC
 
+* 设置详解
+
+| 选项 | 值 | 说明 |
+|------+-----+------|
+| ~consult-notes-denote-display-keywords-indicator~ | ~"_"~ | 关键词前加 ~_~ 前缀，与笔记标题视觉分开。搜索补全候选的格式为：~标题  _关键词1 关键词2  /子目录~ |
+| ~consult-notes-denote-mode~ | 启用 | 在 ~:config~ 中加载，注册 ~consult-notes~ 的 Denote 笔记源 |
+
+~consult-notes-denote-mode~ 会在 ~consult-notes~ 命令（~SPC r d f~）的候选列表中注册 Denote 笔记源，使得 ~consult-notes~ 可以搜索 Denote 笔记。
+
 * 使用
 
 ~SPC r d f~ 进入搜索界面。
 
-- 输入关键词 → 实时列出匹配的 Denote 笔记
-- 注解格式：~标题  _关键词1 关键词2  /子目录~
-- ~denote-link-description-format~ 为 ~"%t"~，所以搜索结果显示标题
-- ~consult-notes-denote-display-keywords-indicator~ = ~"_"~，关键词前加 ~_~ 前缀，与标题视觉分开
-- 输入不存在的标题并按 ~RET~ → 自动创建新 Denote 笔记（~denote-open-or-create~）
+- 输入关键词 → ~consult~ 实时列出匹配的 Denote 笔记
+- 注解格式：~笔记标题  _关键词1 关键词2  /子目录~
+  - ~_~ 前缀将关键词与标题清晰分隔
+  - ~/子目录~ 显示笔记在 ~denote-directory~ 下的路径
+- ~denote-link-description-format~ 为 ~"%t"~（仅显示标题），因此候选列表中只显示笔记标题
+- 模板：~标题__关键词.org~ 文件名自动解析为标题和关键词字段
+
+* 查询技巧
+
+| 操作 | 效果 |
+|------+------|
+| 输入 ~读书~ | 模糊匹配标题和路径中包含"读书"的笔记 |
+| 输入 ~#技术~ | narrowing：只显示关键词包含"技术"的笔记 |
+| 输入 ~#技术 #工作~ | 多个 narrowing：显示同时包含"技术"和"工作"的笔记 |
+| ~C-n~ / ~C-p~ | 在上/下候选项间移动，同时右侧窗口实时预览笔记内容 |
+| ~M-x consult-notes-search-in-all-notes~ | 搜索所有笔记的正文内容（不只是标题和关键词） |
+
+* 自动创建
+
+在搜索界面输入一个不存在的标题并按 ~RET~：
+- 如果 ~universal-argument~（~C-u~）：调用 ~denote-open-or-create~ 创建新笔记
+- 否则：基于输入内容执行 ~denote~ 创建
+
+实际行为取决于 ~consult-notes~ 和 ~denote~ 的集成方式，通常 ~RET~ 在找到笔记时打开，未找到时提示创建。
 
 * 优势
 
-- ~consult~ 的实时预览（~C-n~ ~C-p~ 选择时右侧窗口显示笔记内容）
-- ~consult~ 的 narrowing（输入 ~#keyword~ 按关键词过滤）
-- ~vertico~ 的多字段排序配合
+- ~consult~ 的实时预览（~C-n~ / ~C-p~ 选择时右侧窗口同步显示笔记内容）
+- ~consult~ 的 narrowing 功能（~#keyword~ 语法按关键词过滤）
+- ~vertico~ 的多字段排序配合（默认按匹配度 + 最近修改排序）
+- 比 ~denote-dired~ 更快速找到笔记（模糊匹配优于文件名浏览）
+- 比 ~deft~ 更精确（Denote 的标题+关键词结构化搜索），两者互补

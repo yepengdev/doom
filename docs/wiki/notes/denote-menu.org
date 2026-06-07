@@ -2,8 +2,35 @@
 
 * 用途
 
-~SPC r d m~ 打开，以表格形式（~tabulated-list-mode~）浏览笔记库，
-按列排序和筛选。
+~SPC r d m~（~list-denotes~）打开，以 ~tabulated-list-mode~ 表格形式浏览笔记库，
+支持按列排序、关键词筛选、正则筛选、导出到 Dired 批量操作。
+
+* 配置
+
+#+BEGIN_SRC emacs-lisp
+(use-package! denote-menu
+  :after denote
+  :custom
+  (denote-menu-show-file-type t)
+  (denote-menu-show-file-signature t)
+  :init
+  (map! :leader
+        (:prefix-map ("r d" . "Denote")
+         :desc "List notes (menu)" "m" #'list-denotes))
+  :config
+  (define-key denote-menu-mode-map (kbd "c")   #'denote-menu-clear-filters)
+  (define-key denote-menu-mode-map (kbd "/ r") #'denote-menu-filter)
+  (define-key denote-menu-mode-map (kbd "/ k") #'denote-menu-filter-by-keyword)
+  (define-key denote-menu-mode-map (kbd "/ o") #'denote-menu-filter-out-keyword)
+  (define-key denote-menu-mode-map (kbd "e")   #'denote-menu-export-to-dired))
+#+END_SRC
+
+* 自定义设置
+
+| 选项 | 值 | 说明 |
+|------+-----+------|
+| ~denote-menu-show-file-type~ | ~t~ | 额外显示"文件类型"列（org / md / txt） |
+| ~denote-menu-show-file-signature~ | ~t~ | 额外显示"签名"列（~denote-sequence~ 签名如 ~1.1.a~） |
 
 * 显示
 
@@ -12,25 +39,41 @@
 | File | 笔记文件名 |
 | Title | 笔记标题 |
 | Keywords | 关键词列表 |
-| File type | 文件类型（org/md/txt） |
-| File signature | 序列签名（如 1.1.a） |
-| Directory | 子目录 |
+| File type | 文件类型（~org~ / ~md~ / ~txt~，由 ~denote-menu-show-file-type~ 控制） |
+| File signature | 序列签名（如 ~1.1.a~，由 ~denote-menu-show-file-signature~ 控制） |
+| Directory | 子目录路径 |
 
-默认按日期降序排列（最新在前）。
+默认按日期降序排列（最新创建的笔记最上方）。点击列标题可切换该列排序。
 
-* 筛选
+* 自定义键位
 
-| 按键 | 说明 |
-|------+------|
-| ~c~ | 清除所有筛选 |
-| ~/ r~ | 正则表达式筛选（标题+关键词） |
-| ~/ k~ | 筛选包含某关键词的笔记 |
-| ~/ o~ | 排除某关键词 |
+在 ~denote-menu-mode-map~ 中定义：
+
+| 按键 | 命令 | 说明 |
+|------+------+------|
+| ~c~ | ~denote-menu-clear-filters~ | 清除所有筛选条件，恢复显示全部笔记 |
+| ~/ r~ | ~denote-menu-filter~ | 按正则表达式筛选（在标题+关键词中匹配） |
+| ~/ k~ | ~denote-menu-filter-by-keyword~ | 筛选包含指定关键词的笔记 |
+| ~/ o~ | ~denote-menu-filter-out-keyword~ | 排除包含指定关键词的笔记 |
+| ~e~ | ~denote-menu-export-to-dired~ | 将当前筛选结果导出到 Dired buffer |
+
+* 筛选说明
+
+| 筛选方式 | 操作 | 效果 |
+|----------+------+------|
+| 清除筛选 | ~c~ | 恢复显示全部笔记 |
+| 正则筛选 | ~/ r~ → 输入 ~读书~ | 只显示标题或关键词匹配"读书"的笔记 |
+| 关键词筛选 | ~/ k~ → 选择 ~技术~ | 只显示带"技术"关键词的笔记 |
+| 排除关键词 | ~/ o~ → 选择 ~索引~ | 隐藏所有带"索引"关键词的笔记 |
+
+多次筛选可叠加（如先按 ~技术~ 筛选，再按 ~/ o~ 排除某个子关键词）。
 
 * 批量操作
 
-~e~ 将当前筛选结果导出到 Dired buffer，然后可以：
-- 标记多个文件
-- ~d~ ~x~ 批量删除
-- ~R~ 批量重命名
-- ~!~ 批量执行 shell 命令
+~e~（~denote-menu-export-to-dired~）将当前视图（含筛选结果）导出到 Dired buffer，然后可以：
+
+- 标记多个文件（~m~ / ~u~）
+- 批量删除（~d~ → ~x~ 确认）
+- 批量重命名（~R~）
+- 批量执行 shell 命令（~!~）
+- 批量移动（~R~ 到新目录）

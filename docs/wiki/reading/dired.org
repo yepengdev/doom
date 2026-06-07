@@ -1,12 +1,16 @@
 #+TITLE: Dired 外部打开
+#+STARTUP: overview
 
 * 用途
 
-Dired 中按 ~E~（Normal 模式）用系统默认程序打开文件。
+Dired 中按 ~E~（Normal 模式）用系统默认程序打开文件。支持标记多个文件同时打开。
 
 #+BEGIN_SRC emacs-lisp
 (after! dired
   (defun my/dired-open-externally ()
+    "使用 OS 默认应用程序打开每个标记文件（异步）。
+Linux → xdg-open，macOS → open，Windows → start。
+立即返回而不等待子进程。"
     (interactive)
     (let* ((files (dired-get-marked-files))
            (cmd (pcase system-type
@@ -21,15 +25,33 @@ Dired 中按 ~E~（Normal 模式）用系统默认程序打开文件。
 
 * 跨平台
 
-| 系统 | 命令 | 说明 |
-|------+------+------|
-| Linux | ~xdg-open~ | 根据文件类型关联打开 |
-| macOS | ~open~ | 同上 |
-| Windows | ~start~ | 同上 |
+| 系统    | 命令        | 说明                               |
+|---------+-------------+------------------------------------|
+| Linux   | ~xdg-open~  | 根据文件类型关联打开（XDG 规范）     |
+| macOS   | ~open~      | 系统默认程序（LaunchServices）      |
+| Windows | ~start~     | 默认程序（ShellExecute）            |
 
-* 与 Doom 默认的 ~Z~ 的区别
+~pcase system-type~ 自动检测平台并选择对应命令，配置文件无需修改即可跨平台运行。
 
-Doom 默认 ~Z~ 是 ~dired-do-compress~（压缩/解压）。~E~ 是 ~my/dired-open-externally~
-的外部打开。
+* 与 Doom 默认绑定的区别
 
-支持标记多个文件同时打开（~V~ 标记后 ~E~）。
+| 按键 | 绑定                            | 说明                                 |
+|------+---------------------------------+--------------------------------------|
+| ~e~  | ~dired-find-file~                | Doom 默认内联打开（Dired 内打开文件） |
+| ~E~  | ~my/dired-open-externally~       | 系统外部程序打开（本文配置）          |
+| ~Z~  | ~dired-do-compress~              | Doom 默认压缩/解压                    |
+
+* 标记多个文件
+
+1. ~V~（或 ~m~）标记多个文件
+2. 按 ~E~ → 所有标记文件同时用外部程序打开
+
+~dired-get-marked-files~ 返回标记的文件列表（未标记时返回当前文件），~dolist~ 遍历并逐一 ~start-process~ 启动外部程序。所有子进程异步运行，Emacs 不阻塞。
+
+* 对比 ~async-shell-command~
+
+可用 ~(async-shell-command (concat "xdg-open " f))~ 替代 ~start-process~，但：
+
+- ~async-shell-command~ 创建 shell 进程（额外开销）
+- 文件名含特殊字符需做 shell 转义（~shell-quote-argument~）
+- ~start-process~ 直接 ~exec~ 目标程序，不经过 shell，更安全高效

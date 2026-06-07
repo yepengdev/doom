@@ -2,47 +2,104 @@
 
 * 用途
 
-笔记库的元层面工具：统计、随机浏览、网络图、维护检查。
+笔记库的元层面工具：统计、随机浏览、网络图、维护检查。所有操作通过 ~SPC r d e~ 前缀访问。
 
 * 统计
 
-- ~SPC r d e c~ — 笔记总数
-- ~SPC r d e C~ — 关键词频次统计（哪个关键词被用得最多）
-- 年度柱状图（每年创建了多少笔记）
-- 链接度数分布（入链/出链的数量统计）
+** ~SPC r d e c~ — ~denote-explore-count-notes~
+
+统计笔记数量，按年份和月份显示柱状图。例如：
+
+#+BEGIN_SRC text
+2024: ████████████████████ 120
+2025: ████████████████████████████ 180
+2026: ████████ 50
+#+END_SRC
+
+- 可以按关键词过滤（~C-u~ 前缀 → 提示输入关键词）
+- 统计结果在 ~*denote-explore-count-notes*~ buffer 中显示
+- 支持按时间范围（年/月/日）细分
+
+** ~SPC r d e C~ — ~denote-explore-count-keywords~
+
+统计每个关键词的使用频次，按使用量降序排列：
+
+#+BEGIN_SRC text
+技术:   ████████████████████████████████ 85
+工作:   ██████████████████████ 60
+学习:   ████████████████ 45
+思考:   ██████████ 28
+创作:   ███████ 18
+生活:   █████ 12
+索引:   ███ 8
+#+END_SRC
+
+- 链接度数分布（入链/出链数量统计）也一并显示
+- 关键词频次帮助发现哪些主题占用最多笔记，辅助归档整理
 
 * 随机浏览
 
-- ~SPC r d e r~ — 随机打开一篇笔记
-- ~SPC r d e l~ — 随机打开一篇有入链的笔记
-- 按关键词过滤随机
+** ~SPC r d e r~ — ~denote-explore-random-note~
+
+从全部笔记中随机选择一篇并打开。~C-u~ 前缀可指定关键词过滤：
+~C-u SPC r d e r~ → 输入 ~技术~ → 只从标签为 ~技术~ 的笔记中随机选。
+
+** ~SPC r d e l~ — ~denote-explore-random-link~
+
+随机选择一篇至少有 1 个入链的笔记并打开。适合发现被引用较多但自己可能遗忘的内容。
 
 * 网络图
 
-~SPC r d e n~ 生成交互式 d3.js 网络图（在浏览器中打开）。
+** ~SPC r d e n~ — ~denote-explore-network~
+
+生成交互式 d3.js 网络图，在默认浏览器中打开（生成临时 HTML 文件）。
 
 | 视图模式 | 说明 |
 |----------+------|
-| community | 按关键词/链接密度分群 |
-| neighbourhood | 以某笔记为中心的邻域图 |
-| sequence | 层级树状图 |
-| keywords | 关键词网络 |
+| ~community~ | 按链接密度和关键词聚类分群，显示笔记群落 |
+| ~neighbourhood~ | 以某篇笔记为中心的邻域图，显示该笔记的直接入链和出链 |
+| ~sequence~ | 层级树状图（需要 ~denote-sequence~ 支持），显示父子兄弟关系 |
+| ~keywords~ | 关键词网络图，显示关键词之间的共现关系 |
+
+每个节点：
+- 圆形节点 = 单篇笔记
+- 节点大小 = 链接度数（入链+出链越多越大）
+- 节点颜色 = 关键词（不同关键词不同颜色）
+- 连线 = 笔记间的双向链接
+
+交互操作：
+- 拖拽节点调整布局
+- 悬停显示笔记标题
+- 点击节点高亮邻域
+- 滚动缩放
 
 * 维护检查
 
-- 重复标识符检测（同一 ID 出现多次）
-- 死链接检测（链接指向不存在的文件）
-- 孤立笔记检测（无入链、无出链）
+** ~denote-explore-check-duplicate-identifiers~
+
+检测笔记库中是否有重复的 Denote 标识符（相同时间戳的 ID 出现多次）。
+正常情况下不应该有重复，若出现则提示哪些文件冲突。
+
+** ~denote-explore-check-dead-links~
+
+检测 Denote 链接指向的文件是否存在。若存在链接但目标文件已被删除或重命名，则报告为死链接。
+
+** ~denote-explore-check-orphan-notes~
+
+检测孤立笔记——既没有入链（不被其他笔记引用）也没有出链（不引用其他笔记）的笔记。
+孤立笔记可能：
+- 确实是独立笔记（如日记、索引页）
+- 需要被链接到其他相关笔记
 
 * 完整命令列表
 
 | 命令 | 用途 |
 |------+------|
-| ~denote-explore-count-notes~ | 统计笔记 |
-| ~denote-explore-count-keywords~ | 统计关键词 |
-| ~denote-explore-random-note~ | 随机笔记 |
-| ~denote-explore-random-link~ | 随机有入链的笔记 |
-| ~denote-explore-network~ | 网络图 |
-| ~denote-explore-check-duplicate-identifiers~ | 重复 ID |
-| ~denote-explore-check-dead-links~ | 死链接 |
-| ~denote-explore-check-orphan-notes~ | 孤立笔记 |
+| ~denote-explore-count-notes~ | 统计笔记数量和年度分布 |
+| ~denote-explore-count-keywords~ | 统计关键词频次和链接度数 |
+| ~denote-explore-random-note~ | 随机打开一篇笔记（可指定关键词过滤） |
+| ~denote-explore-random-link~ | 随机打开一篇有入链的笔记 |
+| ~denote-explore-network~ | 生成 d3.js 交互式网络图 |
+| ~denote-explore-check-duplicate-identifiers~ | 检查重复标识符 |
+| ~denote-explore-check-dead-links~ | 检查死链接 |
+| ~denote-explore-check-orphan-notes~ | 检查孤立笔记 |

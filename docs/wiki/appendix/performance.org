@@ -1,29 +1,143 @@
-#+TITLE: 性能数据
+#+TITLE: 性能配置
 
-* 启动时间
+* 概述
 
-Gentoo Linux 上测量，热缓存后平均值（所有包已编译）：
+本配置针对启动速度、运行时性能和大型文件处理进行了多层次的优化。
+测量在 Gentoo Linux 上进行（热缓存后平均值，所有包已原生编译）。
 
-| 条件 | 时间 |
-|------+------|
-| ~emacs --fg-daemon~（无 GUI） | ~0.54s |
-| ~emacs --eval '(kill-emacs)'~（含加载配置） | ~0.77s |
+* 启动时间基准
 
-* 优化措施
+| 测量条件 | 时间 | 说明 |
+|----------+------+------|
+| ~emacs --fg-daemon~（无 GUI） | ~0.54s | 守护进程启动，仅加载配置 |
+| ~emacs --eval '(kill-emacs)'~ | ~0.77s | 含配置加载完成 |
+| ~emacsclient -c~（第一个 GUI 帧） | ~0.15s | 框架已运行，建帧时间 |
+| ~emacsclient -nw~（终端帧） | ~0.05s | 终端帧几乎瞬时 |
 
-| 措施 | 位置 | 收益 |
+* Native Compilation（~.eln~）
+
+## 配置
+
+#+BEGIN_SRC emacs-lisp
+;; -O2 是甜点；-O3 膨胀 .eln 文件且差距极小
+(setq native-comp-speed 2)
+
+;; 并行编译任务数：CPU 核心数的一半，最多 4
+(setq native-comp-async-jobs-number
+      (min 4 (max 1 (/ (num-processors) 2))))
+
+;; 安装包时自动原生编译
+(setq package-native-compile t)
+
+;; 静默编译警告（不弹出 *Compile-Log*）
+(setq native-comp-async-report-warnings-errors 'silent)
+#+END_SRC
+
+## 参数详解
+
+| 参数 | 值 | 说明 |
+|------+----+------|
+| ~native-comp-speed~ | 2 | ~-O2~ 优化级别。~-O3~ 增益极小但 .eln 体积膨胀 30%+；~-O1~ 性能差异明显 |
+| ~native-comp-async-jobs-number~ | ~min(4, cores/2)~ | 编译任务并行度。超过 4 后收益递减，且会干扰其他进程 |
+| ~package-native-compile~ | ~t~ | 通过 straight/package.el 安装时自动编译为 .eln |
+| ~native-comp-async-report-warnings-errors~ | ~'silent~ | 不出 *Compile-Log* buffer，但写入日志 |
+
+#+BEGIN_SRC text
+native-comp-speed 对比（非正式基准，仅供参考）：
+  -O0:  基准
+  -O1:  +15-20% 提升
+  -O2:  +25-35% 提升（推荐）
+  -O3:  +27-37% 提升（边际收益，~10% 额外 .eln 大小）
+#+END_SRC
+
+* Byte Compilation（~.elc~）
+
+## 配置
+
+~my/byte-compile-config~（手动运行，见 [[file:../tools/full-reload.org][tools/full-reload]]）
+
+编译范围：
+- ~config.el~
+- ~cli.el~（如存在）
+- 所有自定义模块的 ~config.el~
+
+## 与 native-comp 的关系
+
+| 编译层次 | 产物 | 加速对象 | 触发方式 |
+|----------+------+----------+----------|
+| 字节码 | ~.elc~ | 文件加载速度 | ~my/byte-compile-config~ |
+| 原生编译 | ~.eln~ | 函数执行速度 | ~native-comp-speed 2~（自动） |
+
+两者独立且互补。字节码减少 ~read~ + ~eval~ 时间，原生编译将函数编译为机器码。
+
+* Doom 内置启动优化
+
+Doom Emacs 的 ~early-init.el~ 已经做了大量优化，此处列出以供参考：
+
+| 优化 | 机制 | 收益 |
 |------+------+------|
-| ~gc-cons-threshold~ 设为 ~most-positive-fixnum~ | Doom early-init.el | 启动时不触发 GC |
-| ~load-prefer-newer~ nil | Doom early-init.el | 不检查 .elc 和 .el 的时间戳 |
-| ~file-name-handler-alist~ nil | Doom early-init.el | 启动时跳过文件 handler 检查 |
-| ~gcmh-mode~ | packages.el（gcmh） | 空闲时 GC，活动时不 GC |
-| ~add-transient-hook!~ | config.el | fcitx、denote 等延迟到真正使用时加载 |
-| ~:defer t~ / ~:after-call~ | config.el | 包延迟加载 |
-| ~after!~ / ~with-eval-after-load~ | config.el | 设置推迟到包加载后 |
+| ~gc-cons-threshold~ | 设为 ~most-positive-fixnum~ | 启动时不触发 GC |
+| ~file-name-handler-alist~ | 临时设为 nil | 跳过文件 handler 检查（~tramp~、~url~ 等） |
+| ~load-prefer-newer~ | nil | 不检查 .elc 和 .el 时间戳 |
+| ~gcmh-mode~ | Doom ~:config~ 默认 | 空闲时 GC，活动时不 GC |
+| ~default-tab-width~ / ~sentence-end-double-space~ | 设为 nil | 跳过文件局部变量设置 |
 
-* 大文件性能
+* 延迟加载策略
 
-| 文件大小 | 行为 | 预期效果 |
-|----------+------+----------|
-| <1 MiB | 所有美化开启 | 正常体验 |
-| ≥1 MiB | 关闭 org-modern/org-appear/org-indent/fontification/prettify-symbols/variable-pitch | 无卡顿滚动和输入 |
+本配置采用的延迟加载技术：
+
+| 技术 | 应用位置 | 说明 |
+|------+----------+------|
+| ~add-transient-hook!~ | fcitx5 输入法 | 延迟到 ~doom-first-input-hook~（首次按键）才加载 |
+| ~:defer t~ | ace-pinyin | 在 ~avy-goto-char-timer~ 首次调用后加载 |
+| ~after!~ / ~with-eval-after-load~ | magit、org、ox-latex、ox-html 等 | 设置推迟到包加载后 |
+| ~use-package! :after-call~ | ace-pinyin | 当 ~avy-goto-char-timer~ 首次被调用时 |
+| ~use-package! :commands~ | spacious-padding、denote 等 | 仅声明 autoload，不加载 |
+| ~use-package! :hook~ | olivetti、super-save、palimpsest | 绑定 hook 但不加载包 |
+
+* 大型文件处理
+
+## Org 文件阈值
+
+| 文件大小 | 行为 | 效果 |
+|----------+------+------|
+| < 1 MiB | 所有美化开启 | 正常体验（org-modern、org-appear、org-indent、prettify-symbols、variable-pitch、olivetti） |
+| ≥ 1 MiB | 禁用所有装饰性次要模式 | 无卡顿滚动和输入 |
+
+## 禁用详情
+
+~my/org-maybe-disable-prettification~ 在文件 >=1 MiB 时：
+
+1. 关闭所有次要模式：~org-modern-mode~、~org-appear-mode~、~org-indent-mode~
+2. 关闭 ~prettify-symbols-mode~ 并清空 alist
+3. 关闭 ~variable-pitch-mode~ 和 ~olivetti-mode~
+4. 重置字体化变量：
+   - ~org-hide-leading-stars~ → nil
+   - ~org-fontify-done-headline~ → nil
+   - ~org-fontify-quote-and-verse-blocks~ → nil
+   - ~org-fontify-whole-heading-line~ → nil
+   - ~org-priority-faces~ → nil
+   - ~org-todo-keyword-faces~ → nil
+   - ~org-pretty-entities~ → nil
+   - ~org-hide-emphasis-markers~ → nil
+   - ~org-ellipsis~ → "..."
+5. 调用 ~font-lock-flush~ 使更改生效
+
+## Writing-stats 的大文件跳过
+
+Modeline 实时写作统计（~my/writing-stats-mode~）对 ≥1 MiB 的 Org 文件
+自动跳过，不触发 C 模块扫描：
+
+#+BEGIN_SRC emacs-lisp
+(when (> (buffer-size) my/org-large-file-size-threshold)
+  (setq my/writing-stats--str nil))
+#+END_SRC
+
+* 相关性建议
+
+| 场景 | 建议 |
+|------+------|
+| 启动太慢 | 检查 ~doom env~ 是否有残留、~my/byte-compile-config~ 是否已运行 |
+| 交互卡顿 | 检查是否打开了大型文件、是否启用了 ~gcmh-mode~ |
+| .eln 编译 CPU 100% | ~native-comp-async-jobs-number~ 调低到 1-2 |
+| 内存占用过高 | ~native-comp-speed~ 降为 1，关闭 ~package-native-compile~ |

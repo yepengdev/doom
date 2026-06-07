@@ -1,68 +1,74 @@
 #+TITLE: Denote 键位参考 (~SPC r d~)
 
-* 创建
+所有键位定义在 ~:init~ 块中的 ~map!~ 宏，~:leader~ 前缀 ~SPC~。localleader 前缀 ~SPC m~。
+
+* 创建（~SPC r d~）
 
 | 按键 | 命令 | 说明 |
 |------+------+------|
-| ~SPC r d n~ | ~denote~ | 新建笔记（提示标题→关键词） |
-| ~SPC r d d~ | ~denote-date~ | 指定日期创建 |
-| ~SPC r d t~ | ~denote-type~ | 选择文件类型创建（org/md/txt） |
-| ~SPC r d o~ | ~denote-open-or-create~ | 输入存在的笔记名→打开；不存在→创建 |
-| ~SPC r d s~ | ~denote-sequence~ | 新建序列笔记（带 SIGNATURE 字段） |
-| ~SPC r d j~ | ~denote-journal-new-or-existing-entry~ | 打开或创建今日日记 |
+| ~SPC r d n~ | ~denote~ | 新建笔记：依次提示输入标题 → 选择关键词 |
+| ~SPC r d d~ | ~denote-date~ | 指定日期创建笔记（使用 ~org-read-date~ 日历选择） |
+| ~SPC r d t~ | ~denote-type~ | 选择文件类型创建（~.org~ / ~.md~ / ~.txt~） |
+| ~SPC r d o~ | ~denote-open-or-create~ | 输入已有笔记名 → 打开；输入新名 → 创建 |
+| ~SPC r d s~ | ~denote-sequence~ | 新建序列笔记：提示输入父笔记和签名（如 ~1.1.a~） |
+| ~SPC r d j~ | ~denote-journal-new-or-existing-entry~ | 打开或创建今日日记（~C-u~ 前缀指定日期） |
 
-* 链接
+* 链接（~SPC r d~）
 
 | 按键 | 命令 | 说明 |
 |------+------+------|
-| ~SPC r d l~ | ~denote-find-link~ | 查找已存在的链接并跳转 |
-| ~SPC r d i~ | ~denote-link-or-create~ | 输入目标→已存在则插入链接，不存在则创建 |
-| ~SPC r d h~ | ~denote-org-link-to-heading~ | 链接到 Org 文件内的某个标题 |
+| ~SPC r d l~ | ~denote-find-link~ | 查找文件中已有的 Denote 链接并跳转 |
+| ~SPC r d i~ | ~denote-link-or-create~ | 输入目标笔记名 → 已存在则插入链接，不存在则创建新笔记并链接 |
+| ~SPC r d h~ | ~denote-org-link-to-heading~ | 链接到 Org 文件内的某个 ~* 标题~（生成 ~::heading~ 定位符） |
 | ~SPC r d b~ | ~denote-find-backlink~ | 查找当前笔记的反向链接 |
-| ~SPC r d H~ | ~denote-org-backlinks-for-heading~ | 查找当前标题的反向链接 |
+| ~SPC r d H~ | ~denote-org-backlinks-for-heading~ | 查找当前 ~* 标题~ 的反向链接（更精确，适合大文件） |
 
-* 重命名
-
-| 按键 | 命令 | 说明 |
-|------+------+------|
-| ~SPC r d k~ | ~denote-rename-file-keywords~ | 只修改关键词 |
-| ~SPC r d r~ | ~denote-rename-file~ | 重命名（改标题和关键词） |
-| ~SPC r d R~ | ~denote-rename-file-using-front-matter~ | 根据文件内 ~#+title~ 和 ~#+filetags~ 重命名 |
-| ~SPC r d x~ | ~denote-org-extract-org-subtree~ | 将当前子标题提取为新笔记 |
-
-* 查看与搜索
+* 重命名（~SPC r d~）
 
 | 按键 | 命令 | 说明 |
 |------+------+------|
-| ~SPC r d f~ | ~consult-notes~ | 搜索笔记（标题+关键词） |
-| ~SPC r d D~ | ~denote-dired~ | 在 Dired 中浏览笔记目录 |
-| ~SPC r d g~ | ~denote-grep~ | 搜索笔记内容（ripgrep） |
-| ~SPC r d m~ | ~list-denotes~ | 表格视图 |
+| ~SPC r d k~ | ~denote-rename-file-keywords~ | 只修改关键词：不影响标题，只改 ~__KEYWORDS~ 部分 |
+| ~SPC r d r~ | ~denote-rename-file~ | 重命名文件：交互式修改标题和关键词 |
+| ~SPC r d R~ | ~denote-rename-file-using-front-matter~ | 根据文件内 ~#+title~ 和 ~#+filetags:~ 重命名文件（双向同步） |
+| ~SPC r d x~ | ~denote-org-extract-org-subtree~ | 将当前 ~**~ 子标题提取为独立 Denote 笔记，原位替换为 Denote 链接 |
 
-* 探索（~e~ 子前缀）
+* 查看与搜索（~SPC r d~）
 
 | 按键 | 命令 | 说明 |
 |------+------+------|
-| ~SPC r d e c~ | ~denote-explore-count-notes~ | 统计笔记数量 |
-| ~SPC r d e C~ | ~denote-explore-count-keywords~ | 统计关键词频次 |
+| ~SPC r d f~ | ~consult-notes~ | Consult 搜索界面：标题+关键词过滤，实时预览 |
+| ~SPC r d D~ | ~denote-dired~ | 在 Dired 中浏览笔记目录（~denote-dired-mode~ 启用） |
+| ~SPC r d g~ | ~denote-grep~ | 用 ripgrep 搜索笔记正文内容 |
+| ~SPC r d m~ | ~list-denotes~ | 打开表格视图（~denote-menu~，~tabulated-list-mode~） |
+
+* 探索子前缀（~SPC r d e~）
+
+~e~ 子前缀映射在 ~:prefix-map ("e" . "Explore")~ 下。
+
+| 按键 | 命令 | 说明 |
+|------+------+------|
+| ~SPC r d e c~ | ~denote-explore-count-notes~ | 统计笔记总数（按年/月显示柱状图） |
+| ~SPC r d e C~ | ~denote-explore-count-keywords~ | 统计各关键词使用频次 |
 | ~SPC r d e r~ | ~denote-explore-random-note~ | 随机打开一篇笔记 |
-| ~SPC r d e l~ | ~denote-explore-random-link~ | 随机打开一个有入链的笔记 |
-| ~SPC r d e n~ | ~denote-explore-network~ | 生成交互式 d3.js 网络图 |
+| ~SPC r d e l~ | ~denote-explore-random-link~ | 随机打开一篇有入链的笔记 |
+| ~SPC r d e n~ | ~denote-explore-network~ | 生成交互式 d3.js 网络图（在浏览器中打开） |
 
-* Denote Menu 模式
-
-| 按键 | 说明 |
-|------+------|
-| ~c~ | 清除筛选 |
-| ~/ r~ | 正则筛选 |
-| ~/ k~ | 关键词筛选 |
-| ~/ o~ | 排除关键词 |
-| ~e~ | 导出到 Dired（批量操作） |
-
-* Org 模式 localleader (~SPC m D~)
+* Org 模式 localleader（~SPC m D~）
 
 | 按键 | 命令 | 说明 |
 |------+------+------|
 | ~SPC m D h~ | ~denote-org-link-to-heading~ | 链接到 Org 标题 |
-| ~SPC m D b~ | ~denote-org-backlinks-for-heading~ | 标题反向链接 |
+| ~SPC m D b~ | ~denote-org-backlinks-for-heading~ | 标题级反向链接 |
 | ~SPC m D x~ | ~denote-org-extract-org-subtree~ | 提取子树为新笔记 |
+
+* Denote Menu 模式键位
+
+在 ~denote-menu-mode-map~ 中定义的自定义键位（~:config~ 块中）：
+
+| 按键 | 命令 | 说明 |
+|------+------+------|
+| ~c~ | ~denote-menu-clear-filters~ | 清除所有筛选条件 |
+| ~/ r~ | ~denote-menu-filter~ | 按正则表达式筛选（标题+关键词） |
+| ~/ k~ | ~denote-menu-filter-by-keyword~ | 筛选包含某关键词的笔记 |
+| ~/ o~ | ~denote-menu-filter-out-keyword~ | 排除包含某关键词的笔记 |
+| ~e~ | ~denote-menu-export-to-dired~ | 将当前筛选结果导出到 Dired buffer（用于批量操作） |

@@ -1,31 +1,58 @@
-#+TITLE: ADR-06: 单文件 config.el 而非分裂结构
-#+DATE: 2024
+#+TITLE: ADR-06: 单文件 config.el 辅以自定义模块
+#+DATE: 2024-01-01
+#+UPDATED: 2026-06-07
 #+STATUS: accepted
 
 * Context
 
-Doom 传统上支持 ~config.el~ 或 ~config/~
-（~config/foo.el~ ~config/bar.el~ 分裂到多个文件）两种写法。
+Doom 传统上支持 ~config.el~ 或 ~config/~（~config/foo.el~ ~config/bar.el~ 分裂到多个文件）两种写法。
 
 * Decision
 
-选择单文件 ~config.el~，拒绝分裂结构。
+选择单文件 ~config.el~ 作为主配置文件，同时将领域性配置拆分为自定义 Doom 模块（=modules/tools/*/config.el=）。
+
+**架构概览**：
+
+| 文件 | 用途 | ~doom sync~ 需要？ |
+|------|------|-------------------|
+| =config.el= | 所有非模块化用户配置（~900 行） | 否 |
+| =modules/tools/notes/config.el= | Denote/Deft 笔记系统配置 | 否 |
+| =modules/tools/cjk/config.el= | CJK 字符统计配置 | 否 |
+| =modules/tools/jieba/config.el= | 结巴分词配置 | 否 |
+| =modules/tools/pomodoro/config.el= | 番茄钟配置 | 否 |
+| =modules/ffi/dyncall/{config,autoload}.el= | 动态 FFI 配置 | 否 |
+| =cli/cli*.el= | CLI hook 文件 | 否 |
+
+**分割原则**：
+
+- 通用/个人配置 → =config.el=：字体、主题、键绑定、Org、LaTeX、shell、fcitx 等
+- 领域功能配置 → =modules/tools/*/config.el=：笔记、分词、CJK、番茄钟等独立子系统
+- CLI hook → =cli/cli*.el=：只在 CLI 环境下加载的配置
 
 * Consequences
 
 **正面**
 
-- **搜索成本低**：需要查某配置时，只有 ~config.el~ 一个目标。`SPC s f config.el` 打开即可
-- **修改成本低**：不需要想"这个设置放在哪个文件"。所有配置在同一个 buffer 中编辑
-- **心智模型简单**：~init.el~（模块）+ ~packages.el~（包）+ ~config.el~（配置）= 3 文件系统
-- **重载可靠**：~doom/reload~ 只加载 ~config.el~，分裂结构需要手动 ~load~ 每个子文件
+- **搜索成本低**：需要查某配置时，只有 =config.el= 一个主要目标。`SPC s f config.el` 打开即可
+- **修改成本低**：不需要想"这个设置放在哪个文件"。所有通用配置在同一个 buffer 中编辑
+- **心智模型简单**：=init.el=（模块）+ =packages.el=（包）+ =config.el=（配置）= 3 文件系统
+- **重载可靠**：~doom/reload~ 只加载 =config.el=，分裂结构需要手动 ~load~ 每个子文件
 - **diff 可读**：Git 历史中一个文件的变化比多个文件更容易追踪
+- **模块隔离干净**：自定义模块的 =config.el= 按 Doom 模块机制自动加载，用户无需操心 require 顺序
 
 **负面**
 
-- 文件变大：当前 853 行，未来可能到 1500+ 行（比分裂结构大，但仍在合理范围内）
-- 缺乏模块化：不能按主题禁用某个 ~config/foo.el~（只能注释掉对应段落）
+- =config.el= 约 900 行，未来可能到 1500+ 行（比分裂结构大，但仍在合理范围内）
+- 不能按主题禁用某个 ~config/foo.el~（只能注释掉对应段落）
+- 自定义模块的 =config.el= 在 ~doom/reload~ 中不自动重载（需要 ~my/doom-full-reload~）
+
+**后续考虑**
+
+- 如果 =config.el= 超过 2000 行，可考虑将 ~700+ 行的 Org 实时预览部分（~my/org-live-*~）或 LaTeX 配置抽出为独立文件
+- 当前 ~my/byte-compile-config~ 命令（=config.el= 第 875-889 行）自动编译所有模块的 =config.el=
 
 * 参考
 
-- ~/.config/doom/config.el
+- ~$DOOMDIR/config.el~（主配置，~900 行）
+- ~$DOOMDIR/modules/tools/*/config.el~（自定义模块配置）
+- ~$DOOMDIR/config.el~ 第 875-889 行（~my/byte-compile-config~ 编译所有模块 config.el）

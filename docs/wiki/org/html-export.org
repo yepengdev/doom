@@ -1,12 +1,17 @@
-#+TITLE: HTML 导出（本地主题）
+#+TITLE: HTML 导出（本地极简主题）
+#+STARTUP: overview
 
 * 原则
 
-零 JavaScript、无 CDN 依赖、完全离线可用。
+- 零 JavaScript
+- 无 CDN 依赖
+- 完全离线可用
+- 支持系统深色模式
+- 响应式布局
 
 * 实现
 
-关闭 Org 默认的 HTML 样式，替换为本地 CSS：
+关闭 Org 默认的 HTML 内联样式，替换为本地 CSS。
 
 #+BEGIN_SRC emacs-lisp
 (defvar my/org-export-assets-dir
@@ -22,18 +27,119 @@
     (setq org-html-head-extra "")))
 #+END_SRC
 
+路径使用绝对路径 ~file://~ 引用，确保离线可用。
+
 * 文件结构
 
 #+BEGIN_SRC text
-~/.config/doom/org-export/minimal/
-  css/
-    org.css      -- 主样式表（排版、颜色、布局）
-    htmlize.css  -- 代码语法高亮样式
+  ~/.config/doom/org-export/minimal/
+    css/
+      org.css      -- 主样式表（排版、颜色、布局）
+      htmlize.css  -- 代码语法高亮（htmlize.el 根据当前 theme 生成）
 #+END_SRC
 
-- ~org.css~ 定义正文排版（字体、行距、标题层级、表格边框、代码块、引用块）
-- ~htmlize.css~ 由 ~htmlize.el~ 生成，每个导出时根据当前 theme 重生成
-- 路径使用绝对路径 ~file://~ 引用，确保离线可工作
+- ~org.css~ — 手动维护的主题样式表
+- ~htmlize.css~ — 每次导出时由 ~htmlize.el~ 根据当前 Emacs theme 重新生成
+
+* org.css 特性
+
+** 设计变量
+
+CSS 自定义属性集中在 ~:root~ 中：
+
+| 变量 | 含义 | 浅色默认值 | 深色覆盖值 |
+|------+------+------------+------------|
+| ~--bg~ | 页面背景渐变 | ~#f8f6f2 → #f0ebe3~ | ~#1a1830 → #12101e~ |
+| ~--surface~ | 内容卡片背景 | ~#ffffff~ | ~#1e1b2e~ |
+| ~--text~ | 正文颜色 | ~#2c2c2c~ | ~#ddd8ee~ |
+| ~--accent~ | 主强调色 | ~#8b5cf6~（紫） | ~#a78bfa~ |
+| ~--accent2~ | 辅强调色 | ~#f472b6~（粉） | ~#f9a8d4~ |
+| ~--accent3~ | 青 | ~#06b6d4~ | ~#67e8f9~ |
+| ~--accent4~ | 黄 | ~#f59e0b~ | ~#fcd34d~ |
+| ~--accent5~ | 绿 | ~#10b981~ | ~#6ee7b7~ |
+| ~--heading~ | 标题颜色 | ~#1f1a2e~ | ~#eeebf5~ |
+| ~--code-bg~ | 代码块背景 | ~#f1efe9~ | ~#151220~ |
+
+** 内容卡片
+
+- 白色卡片置于渐变背景上，圆角 ~10px~
+- 顶部分隔线：~accent → accent2 → accent3 → accent4~ 渐变色
+- ~box-shadow~ 营造微悬浮感
+
+** 标题装饰
+
+| 级别 | 装饰 | 样式 |
+|------+------+------|
+| h1 | **标题 + 下划线** | 渐变色文字 + 2px 底部边框 |
+| h2 | ~□~ 方块标记 | 渐变色方块 + 下划线 |
+| h3 | ~◆~ 菱形标记 | 青色菱形 |
+| h4 | ~▸~ 三角标记 | 黄色三角 |
+
+** 代码块（macOS 风格）
+
+- 左上角红/黄/绿三色圆点（macOS 窗口按钮风格）：
+  ~radial-gradient(circle, #fb7185, #fbbf24, #34d399)~
+- 右上角语言标记 ~</>~（通用）
+- 左侧渐变边框（~accent → accent2~）
+- 代码字体：~SF Mono / Fira Code / Noto Sans Mono CJK SC~
+- 自定义滚动条（WebKit）
+
+** 正文排版
+
+| 元素 | 字体 | 行高 | 特殊处理 |
+|------+------+------+----------|
+| body | Georgia / Noto Serif / LXGW WenKai | 1.85 | ~antialiased~ |
+| p | 继承 | 1.9 | 首行缩进 2em |
+| 首段 | 继承 | 1.9 | 无缩进 + 首字下沉（~1.4em~ + accent 色） |
+| blockquote | 继承 | 继承 | 左侧渐变边线 + 引导符 ~"~ |
+| 引用边线 | — | — | ~accent → accent2 → accent3~ 渐变 |
+
+** TODO / DONE 标记
+
+| 状态 | 样式 |
+|------+------|
+| ~TODO~ | 粉红渐变底 + 白色文字 + 圆角胶囊 |
+| ~DONE~ | 绿色渐变底 + 白色文字 + 圆角胶囊 |
+| ~:tag:~ | 青色底 + 圆角 |
+
+** 表格
+
+- 圆角折叠边框，淡阴影
+- 表头：渐变背景（~accent-soft~ + 白）
+- 偶数行交替背景
+- 行悬停高亮
+
+** 响应式
+
+~@media (max-width: 900px)~ 下：
+- 内容卡片全宽（取消 ~padding-right~）
+- TOC 从右侧固定栏变为文档流内的块
+
+** 打印样式
+
+~@media print~：
+- 纯白背景、无阴影、无圆角
+- TOC 隐藏
+- 代码块自动折行 + 分页控制
+- 正文 ~11pt~
+
+** 深色模式
+
+~@media (prefers-color-scheme: dark)~ 自动适配：
+- 深紫背景，浅紫/粉文字
+- 所有 ~accent~ 色系调亮以在深色上可读
+- 代码块背景更深
+- 表格偶数行着色调整
+
+* htmlize.css
+
+由 ~htmlize.el~ 根据当前 Emacs 主题生成语法高亮规则。导出流程：
+1. Emacs 对 ~#+BEGIN_SRC~ 块应用 font-lock 字体化
+2. ~htmlize.el~ 捕获字体化后的 faces → CSS 规则
+3. 写入 ~htmlize.css~
+4. 与 ~org.css~ 同时被 HTML 引用
+
+切换 Emacs 主题后重新导出即可获得对应的高亮配色。
 
 * 自定义
 

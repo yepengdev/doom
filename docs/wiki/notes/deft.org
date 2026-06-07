@@ -2,11 +2,11 @@
 
 * 用途
 
-Deft 是独立的快速笔记浏览工具。与 Denote 互补：
-- Denote：严谨的文件命名、关键词分类、链接体系
-- Deft：随意创建、快速搜索、适合 fleeting notes
+Deft 是独立的快速笔记浏览工具，与 Denote 互补：
+- **Denote**：严谨的文件命名、关键词分类、链接体系
+- **Deft**：随意创建、快速搜索、适合 fleeting notes 和临时记录
 
-Deft 目录：~/org/deft/
+Deft 目录：~/org/deft/（与 Denote 的 ~/org/denote/ 完全独立）
 
 * 配置
 
@@ -31,8 +31,40 @@ Deft 目录：~/org/deft/
 
 | 自定义 | 默认行为 | 我改成了 |
 |--------+----------+----------|
-| ~deft-parse-title~ | 只认 ~#+TITLE~（大写 T） | 认 ~#+title~ ~#+TITLE~ ~#+Title~ 等大小写变体 |
-| 标题 fallback | 无 | 使用文件名（~deft-base-filename~）——去掉扩展名 |
+| ~deft-parse-title~ | 只认 ~#+TITLE~（大写 T 严格匹配） | 认 ~#+title~ ~#+TITLE~ ~#+Title~ 等任意大小写变体（~[tT][iI][tT][lL][Ee]~） |
+| 标题 fallback | 无（文件无 ~#+TITLE~ 时标题为空） | 使用文件名（~deft-base-filename~，去掉扩展名） |
 | ~deft-strip-summary-regexp~ | 不清理 | 移除 ~#+KEY: value~ 行和 ~:PROPERTIES:~ ~:END:~ drawer |
 
-清理后的摘要更干净——只显示笔记正文，不包含 Org metadata。
+** ~deft-parse-title~ 详解
+
+~advice-add :override~ 将原始的 ~deft-parse-title~ 完全替换为 ~my/deft-parse-title~。
+
+关键变化：
+1. 正则 ~^#\\+[tT][iI][tT][lL][Ee]:\\s-*\\(.*\\)~ = 匹配 ~#+title:~、~#+TITLE:~、~#+Title:~ 等大小写变体
+2. 匹配到则提取 ~#+title:~ 后的内容作为笔记标题
+3. 匹配不到则使用 ~deft-base-filename~（去除扩展名的文件名）作为 fallback 标题
+
+** ~deft-strip-summary-regexp~ 详解
+
+#+BEGIN_SRC emacs-lisp
+(concat "\\("
+        "[\n\t]"                           ; 移除换行和制表符
+        "\\|^#\\+[[:alpha:]_]+:.*$"       ; 移除所有 ~#+KEY: value~ 行
+        "\\|^:PROPERTIES:\n\\(.+\n\\)+:END:\n" ; 移除 ~:PROPERTIES:~ drawer
+        "\\)")
+#+END_SRC
+
+清理后的摘要更干净——只显示笔记正文内容，不包含 Org metadata 行和属性抽屉。
+这使得 Deft 的预览面板更清晰，聚焦于笔记的实际内容。
+
+* 使用场景
+
+- **Fleeting notes**：快速记录想法，不关心分类和链接
+- **临时清单**：购物清单、待办草稿
+- **阅读笔记草稿**：阅读时随手记录，之后整理成 Denote 笔记
+- **测试文件**：Denote 笔记的前置试验场
+
+* 目录结构
+
+Deft 目录 ~/org/deft/ 还有 ~/org/deft/annotations/~ 子目录用于 org-noter PDF 批注。
+~deft-recursive t~ 确保 Deft 可以浏览子目录中的文件。

@@ -1,58 +1,89 @@
 #+TITLE: ADR-03: 用 hours 而非 sunrise 切换主题
-#+DATE: 2024
+#+DATE: 2024-01-01
+#+UPDATED: 2026-06-07
 #+STATUS: accepted
 
 * Context
 
-需要自动切换 Emacs 主题：白天用浅色 (doom-one-light)，夜间用深色 (doom-tokyo-night)。
+需要自动切换 Emacs 主题：白天用浅色（~doom-one-light~），夜间用深色（~doom-tokyo-night~）。
 两种方案：
+
 - **Sunrise/sunset** — 根据地理坐标计算日出日落时间，动态切换
-- **Fixed hours** — 写死切换时间点 (7:00/19:00)
+- **Fixed hours** — 写死切换时间点（7:00/19:00）
 
 * Decision
 
-选择 fixed hours 方案：
+选择 fixed hours 方案。当前实现（~$DOOMDIR/config.el~ 第 64-102 行）通过纯函数 + 持久 hook 实现：
+
+**主题常量**
 
 #+BEGIN_SRC emacs-lisp
 (defconst my/theme-day-start 7)
 (defconst my/theme-night-start 19)
+#+END_SRC
 
+**纯函数判断**
+
+~my/theme-for-hour~ 是一个纯函数（无状态、无副作用），接收可选小时参数，默认为当前本地时间：
+
+#+BEGIN_SRC emacs-lisp
 (defun my/theme-for-hour (&optional hour)
+  "纯函数 — 返回指定 HOUR 对应的主题常量。
+ 无状态、无副作用。"
   (let ((h (or hour (string-to-number (format-time-string "%H")))))
     (if (and (>= h my/theme-day-start) (< h my/theme-night-start))
         my/theme-day
       my/theme-night)))
 #+END_SRC
 
-切换时机在 `doom-switch-frame-hook`，首次触发后自卸（one-shot）：
+**主题应用与切换**
+
+~my/theme-apply~ 负责全局切换（副作用：修改 ~doom-theme~ 并调用 ~doom/reload-theme~）：
 
 #+BEGIN_SRC emacs-lisp
+(defun my/theme-apply (theme)
+  (setq doom-theme theme)
+  (doom/reload-theme))
+#+END_SRC
+
+切换时机挂在 ~doom-switch-frame-hook~ 上，持久不移除（原版使用 one-shot 自卸方式，已在重构中改为持久 hook）：
+
+#+BEGIN_SRC emacs-lisp
+(setq doom-theme (my/theme-for-hour))
+(add-hook 'doom-switch-frame-hook #'my/theme-switch-maybe 'append)
+
 (defun my/theme-switch-maybe ()
   (let ((theme (my/theme-for-hour)))
     (unless (eq doom-theme theme)
-      (my/theme-apply theme)
-      (remove-hook 'doom-switch-frame-hook #'my/theme-switch-maybe))))
+      (my/theme-apply theme))))
 #+END_SRC
+
+**为何从 one-shot 改为持久 hook**：
+
+- One-shot（~remove-hook~ 在首次触发后自卸）在跨越夜边界的长时间会话中失败——如果 Emacs 在 18:30 启动，一次切换后不再检查 19:00 的变更
+- 持久 hook 的 ~unless (eq doom-theme ...)~ guard 保证非切换时间近乎零开销（一台 `eq` 比较），在过渡时间（7:00/19:00）才执行实际切换
 
 * Consequences
 
 **正面**
 
-- 零网络依赖：sunrise API 需要网络请求 + 地理定位
-- 配置幂等：同一台机器任何时候结果一致
-- 可预测：7:01 亮、18:59 亮、19:01 暗
-- 无外部依赖：不需要 `calendrical` 或 `sunrise-sunset` 包
+- **零网络依赖**：sunrise API 需要网络请求 + 地理定位
+- **配置幂等**：同一台机器任何时候结果一致
+- **可预测**：7:01 亮、18:59 亮、19:01 暗
+- **无外部依赖**：不需要 ~calendrical~ 或 ~sunrise-sunset~ 包
+- **纯函数设计**：~my/theme-for-hour~ 可测试、可预览、可被 ~my/doom-full-reload~ 重用
 
 **负面**
 
-- 不随季节变化：夏季太阳 5 点升起时仍用暗色，冬季 17 点天黑时仍用亮色
-- 固定时间不适合高纬度地区（极昼/极夜）
+- **不随季节变化**：夏季太阳 5 点升起时仍用暗色，冬季 17 点天黑时仍用亮色
+- **固定时间不适合高纬度地区**（极昼/极夜）
 
-* 权衡
+**后续考虑**
 
-开发者作息固定在桌前 → 7-19 覆盖典型工作日。如果需要在旅途/异地使用，可改为 sunrise 方案，
-但复杂性增加不值——大不了手动 `M-x load-theme`。
+- 如果增加旅行场景，可在配置中增加 ~my/theme-day-start~ / ~my/theme-night-start~ 的覆盖机制（如按经纬度自动计算）
+- 纯函数设计允许未来切换算法而不影响调用方
 
 * 参考
 
-- ~/.config/doom/config.el 第 39-74 行
+- ~$DOOMDIR/config.el~ 第 52-102 行（完整实现：定义、应用、切换 hook）
+- ~$DOOMDIR/config.el~ 第 834-871 行（~my/doom-full-reload~ 使用 ~my/theme-apply~ 和 ~my/theme-for-hour~）

@@ -3,32 +3,68 @@
 
 * 用途
 
-使用 pdf-tools 在 Emacs 中阅读 PDF，支持：平滑滚动、搜索、批注、链接。
+使用 ~pdf-tools~ 在 Emacs 中阅读 PDF，支持：连续滚动、搜索、文本选择、批注、
+超链接导航。配合 ~org-pdftools~ 和 ~org-noter~ 可做研究笔记。
 
 * 配置
 
 #+BEGIN_SRC emacs-lisp
+(add-hook! 'pdf-view-mode-hook #'pdf-view-roll-minor-mode #'evil-emacs-state)
+
 (after! pdf-tools
   (setq pdf-view-display-size 'fit-page
         pdf-view-resize-factor 1.1
         pdf-annot-activate-created-annotations t
         pdf-view-use-scaling nil
         pdf-view-use-imagemagick nil
-        pdf-view-selection-style 'glyph)
-  (add-hook! 'pdf-view-mode-hook #'pdf-view-roll-minor-mode #'evil-emacs-state))
+        pdf-view-selection-style 'glyph))
+
+;; g z → Zathura 外部打开
+(map! :map pdf-view-mode-map
+      :n "g z" (cmd! (when-let ((f (buffer-file-name)))
+                       (start-process "zathura" nil "zathura" f))))
 #+END_SRC
 
 * 核心设置
 
-| 选项 | 值 | 说明 |
-|------+-----+------|
-| ~pdf-view-display-size~ | ~fit-page~ | 整页显示（类似 PDF 阅读器） |
-| ~pdf-view-resize-factor~ | 1.1 | 缩放步长（~+~ ~-~ 每次 ±10%） |
-| ~pdf-annot-activate-created-annotations~ | t | 创建批注后立即激活编辑 |
-| ~pdf-view-roll-minor-mode~ | on | 连续滚动（而非逐页） |
-| ~evil-emacs-state~ | on | 用 Emacs state（i 键即可阅读/搜索，无需切换模式） |
+| 选项                                       | 值         | 说明                                               |
+|--------------------------------------------+------------+----------------------------------------------------|
+| ~pdf-view-display-size~                    | ~fit-page~ | 整页显示（类似 PDF 阅读器，不缩放）                 |
+| ~pdf-view-resize-factor~                   | 1.1        | 缩放步长（~+~ ~-~ 每次缩放 10%）                    |
+| ~pdf-annot-activate-created-annotations~   | ~t~        | 创建批注后立即进入编辑模式                           |
+| ~pdf-view-roll-minor-mode~                 | on         | 连续滚动模式（类似浏览器的页面滚动）                |
+| ~evil-emacs-state~                         | on         | PDF 缓冲区使用 Emacs state（非插入也非普通）       |
+| ~pdf-view-selection-style~                 | ~'glyph~   | 按字形边界选择文本（而非像素），复制粘贴更精确      |
 
-* Zathura 备用
+* Evil Emacs state
+
+~pdf-view-mode~ 使用 ~evil-emacs-state~（而非默认的 ~evil-normal-state~）的原因：
+
+1. 浏览 PDF 时频繁使用 ~i~（进入插入）→ 在 Emacs state 下直接可用所有 Emacs 键位
+2. 按 ~i~ 不再需要（本身就是 Emacs state），减少心智负担
+3. PDF 的 keymap 是 Emacs 原生键绑定（如 ~C-s~ 搜索、~+~/-~ 缩放）
+4. Normal state 下这些键可能被 Evil 拦截或需要 ~SPC~ 前缀
+
+~add-hook!~（Doom 宏）一次性注册多个 hook 函数，等价于：
+
+#+BEGIN_SRC emacs-lisp
+(add-hook 'pdf-view-mode-hook #'pdf-view-roll-minor-mode)
+(add-hook 'pdf-view-mode-hook #'evil-emacs-state)
+#+END_SRC
+
+* pdf-view-selection-style 'glyph
+
+~pdf-tools~ 提供三种选择模式：
+
+| 模式         | 说明                                    | 适用场景                 |
+|--------------+-----------------------------------------+--------------------------|
+| ~'glyph~     | 按字形边界选择（尊重字符排版边界）       | 复制中文/混合文本（推荐） |
+| ~'word~      | 按 PDF 内部单词边界选择                  | 英文文本                 |
+| ~'nil~       | 按像素区域矩形选择                       | 图像 PDF                 |
+
+~'glyph~ 在中文 PDF 中表现最佳：复制中文时不会截断字符边界，粘贴结果不含西文乱码。
+
+* Zathura 备用（g z）
 
 ~g z~（Normal 模式）用 Zathura 外部 PDF 阅读器打开当前 PDF。
 
@@ -38,18 +74,48 @@
                        (start-process "zathura" nil "zathura" f))))
 #+END_SRC
 
-用途：
-- pdf-tools 无法渲染的特殊 PDF（如某些扫描件）
-- 需要 Zathura 的 Annotator 高级批注功能
+适用场景：
 
-* org-pdftools
+- ~pdf-tools~ 无法渲染的特殊 PDF（含奇特字体/复杂透明效果）
+- 需要 Zathura 的 Annotator 高级批注功能
+- 同时对比多个 PDF（Zathura 的标签页）
+- 打印 PDF（Zathura 有更完善的打印支持）
+
+~cmd!~ 是 Doom 宏，展开为 ~(lambda () (interactive) ...)~。
+
+* org-pdftools 链接
 
 #+BEGIN_SRC emacs-lisp
 (use-package! org-pdftools
   :defer t
   :commands org-pdftools-setup-link
-  :hook (org-load . org-pdftools-setup-link))
+  :init
+  (add-hook 'org-load-hook #'org-pdftools-setup-link))
 #+END_SRC
 
-Org 中可以通过 ~[[pdf:~/file.pdf::10+5]]~ 链接到 PDF 的具体页面+位置。
-~C-c C-o~ 打开链接 → 跳转到 PDF 对应页面。
+| 元素             | 说明                                       |
+|------------------+--------------------------------------------|
+| ~:defer t~       | 延迟加载（首次使用命令时加载）               |
+| ~:commands~      | 告知 use-package 此命令触发加载             |
+| ~org-load-hook~  | Doom 的 Org 加载完成后的 hook（非 ~org-load~） |
+
+为什么是 ~org-load-hook~ 而非 ~org-load~？
+
+- ~org-load~ 是 Emacs 的库加载钩子（~(with-eval-after-load 'org ...)~）
+- ~org-load-hook~ 是 Doom 提供的 hook，在 Org 及其所有配置加载后触发
+- 使用 ~org-load-hook~ 确保 ~org-pdftools-setup-link~ 在 Org 完全就绪后运行
+
+创建 Org 链接语法：
+
+: [[pdf:~/document.pdf::10+5][跳转到第10页偏移5行]]
+: [[pdf:~/document.pdf::10.5][跳转到第10页的 section 5]]
+
+~C-c C-o~（~org-open-at-point~）→ 打开链接并跳转到 PDF 对应位置。
+
+* org-noter 集成
+
+org-noter 配合 pdf-tools 做[[file:org-noter.org][研究笔记]]（另见 org-noter 页面）。关键路径：
+
+1. 在 PDF 中选中文本 → ~SPC m n t~ 插入笔记引用
+2. 笔记保存在 ~~/org/deft/annotations/~（org-noter-notes-search-path）
+3. ~pdf-view-roll-minor-mode~ 兼容性修复见 org-noter 页面

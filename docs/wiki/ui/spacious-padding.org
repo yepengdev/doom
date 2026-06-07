@@ -1,26 +1,29 @@
-#+TITLE: Spacious Padding
+#+TITLE: Spacious Padding — 呼吸空间
+#+STARTUP: overview
 
 * 用途
 
-在 Emacs 界面元素之间添加呼吸空间——fringe、header-line、mode-line 的间距，降低视觉拥挤感。
+在 Emacs UI 元素之间添加额外间距 —— fringe、mode-line、header-line、窗口边缘 —— 降低密集文本布局的视觉拥挤感。类似 Apple 生态（Xcode、iTerm）中普遍采用的宽松排版风格。
 
 * 实现
 
-三件事：
-1. ~line-spacing~ = 3（行间额外垂直间距）
-2. ~spacious-padding-mode~ 启用
-3. 用 daemon-safe 模式确保终端中不启用
+三层配置：
 
-**Daemon-safe 模式**
+1. ~line-spacing~ = 3：所有文本行间额外垂直间距（默认 0）。
+2. ~spacious-padding-mode~：为 mode-line、fringe、header-line、窗口分隔线等添加 padding。
+3. daemon-safe 保护：仅在第一个 GUI 帧上激活。
 
 #+BEGIN_SRC emacs-lisp
-(defvar my/enable-spacious-padding--done nil)
+(defvar my/enable-spacious-padding--done nil
+  "Once-only guard: 第一个 GUI 帧激活后置 t。")
 
 (defun my/enable-spacious-padding--fn (&optional _frame)
+  "首个图形帧创建时启用 `spacious-padding-mode'。
+`display-graphic-p' 确保终端帧跳过（终端无法精细控制 padding）。
+激活后通过 guard 变量变为空操作（但 hook 不移除以简化钩子管理）。"
   (when (and (display-graphic-p)
              (not my/enable-spacious-padding--done))
     (setq my/enable-spacious-padding--done t)
-    (remove-hook 'doom-switch-frame-hook #'my/enable-spacious-padding--fn)
     (spacious-padding-mode 1)))
 
 (use-package! spacious-padding
@@ -30,16 +33,39 @@
   (add-hook 'doom-switch-frame-hook #'my/enable-spacious-padding--fn))
 #+END_SRC
 
-- ~display-graphic-p~ 确保只对 GUI frame 启用（终端 Emacs 的 padding 效果难以控制）
-- ~my/enable-spacious-padding--done~ 是 once-only guard
-- ~doom-switch-frame-hook~ 在第一个 GUI frame 出现时触发，之后自卸
+* 关键设计说明
+
+** ~once-only~ guard 而非 self-removing hook
+
+与早期版本中 ~remove-hook~ 自卸的做法不同，当前使用布尔 guard（~my/enable-spacious-padding--done~）。理由：
+
+- ~doom-switch-frame-hook~ 在守护进程模式下可能触发多次（新建帧），但 ~spacious-padding-mode~ 是全局模式，开启一次即对所有帧生效。
+- Guard 变量比 ~remove-hook~ 更简单 —— 不需要维护 hook 引用的一致性（特别是在热重载后）。
+- 即使 hook 从未被调用（纯终端会话），guard 变量仍然保持 ~nil~，无害。
+
+** ~line-spacing~ 的数值选择
+
+| 值 | 效果 | 适用场景 |
+|----+------+----------|
+| 0  | 默认 —— 行间无额外间距 | 紧凑信息显示（代码） |
+| 1  | 极微间距 | 高密度终端 |
+| 3  | 适中呼吸空间 | 当前配置 —— 高 DPI 屏幕上的良好平衡 |
+| 5+ | 宽松排版 | 写作/阅读模式（见 olivetti） |
+
+** ~display-graphic-p~ 的作用
+
+~/etc/display-graphic-p~ 在纯终端（~emacs -nw~）或守护进程通过 ~emacsclient -t~ 连接时返回 ~nil~。终端中无法控制字符间距或 background padding，~spacious-padding-mode~ 在这些场景中效果不可控，因此跳过。
 
 * 效果
 
 启用后：
-- 左右 fringe 更宽
-- mode-line 上下有 padding
-- header-line 更舒适
-- 行间间距 ~line-spacing~ = 3px
+- 左右 fringe 更宽，行号区域与正文之间有更好的分离。
+- mode-line 上下有背景填充，不再紧贴最底行。
+- header-line（如 Org 导览行）间距更舒适。
+- ~line-spacing~ 3px 确保行间有空气，减少"文字块"感觉。
 
-实际效果类似 Apple 生态（iTerm/Xcode）中普遍采用的宽松排版。
+* 与上下文的关系
+
+- ~line-spacing~ 在 [[file:../ui/fonts.org][ui/fonts.org]] 的字体栈之上生效 —— 改变行高不影响字体渲染。
+- ~spacious-padding-mode~ 与 [[file:../ui/theme-auto-switch.org][ui/theme-auto-switch.org]] 共用 ~doom-switch-frame-hook~，但两者独立互不干扰。
+- 写作模式下 [[file:../editor/olivetti.org][editor/olivetti.org]] 的 olivetti 居中与 spacious-padding 互补 —— 前者管水平方向（居中、宽度限制），后者管垂直方向（间距、padding）。

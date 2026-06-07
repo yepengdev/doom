@@ -2,17 +2,23 @@
 
 * 用途
 
-通过 gh-proxy.com 代理 GitHub HTTPS 请求，解决 GFW 导致的 ~doom sync~
-拉取失败（超时/SSL 错误）。
+由于 GFW（Great Firewall）的存在，中国大陆网络环境下的 GitHub HTTPS 直连
+经常超时、重置或 SSL 错误，导致 ~doom sync~、~doom upgrade~、~doom install~
+等操作拉取 straight.el 包失败。
+
+解决方案：通过 gh-proxy.com（Cloudflare Workers 反代）代理 GitHub 的
+HTTPS 请求，仅对 Doom 内部 Git 操作生效，不影响系统 Git。
 
 * 配置
+
+** config.el
 
 #+BEGIN_SRC emacs-lisp
 (setenv "DOOMGITCONFIG"
         (expand-file-name "doom-gitconfig" doom-user-dir))
 #+END_SRC
 
-~doom-gitconfig~ 内容：
+** ~$DOOMDIR/doom-gitconfig~
 
 #+BEGIN_SRC gitconfig
 [url "https://gh-proxy.com/github.com/"]
@@ -21,24 +27,42 @@
 
 * 工作原理
 
-1. ~config.el~ 设置 ~DOOMGITCONFIG~ 环境变量指向 ~doom-gitconfig~
-2. Doom 的 git wrapper 读取 ~DOOMGITCONFIG~ 作为 ~GIT_CONFIG_GLOBAL~
-3. Git 遇到 ~https://github.com/...~ 时自动替换为 ~https://gh-proxy.com/github.com/...~
-4. 所有包下载和 ~doom sync~ 都走代理
+1. ~config.el~ 设置 ~DOOMGITCONFIG~ 环境变量 → 指向 ~$DOOMDIR/doom-gitconfig~
+2. Doom Emacs 内部的 Git wrapper 读取 ~DOOMGITCONFIG~ 作为 ~GIT_CONFIG_GLOBAL~
+3. 当 straight.el / Doom 内部执行 ~git clone~ 或 ~git fetch~ 时，
+   Git 遇到 ~https://github.com/...~ 开头的 URL → 自动替换为
+   ~https://gh-proxy.com/github.com/...~
+4. 所有包下载、Doom 框架更新都经过 gh-proxy.com 代理
+
+gh-proxy.com 是一个 Cloudflare Workers 服务，直接从 Cloudflare 边缘节点
+反代 GitHub 资源，速度远快于直连。
 
 * 影响范围
 
-| 操作 | 是否受影响 |
-|------+-----------|
-| ~doom sync~ | 是（拉取 straight/包） |
-| ~doom upgrade~ | 是（拉取 Doom 更新） |
-| ~doom install~ | 是（安装新包） |
-| 系统 Git 操作 | 否（普通 ~git clone/push~ 不受影响，~DOOMGITCONFIG~ 仅对 Doom 生效） |
+| 操作 | 是否受影响 | 说明 |
+|------+-----------+------|
+| ~doom sync~ | 是 | 拉取 straight/所有包 |
+| ~doom upgrade~ | 是 | 拉取 Doom 框架更新 |
+| ~doom install~ | 是 | 安装新包 |
+| ~doom update~ | 是 | 更新已安装包 |
+| 系统 ~git clone~ | 否 | ~DOOMGITCONFIG~ 仅对 Doom 内部 Git 生效 |
+| 系统 ~git push~ | 否 | 代理只代理 ~insteadOf~ 的 URL 模式 |
 
 * 故障排除
 
-| 问题 | 检查点 |
-|------+--------|
-| ~doom sync~ 域名解析失败 | ~DOOMGITCONFIG~ 是否设置？~GIT_CONFIG_GLOBAL~ 是否覆盖？ |
-| gh-proxy.com 本身被墙 | 换其他代理（jsdelivr、fastgit） |
-| SSL 证书错误 | ~git config --global http.sslVerify false~（不推荐，仅临时方案） |
+| 问题 | 原因 | 解决 |
+|------+------+------|
+| ~doom sync~ 提示域名解析失败 | ~DOOMGITCONFIG~ 未设置或 ~GIT_CONFIG_GLOBAL~ 覆盖 | 检查 ~M-x getenv DOOMGITCONFIG~ |
+| gh-proxy.com 本身被墙 | 该 Workers 域名被封锁 | 换其他代理：jsdelivr ~https://cdn.jsdelivr.net/gh/~、fastgit.org |
+| SSL 证书错误 | 代理服务器证书问题 | ~git config --global http.sslVerify false~（仅临时方案，不推荐） |
+| 直连反而成功了 | ~DOOMGITCONFIG~ 未生效 | Doom 版本是否过旧？检查 straight 文档 |
+
+* 替代方案
+
+| 方案 | 优点 | 缺点 |
+|------+------+------|
+| gh-proxy.com（当前） | 配置简单、零维护 | Workers 可能被墙 |
+| jsdelivr CDN | 稳定、全球 CDN | 仅适合下载 release 资源 |
+| fastgit.org | 国内镜像、速度快 | 需要额外配置 |
+| 系统级 ~GIT_CONFIG_GLOBAL~ | 覆盖所有 Git 操作 | 影响日常 Git 使用 |
+| 走 SSH（~git@github.com~） | 极少被墙 | 需要 SSH Key 配置 |

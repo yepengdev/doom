@@ -1,41 +1,98 @@
-#+TITLE: 主题自动切换
+#+TITLE: 主题自动切换（日/夜）
+#+STARTUP: overview
 
 * 方案
 
+根据当前本地小时在浅色和深色主题之间自动切换，无需外部服务：
+
 | 时段 | 主题 | 风格 |
 |------+------+------|
-| 07:00 – 18:59 | ~doom-one-light~ | 浅色白天 |
-| 19:00 – 06:59 | ~doom-tokyo-night~ | 深色夜间 |
+| 07:00 – 18:59 | ~doom-one-light~ | 浅色白天 —— 适合环境光充足时阅读 |
+| 19:00 – 06:59 | ~doom-tokyo-night~ | 深色夜间 —— 减轻低光环境下的眼疲劳 |
 
-* 实现
+* 实现架构
 
-三个函数 + 一个 hook：
+三个纯函数 + 一个应用函数 + 一个 hook —— 关注点分离。
 
-**~my/theme-for-hour~** — 根据当前小时返回主题符号。
-阈值由 ~my/theme-day-start~ (7) 和 ~my/theme-night-start~ (19) 控制。
+** 常量定义
 
-**~my/theme-apply~** — 设置 ~doom-theme~ 并调用 ~doom/reload-theme~。
+#+BEGIN_SRC emacs-lisp
+(defconst my/theme-day 'doom-one-light
+  "日间主题（07:00–18:59）")
+(defconst my/theme-night 'doom-tokyo-night
+  "夜间主题（19:00–06:59）")
+(defconst my/theme-day-start 7
+  "日间开始的小时")
+(defconst my/theme-night-start 19
+  "夜间开始的小时")
+#+END_SRC
 
-**~my/theme-switch-maybe~** — 挂载在 ~doom-switch-frame-hook~ 上，首次匹配时自卸。
-这样设计的原因：
-1. 守护进程 (daemon) 模式下，启动时没有 GUI frame，~emacs-startup-hook~ 中切换主题无效
-2. ~doom-switch-frame-hook~ 在第一个 GUI frame 创建时触发
-3. 触发一次后自卸，避免每次 frame 切换都检查
+** ~my/theme-for-hour~ — 纯函数（无副作用）
 
-* Daemon-safe 模式
+#+BEGIN_SRC emacs-lisp
+(defun my/theme-for-hour (&optional hour)
+  "返回指定 HOUR（0–23，默认当前本地时间）对应的主题常量。
+纯函数 —— 仅基于小时值做决策，不设变量、不重绘 UI。
+允许调用者预览某小时的主题而不实际应用。"
+  (let ((h (or hour (string-to-number (format-time-string "%H")))))
+    (if (and (>= h my/theme-day-start) (< h my/theme-night-start))
+        my/theme-day
+      my/theme-night)))
+#+END_SRC
+
+** ~my/theme-apply~ — 应用主题（副作用函数）
+
+#+BEGIN_SRC emacs-lisp
+(defun my/theme-apply (theme)
+  "将 `doom-theme' 设为 THEME 并重绘。
+副作用：修改全局变量 + 触发 `doom/reload-theme'。"
+  (setq doom-theme theme)
+  (doom/reload-theme))
+#+END_SRC
+
+** ~my/theme-switch-maybe~ — 挂载在 ~doom-switch-frame-hook~ 上
+
+#+BEGIN_SRC emacs-lisp
+(defun my/theme-switch-maybe ()
+  "若当前小时的主题与 `doom-theme' 不一致则切换。
+空操作 guard 使非切换时间（7:00–18:59 的其余帧切换）几无开销。"
+  (let ((theme (my/theme-for-hour)))
+    (unless (eq doom-theme theme)
+      (my/theme-apply theme))))
+#+END_SRC
+
+** 激活（顶层 ~setq~ + 永久 hook）
 
 #+BEGIN_SRC emacs-lisp
 (setq doom-theme (my/theme-for-hour))
 (add-hook 'doom-switch-frame-hook #'my/theme-switch-maybe 'append)
 #+END_SRC
 
-~setq~ 确保非图形启动时使用正确的主题变量；hook 确保图形显示时真正渲染。
+不同于早期实现中 hook 首次匹配后自卸（self-removing）的做法，当前实现 ~add-hook~ 是永久挂载的。原因是：
+
+1. 长时间运行的 Emacs 会话会跨越日/夜边界（7:00 和 19:00 切换），永久 hook 可确保在边界时间后被触发（例如你在 18:50 离开、19:10 切换回来，帧切换会触发主题变更）。
+2. ~unless (eq doom-theme theme)~ guard 使得在非切换时间的帧切换近乎零开销 —— 仅一次 ~eq~ 比较。
+
+* Daemon-safe 模式说明
+
+~setq doom-theme~ 在顶层运行，确保 ~emacs --daemon~ 启动时 ~doom-theme~ 变量被设置为正确初始值（即使没有 GUI 帧）。~doom-switch-frame-hook~ 在第一个 GUI 帧（~emacsclient -c~）创建后触发 ~my/theme-switch-maybe~，此时 ~display-graphic-p~ 为真，~doom/reload-theme~ 才能正确渲染。
+
+* 为何用小时而非日出/日落
+
+- 日出/日落 API 需要网络请求和地理位置配置，使配置变得脆弱且慢。
+- 该方案只需时钟，在任何环境下都可靠（无网络、容器、CI 等）。
+- 若需要更精确的日出/日落切换，见 [[file:../adr/03-theme-hours-vs-sunrise.org][ADR: 基于小时 vs 日出/日落]]。
 
 * 自定义
 
 | 变量 | 默认值 | 用途 |
 |------+--------+------|
-| ~my/theme-day~ | ~doom-one-light~ | 白天主题 |
-| ~my/theme-night~ | ~doom-tokyo-night~ | 夜间主题 |
-| ~my/theme-day-start~ | 7 | 切换为白天的小时 |
-| ~my/theme-night-start~ | 19 | 切换为夜间的小时 |
+| ~my/theme-day~ | ~doom-one-light~ | 白天主题符号 |
+| ~my/theme-night~ | ~doom-tokyo-night~ | 夜间主题符号 |
+| ~my/theme-day-start~ | 7 | 切换为白天的小时（含） |
+| ~my/theme-night-start~ | 19 | 切换为夜间的小时（含） |
+
+* 相关文件
+
+- [[file:../ui/spacious-padding.org][ui/spacious-padding.org]] — 与主题自动切换一同在 ~doom-switch-frame-hook~ 上激活。
+- [[file:../editor/keybindings.org][editor/keybindings.org]] — ~SPC h r R~ 完整重载也会重新应用主题（调用 ~my/theme-apply~）。

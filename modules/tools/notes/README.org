@@ -70,7 +70,14 @@ Notes live in =~/org/denote/=, with journal entries in =~/org/denote/journal/=.
 
 ** Auto-commit
 A git auto-commit hook is installed on ~denote-after-new-note-hook~: every new
-note triggers =git add -A && git commit= in the Denote directory.
+note triggers =git add -A && git commit --allow-empty= in the Denote directory.
+The hook checks ~call-process~ return codes and logs warnings on failure.
+
+** jieba keyword auto-tagging
+If the [[doom-module::tools jieba]] module is enabled, ~denote-after-new-note-hook~
+also runs a TF-IDF keyword extractor (at priority 80). It extracts the top 5
+keywords from the new note, matches them against ~denote-known-keywords~, and
+auto-renames the file to include matched keywords in its front-matter.
 
 * Configuration
 Set the following variables in your =config.el= *before* enabling this module:

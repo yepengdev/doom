@@ -1,5 +1,10 @@
 #+TITLE: Magit 配置
 
+* 为什么只要一行配置
+
+本配置对 Magit 仅做一处修改：禁用 hunk 精炼（word-level diff）。其他
+全部使用 Doom 默认的 Magit 配置（包括键绑定、外观、hydra 等）。
+
 * 配置
 
 #+BEGIN_SRC emacs-lisp
@@ -7,33 +12,66 @@
   (setq magit-diff-refine-hunk nil))
 #+END_SRC
 
-* ~magit-diff-refine-hunk~
+* ~magit-diff-refine-hunk~ 详解
 
-| 选项 | 效果 | 代价 |
-|------+------+------|
-| ~nil~ | 不进行行内差异高亮 | 快速、大 diff 不卡顿 |
-| ~'all~ | 所有文件都行内高亮 | 大 diff 显著延迟 |
-| ~'region~ | 仅选中区域高亮 | 平衡模式 |
+| 选项 | 效果 | 性能代价 | 适用场景 |
+|------+------+----------+----------|
+| ~nil~ | 仅显示行级差异（整行绿色/红色） | 无额外开销 | 大 diff、快速浏览 |
+| ~'region~ | 仅对选中的区域进行单词级高亮 | 低 | 需要精细查看时手动触发 |
+| ~'all~ | 对所有展开的 hunk 自动进行单词级高亮 | 高 | 浏览小 diff 时 |
 
-设置为 ~nil~ 是因为大 diff 中 word-level 高亮需要额外的 diff 计算
-（逐字对比），对于 ~magit-status~ 中频繁展开/折叠的操作影响明显。
-如果需要查看某段的具体变化，可以用 visual selection + ~magit-diff-refine-region~。
+** 为什么设为 nil
 
-* Denote 集成
+- Doom 的 Magit 配置默认启用 ~'all~，这在大型仓库（如 Doom 框架
+  本身的更新 diff、或含上千行变更的项目）中会导致显著延迟
+- 逐字对比（word-level diff）需要 Git 额外计算两个版本的单词边界
+  匹配，时间复杂度高于行级 diff
+- 在 ~magit-status~ 缓冲区中频繁展开/折叠 hunk 时，延迟影响体验
 
-~my/denote-git-auto-commit~ 在笔记目录自动提交（见 [[file:../notes/denote-git.org][notes/denote-git]]），
-与 Magit 互补：
-- Magit：手动精细控制 commit
-- 自动 commit：安全网，确保笔记不丢失
+** 替代方案：按需精炼
 
-* 常用操作
+当需要查看某段的具体单词级变更时：
 
-| 按键 | 操作 |
+1. 在 diff 缓冲区中选中一个区域（visual selection）
+2. 执行 ~M-x magit-diff-refine-region~（或按默认绑定 ~SPC r~）
+3. 只对被选区域进行单词级高亮，无全局开销
+
+* Doom 默认的 Magit 增强
+
+虽然 ~config.el~ 未显式配置，但 Doom 的 ~:tools magit~ 模块默认启用：
+
+| 特性 | 说明 |
 |------+------|
-| ~SPC g g~ | ~magit-status~ |
-| ~SPC g G~ | ~magit-status-here~ |
-| ~SPC g b~ | 切换分支 |
-| ~SPC g B~ | Blame |
-| ~SPC g F~ | Fetch |
-| ~SPC g c c~ | Commit |
-| ~SPC g o o~ | 在浏览器打开远程仓库 |
+| Magit 状态在专用 buffer | ~SPC g g~ |
+| File 级别历史 | ~SPC g f f~ |
+| Blame | ~SPC g B~ |
+| Branch 管理 | ~SPC g b~ |
+| 远程操作（fetch/push/pull） | ~SPC g F/P~ |
+| Commit 流程 | ~SPC g c c~ |
+| 在浏览器打开远程 | ~SPC g o o~ |
+| Forge（GitHub Issues/PR） | ~SPC g I/P~ |
+| Evil 集成 | 正常状态下的 ~$~、~@@~ 等 |
+
+* 与 Denote Git 集成的互补
+
+Denote 笔记目录使用自动 Git 提交（~my/denote-git-auto-commit~），与 Magit 互补：
+
+| 工具 | 用途 | 频率 |
+|------+------+------|
+| Magit（手动） | 精细控制 commit message、amend、rebase | 写作草稿完成时 |
+| Denote 自动提交 | 安全网 — 防止笔记因忘记提交而丢失 | 每次创建笔记时 |
+
+* 常用操作速查
+
+| 按键 | 命令 | 说明 |
+|------+------+------|
+| ~SPC g g~ | ~magit-status~ | 打开当前仓库状态 |
+| ~SPC g G~ | ~magit-status-here~ | 打开所在目录的仓库状态 |
+| ~SPC g b~ | ~magit-checkout~ | 切换分支 |
+| ~SPC g B~ | ~magit-blame~ | 文件历史问责 |
+| ~SPC g c c~ | ~magit-commit~ | 提交暂存区 |
+| ~SPC g c C~ | ~magit-commit-append~ | 追加到上次 commit |
+| ~SPC g f f~ | ~magit-file-dispatch~ | 文件 Git 操作菜单 |
+| ~SPC g F~ | ~magit-fetch~ | 拉取远程 |
+| ~SPC g o o~ | ~browse-at-remote~ | 浏览器打开文件 |
+| ~SPC g P~ | ~magit-push~ | 推送 |

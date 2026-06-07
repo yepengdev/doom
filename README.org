@@ -3,139 +3,192 @@
 #+EMAIL: yepeng@hey.com
 #+STARTUP: indent
 
-个人 Doom Emacs 配置，针对中英双语写作、笔记管理（Denote）和 LaTeX 排版
-（XeLaTeX + CJK）场景深度优化。
+个人 Doom Emacs 配置，针对中英双语写作、笔记管理（Denote）和学术排版
+（XeLaTeX + CJK）深度优化。运行于 Gentoo Linux + Emacs 30.2。
 
-- 文档：[[file:doom-handbook.org][参考手册]] + [[file:docs/wiki-index.org][Wiki 设计文档]]（50 篇深度解析，#+INCLUDE 聚合）
-- 仓库：[[https://github.com/yepengdev/doom][yepengdev/doom]]（[[git@github.com:yepengdev/doom.git][SSH]]）
-- 平台：Gentoo Linux
-- Emacs：~app-editors/emacs-30.2-r3~
-  USE="cairo dbus gif gmp gpm gtk gui gzip-el inotify jpeg lcms libxml2 mailutils png sound sqlite ssl svg systemd threads tiff tree-sitter webp wide-int xattr xft xpm zlib"
-  USE="-X -Xaw3d -athena -games -gfile -gsettings -harfbuzz -imagemagick -jit -kerberos -livecd -m17n-lib -motif -source -toolkit-scroll-bars -valgrind"
-- Doom：2.1.0
-- 字体：Monaspace Neon + LXGW WenKai Mono Screen
+| 项目 | 值 |
+|------+-----|
+| 文档 | [[file:doom-handbook.org][参考手册]] · [[file:docs/wiki-index.org][Wiki 设计文档]]（50 篇深度解析，#+INCLUDE 聚合） |
+| 仓库 | ~https://github.com/yepengdev/doom~ |
+| 平台 | Gentoo Linux · Emacs 30.2 · Doom 3.0 |
+| 字体 | Maple Mono NF（等宽）+ LXGW WenKai（比例）+ LXGW WenKai Mono Screen（CJK 回退） |
+| 补全 | Corfu + Orderless（行内）/ Vertico（搜索） |
+| 笔记 | Denote 全家族（core + journal + sequence + explore + menu + org + consult-notes） |
+| 阅读 | pdf-tools + nov.el（EPUB）+ org-noter（批注） |
+| 写作 | Olivetti（专注居中）+ Palimpsest（搬移文本）+ Super-save（空闲保存） |
+| 国际化 | fcitx5 + evil-pinyin + ace-pinyin + 萌典+mapull 离线词典 |
+| C 模块 | count-cjk（字数统计）+ cnotify（桌面通知/番茄钟）+ random（真随机） |
 
 * 文档体系
-
-本配置有三层文档：
 
 | 文档 | 定位 | 入口 |
 |------+------+------|
 | [[file:README.org][README.org]] | 首页概览 & 快速参考（本文件） | 见下方 |
-| [[file:doom-handbook.org][doom-handbook.org]] | 综合参考手册（键绑定大全 + 配置清单） | ~SPC f f doom-handbook.org~ |
-| [[file:docs/wiki-index.org][docs/wiki-index.org]] | Wiki 主索引（设计决策 + 工作流 + 深度解析，#+INCLUDE 聚合 50 篇） | ~SPC f f docs/wiki-index.org~ |
+| [[file:doom-handbook.org][doom-handbook.org]] | 综合参考手册（键绑定大全 + 配置清单 + 问题排查） | ~SPC f f doom-handbook.org~ |
+| [[file:docs/wiki-index.org][docs/wiki-index.org]] | Wiki 主索引（#+INCLUDE 聚合 50 篇：设计决策、工作流、深度解析） | ~SPC f f docs/wiki-index.org~ |
 
 * 快速上手
 
-| 命令               | 何时使用                       |
-|---------------------+--------------------------------|
-| ~doom sync~          | 编辑 ~init.el~ 或 ~packages.el~ 后必须执行 |
-| ~doom doctor~        | 检查配置问题                    |
-| ~doom upgrade~       | 更新 Doom Emacs 框架           |
-| ~doom clean~         | 清除编译缓存 / elpa 目录        |
-| ~doom env~           | 为 GUI Emacs 重新生成环境变量文件 |
-| ~M-x doom/reload-font~ | 重新应用字体设置              |
-| ~M-x my/doom-full-reload~ | 完整重载配置（~SPC h r R~） |
+| 命令 | 何时使用 |
+|------+----------|
+| ~doom sync~ | 编辑 ~init.el~ 或 ~packages.el~ 后必须执行 |
+| ~doom doctor~ | 检查配置问题 |
+| ~doom upgrade~ | 更新 Doom Emacs 框架 |
+| ~doom clean~ | 清除编译缓存 / elpa 目录 |
+| ~doom env~ | 为 GUI Emacs 重新生成环境变量文件 |
+| ~M-x doom/reload~ | 重新求值 ~config.el~ |
+| ~M-x my/doom-full-reload~ | 完整重载：autoloads + 包 + config + 主题 + 字体（~SPC h r R~） |
+| ~M-x doom/reload-font~ | 重新应用字体设置 |
+| ~doom build~ | 重建 Doom 包 |
+| ~make -C c-modules/~ | 手动编译所有 C 模块 |
 
 * 目录结构
 
-| 路径                     | 用途                              | 需 ~doom sync~？ |
-|--------------------------+-----------------------------------+------------------|
-| ~init.el~                  | Doom 模块清单（~doom!~ 声明）       | 是               |
-| ~packages.el~              | 第三方包声明（~package!~）          | 是               |
-| ~config.el~                | 单文件配置（替代旧 ~config/*.el~ 拆分结构） | 否               |
-| ~doom-handbook.org~        | 综合参考手册（键绑定大全 + 详细配置）| —                |
-| ~docs/wiki-index.org~      | Wiki 主索引（#+INCLUDE 聚合 50 篇）  | —                |
-| ~wiki/~                    | Wiki 详细文档（10 区块 51 篇）       | —                |
-| ~pandoc/~                  | Pandoc docx 模板与 Lua 过滤器       | —                |
-| ~org-export/minimal/~      | Org HTML 导出 CSS（本地无 CDN）     | —                |
-| ~snippets/~                | Yasnippet 代码片段                 | —                |
-| ~README.org~               | 本文件                             | —                |
-| ~AGENTS.md~                | AI 助手操作指引（gitignore）        | —                |
-| ~REASONIX.md~              | 运维与约定备忘（gitignore）         | —                |
-| ~doom-gitconfig~           | Git 代理配置（GitHub 镜像）         | —                |
-| ~opencode.json~            | opencode AI 配置（gitignore）      | —                |
-| ~modules/~                 | C 动态模块源码 + Makefile（惰性加载，首次调用时按需编译）：
-  ~cnotify-module~（通知/倒计时/番茄钟）、~count-cjk~（字数统计）、
-  ~random~（真随机数生成器） | —                |
+| 路径 | 用途 | 需 ~doom sync~？ |
+|------+------+-------------------|
+| ~init.el~ | Doom 模块清单（~doom!~ 声明） | 是 |
+| ~packages.el~ | 第三方包声明（~package!~） | 是 |
+| ~config.el~ | 单文件配置（UI、编辑器、Org、LaTeX、阅读、工具） | 否 |
+| ~cli.el~ | CLI hook 文件（~doom sync~ 时自动执行） | 否 |
+| ~modules/~ | 自定义 Doom 模块（notes、cjk、pomodoro、jieba、dyncall） | 否 |
+| ~c-modules/~ | C 动态模块源码（count-cjk、cnotify、random、dyncall、jieba）+ Makefile | 首次 build |
+| ~doom-handbook.org~ | 综合参考手册 | — |
+| ~docs/wiki-index.org~ | Wiki 主索引（#+INCLUDE 聚合 50 篇） | — |
+| ~docs/wiki/~ | Wiki 详细文档（10 区块 ~50 篇） | — |
+| ~org/~ | Org 导出资源 + Pandoc 模板 | — |
+| ~snippets/~ | Yasnippet 代码片段 | — |
+| ~scripts/~ | 辅助脚本（org-live-server.py 等） | — |
+| ~AGENTS.md~ | AI 助手操作指引 | — |
+| ~REASONIX.md~ | 运维与约定备忘 | — |
+| ~opencode.json~ | opencode AI 配置 | — |
 
 * 已启用的 Doom 模块
 
-源自 ~init.el~，省略注释掉的模块。
+源自 ~init.el~，按功能域分组。
 
 ** 补全
-- ~(corfu +orderless)~ — 行内补全弹窗 + Orderless 模糊过滤
-- ~vertico~ — 垂直搜索/选择界面（ivy/helm 的现代替代）
+
+| 模块 | Flags | 说明 |
+|------+-------+------|
+| ~corfu~ | ~+orderless +dabbrev~ | 行内补全弹窗 + 模糊过滤 + dabbrev |
+| ~vertico~ | ~+childframe +icons~ | 垂直搜索/选择界面（ivy/helm 的现代替代） |
 
 ** 界面
-- ~deft~ — 快速笔记浏览，从 ~#+title~ 提取标题，清理 Org metadata
-- ~doom~ — Doom 主题框架
-- ~hl-todo~ — 高亮 ~TODO~ ~FIXME~ ~NOTE~ ~HACK~ ~REVIEW~ ~DEPRECATED~
-- ~modeline~ — doom-modeline 模式行
-- ~(popup +defaults)~ — 临时缓冲区的弹出规则
-- ~(vc-gutter +pretty)~ — 边缘显示版本控制差异指示器（图标版）
-- ~workspaces~ — persp-mode 工作区
+
+| 模块 | Flags | 说明 |
+|------+-------+------|
+| ~deft~ | — | 快速笔记浏览 |
+| ~doom~ | — | Doom 主题框架 |
+| ~emoji~ | — | Emoji 支持 |
+| ~hl-todo~ | — | 高亮 ~TODO~ ~FIXME~ ~NOTE~ ~HACK~ ~REVIEW~ ~DEPRECATED~ |
+| ~indent-guides~ | — | 缩进列引导线 |
+| ~modeline~ | — | doom-modeline 模式行 |
+| ~nav-flash~ | — | 大范围移动时闪烁光标位置 |
+| ~ophints~ | — | 高亮操作区域 |
+| ~popup~ | ~+defaults~ | 临时缓冲区的弹出规则 |
+| ~treemacs~ | — | 项目文件树 |
+| ~vc-gutter~ | ~+pretty~ | 边缘显示版本控制差异（图标版） |
+| ~window-select~ | ~+numbers~ | 可视化窗口切换 |
+| ~workspaces~ | — | persp-mode 工作区 |
 
 ** 编辑器
-- ~(evil +everywhere)~ — 全缓冲区 Vim 按键模拟
-- ~file-templates~ — 空文件自动插入模板
-- ~fold~ — 通用代码折叠
-- ~(format +onsave)~ — 保存时自动格式化
-- ~multiple-cursors~ — 多点同时编辑
-- ~snippets~ — yasnippet 片段展开
-- ~(whitespace +guess +trim)~ — 检测并清理尾部空白
+
+| 模块 | Flags | 说明 |
+|------+-------+------|
+| ~evil~ | ~+everywhere~ | 全缓冲区 Vim 按键模拟 |
+| ~file-templates~ | — | 空文件自动插入模板 |
+| ~fold~ | — | 通用代码折叠 |
+| ~format~ | ~+onsave~ | 保存时自动格式化 |
+| ~multiple-cursors~ | — | 多点同时编辑 |
+| ~snippets~ | — | yasnippet 片段展开 |
+| ~whitespace~ | ~+guess +trim~ | 检测并清理尾部空白 |
 
 ** Emacs 内置
-- ~dired~ — 文件管理器（Doom 美化版）
-- ~electric~ — 智能缩进
-- ~tramp~ — 透明远程文件编辑
-- ~undo~ — 持久化撤销树
-- ~vc~ — 内置版本控制集成
+
+| 模块 | Flags | 说明 |
+|------+-------+------|
+| ~dired~ | ~+dirvish +icons~ | 文件管理器（Dirvish 增强版） |
+| ~electric~ | — | 智能缩进 |
+| ~ibuffer~ | ~+icons~ | 交互式缓冲区管理 |
+| ~tramp~ | — | 透明远程文件编辑 |
+| ~undo~ | — | 持久化撤销树 |
+| ~vc~ | — | 内置版本控制集成 |
 
 ** 终端
-- ~eshell~ — Elisp Shell
-- ~vterm~ — 完整 ANSI 终端模拟
+
+| 模块 | 说明 |
+|------+------|
+| ~eshell~ | Elisp Shell |
+| ~vterm~ | 完整 ANSI 终端模拟 |
+
+** 检查器
+
+| 模块 | 说明 |
+|------+------|
+| ~syntax~ | 语法检查 |
+| ~spell~ | 未启用（用 ispell 手动） |
 
 ** 工具
-- ~(eval +overlay)~ — 行内求值结果显示
-- ~lookup~ — 文档/定义查找
-- ~magit~ — Git 完整前端
-- ~pdf~ — PDF 阅读器增强（pdf-tools）
+
+| 模块 | Flags | 说明 |
+|------+-------+------|
+| ~eval~ | ~+overlay~ | 行内求值结果显示 |
+| ~lookup~ | ~+dictionary +docsets~ | 文档/定义查找 |
+| ~lsp~ | ~+eglot~ | LSP 客户端（Eglot） |
+| ~magit~ | — | Git 完整前端 |
+| ~notes~ | — | Denote + Deft 笔记系统（自定义模块） |
+| ~pdf~ | — | PDF 阅读器增强（pdf-tools） |
+| ~pomodoro~ | — | 番茄钟 + 计时器 + 桌面通知（C 模块） |
+| ~cjk~ | — | CJK 字符统计 + 离线词典（C 模块） |
+| ~jieba~ | — | 结巴中文分词 + TF-IDF 关键词提取 |
+| ~tree-sitter~ | — | Tree-sitter 语法解析 |
 
 ** 语言
-- ~emacs-lisp~ — Elisp 开发支持
-- ~(latex +cdlatex +fold)~ — LaTeX 编辑（数学/表格快速输入 + 折叠）
-- ~markdown~ — Markdown 编辑
-- ~(org +journal +noter +pretty +pandoc)~ — Org mode（日记 + 批注 + 美化 + Pandoc 导出）
+
+| 模块 | Flags | 说明 |
+|------+-------+------|
+| ~emacs-lisp~ | — | Elisp 开发支持 |
+| ~latex~ | ~+cdlatex +fold~ | LaTeX 编辑（数学/表格快速输入 + 折叠） |
+| ~markdown~ | — | Markdown 编辑 |
+| ~org~ | ~+journal +noter +pretty +pandoc~ | Org mode（日记 + 批注 + 美化 + Pandoc 导出） |
+| ~sh~ | ~+fish +lsp~ | Shell 脚本 |
+
+** FFI
+
+| 模块 | 说明 |
+|------+------|
+| ~dyncall~ | libffi 动态 FFI：运行时调用任意 C 函数 |
 
 ** 操作系统
-- ~tty~ — 终端 Emacs 体验优化
+
+| 模块 | 说明 |
+|------+------|
+| ~macos~ | macOS 兼容（条件编译：仅在 macOS 时启用） |
+| ~tty~ | 终端 Emacs 体验优化 |
 
 ** 配置
-- ~(default +bindings +smartparens)~ — 默认键绑定 + 智能括号
+
+| 模块 | Flags | 说明 |
+|------+-------+------|
+| ~default~ | ~+bindings +smartparens~ | 默认键绑定 + 智能括号 |
 
 * 自定义包
 
 通过 ~packages.el~ 声明的第三方包：
 
-| 包                    | 用途                                     |
-|-----------------------+------------------------------------------|
-| ~fcitx~               | 中文输入法与 Evil 状态集成                |
-| ~spacious-padding~    | 界面内边距与呼吸感                        |
-| ~denote~              | 文件命名笔记系统                          |
-| ~denote-org~          | Org 模式深度集成（链接到标题等）           |
-| ~denote-sequence~     | 序列/层级笔记                             |
-| ~denote-explore~      | 笔记探索与可视化网络图                     |
-| ~denote-journal~      | 日记工作流                                |
-| ~denote-menu~         | 表格列表视图与筛选                        |
-| ~consult-notes~       | Consult 集成 Denote 笔记搜索              |
-| ~nov~                 | EPUB 阅读器                               |
-| ~org-pdftools~        | Org 链接到 PDF 位置                       |
-| ~super-save~          | 空闲时自动保存，清理尾部空白              |
-| ~palimpsest~          | 搬移文本而非删除（写作辅助）              |
-| ~ace-pinyin~          | 基于 Avy 的拼音字符跳转                   |
-| ~evil-pinyin~         | 基于拼音的模糊搜索（Orderless 集成）       |
+| 包 | 用途 |
+|----+------|
+| ~fcitx~ | 中文输入法与 Evil 状态集成 |
+| ~spacious-padding~ | 界面内边距与呼吸感 |
+| ~nov~ | EPUB 阅读器 |
+| ~org-pdftools~ | Org 链接到 PDF 位置 |
+| ~super-save~ | 空闲时自动保存 |
+| ~palimpsest~ | 搬移文本而非删除（写作辅助） |
+| ~olivetti~ | 写作专注模式（居中 + 隐藏模式行） |
+| ~ace-pinyin~ | 基于 Avy 的拼音字符跳转 |
+| ~evil-pinyin~ | 基于拼音的模糊搜索（Orderless 集成） |
 
+萌典和 mapull 使用 Emacs 内置 sqlite，无外部包依赖。
 
 * 深入阅读
 
@@ -146,20 +199,24 @@
 | 配置决策记录（Denote vs Roam、Emacs state、主题切换等） | wiki/adr/ |
 | UI 详解（字体、主题、spacious-padding） | wiki/ui/ |
 | 编辑器详解（Evil、键位、Olivetti、Super-save、Palimpsest） | wiki/editor/ |
-| Org Mode（capture、大文件、LaTeX/Pandoc/HTML 导出） | wiki/org/ |
-| 笔记系统（Denote 全家族 11 篇） | wiki/notes/ |
+| Org Mode（capture、大文件、LaTeX/Pandoc/HTML 导出、实时预览） | wiki/org/ |
+| 笔记系统（Denote 全家族 11 篇 + Git + jieba 关键词） | wiki/notes/ |
 | 阅读（Dired、EPUB、PDF、org-noter） | wiki/reading/ |
-| 国际化（fcitx、pinyin、翻译、字数） | wiki/i18n/ |
-| 工具（full-reload、Git 代理、Magit） | wiki/tools/ |
+| 国际化（fcitx、拼音、词典、字数统计） | wiki/i18n/ |
+| 工具（full-reload、Git 代理、Magit、番茄钟） | wiki/tools/ |
 | 端到端工作流（写作、阅读、笔记） | wiki/workflows/ |
 | 附录（函数索引、已知问题、性能、Gentoo） | wiki/appendix/ |
 
 * 参考资料
 
-- [[file:REASONIX.md]] — 运维与约定备忘
-- [[file:AGENTS.md]] — AI 助手操作指引
-- [[file:doom-handbook.org]] — 综合参考手册（键绑定大全 + 详细配置）
-- [[file:docs/wiki-index.org]] — Wiki 主索引（设计决策 + 工作流 + 深度解析，#+INCLUDE 聚合 50 篇）
-- [[file:init.el]] — 模块声明
-- [[file:config.el]] — 完整用户配置
-- [[file:packages.el]] — 包声明
+| 文件 | 用途 |
+|------+------|
+| [[file:REASONIX.md][REASONIX.md]] | 运维与约定备忘 |
+| [[file:AGENTS.md][AGENTS.md]] | AI 助手操作指引 |
+| [[file:doom-handbook.org][doom-handbook.org]] | 综合参考手册（键绑定大全 + 详细配置） |
+| [[file:docs/wiki-index.org][docs/wiki-index.org]] | Wiki 主索引（设计决策 + 工作流 + 深度解析） |
+| [[file:init.el][init.el]] | 模块声明 |
+| [[file:config.el][config.el]] | 完整用户配置 |
+| [[file:packages.el][packages.el]] | 包声明 |
+| [[file:modules/][modules/]] | 自定义 Doom 模块源码 |
+| [[file:c-modules/][c-modules/]] | C 动态模块源码 + Makefile |

@@ -25,32 +25,98 @@
         :desc "Extract subtree"     "x" #'denote-org-extract-org-subtree))
 #+END_SRC
 
+* 加载机制
+
+~:commands~ 声明了 5 个 autoload 命令：
+- ~denote-org-link-to-heading~
+- ~denote-org-backlinks-for-heading~
+- ~denote-org-extract-org-subtree~
+- ~denote-org-convert-links-to-file-type~
+- ~denote-org-convert-links-to-denote-type~
+
+因此 ~denote-org~ 仅在首次调用上述任一命令时加载，不影响启动速度。
+
+* 键位：两组绑定
+
+** 全局 Leader（~SPC r d h / H / x~）
+
+在任何 buffer 中可用：
+- ~SPC r d h~ — 链接到标题
+- ~SPC r d H~ — 标题级反向链接
+- ~SPC r d x~ — 提取子树
+
+** Org localleader（~SPC m D h / b / x~）
+
+仅在 Org buffer 中生效（~:map org-mode-map~），~SPC m~ 是 Doom 的 localleader 前缀：
+- ~SPC m D h~ — 链接到标题
+- ~SPC m D b~ — 标题级反向链接
+- ~SPC m D x~ — 提取子树
+
+localleader 的键位命名更紧凑（b 而不是 H），方便在编辑 Org 文件时快速操作。
+
 * 三个核心操作
 
-** 链接到标题 (~SPC r d h~ / ~SPC m D h~)
+** 链接到标题（~SPC r d h~ / ~SPC m D h~）
 
-在光标位置插入一个 Denote 链接，但不是指向整个文件，而是指向文件内的 ~* 标题~。
-生成的链接包含 ~::heading~ 定位符。
+在光标位置插入 Denote 链接，但不指向整个文件，而是指向文件内的 ~* 标题~。
 
-** 标题反向链接 (~SPC r d H~ / ~SPC m D b~)
+- 流程：选择目标笔记 → 选择该笔记内的某个 ~* 标题~
+- 生成的链接格式：~denote:IDENTIFIER::#heading~
+- 优点：一个文件可以有多个独立入口点，适合大笔记、课程笔记等
 
-显示指向当前 ~* 标题~ 的所有 Denote 链接（而非指向整个文件）。
-在 org-noter 或大文件笔记中非常有用——同一文件的不同章节可能有不同的入链。
+示例：
 
-** 提取子树 (~SPC r d x~ / ~SPC m D x~)
+#+BEGIN_SRC org
+[[denote:20240322T131856::#数据库选型][数据库选型]]
+#+END_SRC
 
-将当前的 Org 子标题（~**~）提取为独立的 Denote 笔记，原始位置替换为 Denote 链接。
-相当于"把这个子标题拆成独立笔记并保留引用"。
+** 标题反向链接（~SPC r d H~ / ~SPC m D b~）
+
+显示指向当前 ~* 标题~ 的所有 Denote 链接（而非指向整个文件的链接）。
+
+- 与 ~denote-find-backlink~ 的区别：
+  - ~denote-find-backlink~：找指向当前整个文件的链接
+  - ~denote-org-backlinks-for-heading~：找指向当前 ~* 标题~ 的链接
+- 在 org-noter 或分章节大文件中特别有用——同一文件的不同章节可能有不同的入链来源
+
+** 提取子树（~SPC r d x~ / ~SPC m D x~）
+
+将当前的 Org 子标题（~**~ 层级）提取为独立的 Denote 笔记。
+
+流程：
+1. 光标放在要提取的 ~** 子标题~ 上
+2. 执行 ~SPC r d x~（或 ~SPC m D x~）
+3. Denote 自动：
+   - 以该子标题的标题为新笔记的 ~#+title~
+   - 以该子标题的内容为新笔记的正文
+   - 在原位置插入指向新笔记的 Denote 链接
+   - 可选：保留原子标题下的子级内容（recursive 选项）
+
+相当于"把这个子标题拆成独立笔记并保留引用"——一种渐进式笔记细化工作流。
 
 * 动态块
 
-通过 ~C-c C-x x~ 插入，~C-c C-x C-u~ 刷新：
+通过 ~C-c C-x x~（~org-dynamic-block-insert-dblock~）插入，
+~C-c C-x C-u~（~org-update-dblock~）刷新。
 
-| 动态块 | 用途 |
-|--------+------|
-| ~denote-links~ | 列出匹配正则的笔记链接 |
-| ~denote-backlinks~ | 列出反向链接 |
-| ~denote-files~ | 嵌入匹配笔记的完整内容 |
-| ~denote-files-as-headings~ | 嵌入并转为 Org 标题 |
-| ~denote-missing-links~ | 列出尚未链接的笔记（用于发现孤立笔记） |
-| ~denote-sequence~ | 序列层级列表 |
+| 动态块 | 用途 | 示例 |
+|--------+------+------|
+| ~denote-links~ | 列出匹配正则的笔记链接 | ~:regexp "技术"~ → 列出含"技术"的所有笔记的链接列表 |
+| ~denote-backlinks~ | 列出当前文件的反向链接 | 不需要参数，自动查找链接到当前文件的所有笔记 |
+| ~denote-files~ | 嵌入匹配笔记的完整内容 | ~:regexp "项目"~ → 将匹配笔记的全文嵌入 Org buffer |
+| ~denote-files-as-headings~ | 嵌入匹配笔记并转为 Org 标题 | 每条嵌入内容前面加 ~* 标题~，适合整理阅读笔记 |
+| ~denote-missing-links~ | 列出尚未链接的笔记 | 发现"应该被链接但还没链接"的笔记，辅助链接补完 |
+| ~denote-sequence~ | 序列层级列表 | 如前文 [[./denote-sequence.org][denote-sequence.org]] 所述，展示父子层级 |
+
+常用配置参数：
+- ~:regexp~ — 匹配文件名的正则
+- ~:keywords~ — 匹配关键词
+- ~:sort-by-component~ — 按 identifier/title/keywords/signature 排序
+
+* 链接类型转换
+
+~denote-org~ 还提供两个链接转换命令（~:commands~ 声明，无键位绑定）：
+- ~denote-org-convert-links-to-file-type~ — 将 Denote 链接转换为普通文件链接
+- ~denote-org-convert-links-to-denote-type~ — 将文件链接转换为 Denote 链接
+
+可用于迁移和格式统一。

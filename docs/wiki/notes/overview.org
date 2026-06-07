@@ -3,10 +3,13 @@
 
 * 全景
 
-Denote 生态 + 辅助工具的关系：
+Denote 生态 + 辅助工具的关系（含 jieba 中文关键词自动推断）：
 
 #+BEGIN_SRC text
-  consult-notes     Deft
+  jieba (TF-IDF 关键词提取)
+       |
+       v
+ consult-notes     Deft
       |               |
       +-------+-------+
               |
@@ -16,28 +19,31 @@ Denote 生态 + 辅助工具的关系：
   journal org sequence explore
       |
    menu
+      |
+    git (auto-commit 安全网)
 #+END_SRC
 
 * 各包分工
 
 | 包 | 核心职责 |
 |-----+----------|
-| ~denote~ | 文件命名、创建、重命名、链接、搜索 |
-| ~denote-org~ | Org 深度集成：链接到标题、提取子树、动态块 |
-| ~denote-sequence~ | 层次编号（Folgezettel）、父子兄弟关系 |
-| ~denote-explore~ | 统计、随机、网络图、关键词维护 |
-| ~denote-journal~ | 日记工作流、日历集成 |
-| ~denote-menu~ | 表格视图、筛选、导出到 Dired |
-| ~consult-notes~ | Consult 搜索 Denote 笔记 |
-| ~deft~ | 快速笔记浏览（独立于 Denote） |
+| ~denote~ | 文件命名、创建、重命名、链接、搜索、重命名 buffer |
+| ~denote-org~ | Org 深度集成：链接到标题、提取子树、反向链接、动态块 |
+| ~denote-sequence~ | 层次编号（Folgezettel）、父子兄弟关系、签名方案 |
+| ~denote-explore~ | 统计、随机浏览、d3.js 网络图、死链/孤立/重复 ID 维护检查 |
+| ~denote-journal~ | 日记工作流、~calendar-mode~ 集成、~day-date-month-year~ 标题 |
+| ~denote-menu~ | ~tabulated-list-mode~ 表格视图、按文件类型/签名显示、筛选、导出到 Dired |
+| ~consult-notes~ | Consult 搜索界面、Denote 笔记实时预览、~_~ 关键词标识符 |
+| ~deft~ | 快速笔记浏览（独立于 Denote）、自定义标题解析、摘要清理 |
+| ~jieba~ | TF-IDF 中文关键词提取、与 ~denote-known-keywords~ 匹配、自动重命名文件 |
 
 * 目录约定
 
 | 目录 | 用途 |
 |------+------|
 | ~/org/denote/~ | Denote 主笔记目录 |
-| ~/org/denote/journal/~ | 日记 |
-| ~/org/deft/~ | Deft 笔记目录（与 Denote 独立） |
+| ~/org/denote/journal/~ | 日记（通过 ~denote-journal-directory~ 配置） |
+| ~/org/deft/~ | Deft 笔记目录（独立于 Denote 的轻量笔记工具） |
 | ~/org/deft/annotations/~ | org-noter PDF 批注 |
 
 * Denote 文件命名规范
@@ -50,7 +56,17 @@ IDENTIFIER--TITLE__KEYWORDS.EXT
 ~20240322T131856--读书笔记__思考.org~
 ~20240322T142301--项目启动方案__工作_技术.org~
 
-- ~IDENTIFIER~ = 时间戳 (ISO 8601, 精确到秒)
-- ~TITLE~ = 标题（~--~ 分隔符前）
-- ~KEYWORDS~ = 分类关键词（~__~ 分隔符后，~_~ 分隔多个）
-- ~EXT~ = ~.org~（默认）或 ~.md~ ~.txt~
+- ~IDENTIFIER~ = 时间戳（ISO 8601, 精确到秒）, e.g. ~20240322T131856~
+- ~TITLE~ = 标题（~--~ 双短横分隔符前）
+- ~KEYWORDS~ = 分类关键词（~__~ 双下划线分隔符后，~_~ 单个下划线分隔多个关键词）
+- ~EXT~ = ~.org~（默认）或 ~.md~, ~.txt~
+
+* jieba 自动关键词
+
+创建新笔记时，~my/denote-jieba-infer-keywords~（hook 优先级 80）自动运行：
+1. 对笔记全文做 jieba TF-IDF 提取 top 5 关键词
+2. 与 ~denote-known-keywords~（以及已有关键词）做交集匹配
+3. 命中的关键词自动写入文件 front-matter
+4. 文件名同步更新
+
+详见 [[./jieba-keywords.org][jieba-keywords.org]]。

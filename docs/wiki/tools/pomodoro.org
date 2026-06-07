@@ -1,0 +1,154 @@
+#+TITLE: Pomodoro、Timer、随机密码
+
+* 概述
+
+本模块（~:tools pomodoro~）提供三个实用工具，全部基于 C 动态模块实现高性能：
+
+- 番茄钟追踪（~cnotify-module.so~）：工作/休息交替 + 系统通知
+- 倒计时器（~cnotify-module.so~）：自定义时长的倒计时
+- 随机密码生成（~random.so~）：基于内核熵池的真随机密码
+
+C 模块通过 ~module-load~ 在 Emacs 中动态加载，首次使用触发构建。
+
+* 绑定额外说明
+
+所有绑定位于 ~SPC r t~（Tools）前缀映射下：
+
+| 按键 | 命令 | 说明 |
+|------+------+------|
+| ~SPC r t s~ | ~my/pomodoro-start~ | 启动番茄钟（默认 25+5 分钟） |
+| ~SPC r t S~ | ~my/pomodoro-stop~ | 停止当前番茄钟 |
+| ~SPC r t t~ | ~my/timer-start~ | 启动自定义倒计时器 |
+| ~SPC r t T~ | ~my/timer-stop~ | 停止当前计时器 |
+| ~SPC r t v~ | ~my/pomodoro-show-stats~ | 查看番茄统计 |
+| ~SPC r t p~ | ~my/random-password~ | 生成随机密码并复制到剪贴板 |
+
+* 番茄钟（Pomodoro）
+
+** 配置
+
+#+BEGIN_SRC emacs-lisp
+;; 在 modules/tools/pomodoro/config.el 中
+(defvar my/pomodoro-default-task "专注"
+  "未在提示中提供时的默认任务名称。")
+
+(defvar my/pomodoro-log-file
+  (expand-file-name "pomodoro.eld" doom-user-dir)
+  "已完成番茄钟周期的 Sexp 日志。")
+#+END_SRC
+
+** 工作流
+
+1. ~SPC r t s~ → 提示输入任务名（默认"专注"）→ 开始 25 分钟工作阶段
+2. Modeline 显示 ~🍅 MM:SS~ 倒计时
+3. 25 分钟到 → cnotify 发送系统通知（通过 libnotify）
+4. 自动进入 5 分钟休息阶段 → modeline 切换为 ~☕ MM:SS~
+5. 休息结束 → 再进入工作阶段
+6. 工作阶段完成时自动记录日志
+7. ~SPC r t S~ → 手动停止（不记录日志）
+
+** 日志格式
+
+日志文件（~pomodoro.eld~）使用 S-expression 格式，每行一个 plist：
+
+#+BEGIN_SRC emacs-lisp
+(:time "2026-06-07 10:30" :task "写作" :work 25 :break 5)
+(:time "2026-06-07 11:00" :task "阅读论文" :work 25 :break 5)
+#+END_SRC
+
+** 统计
+
+~SPC r t v~ 打开统计 buffer（~*Pomodoro Stats*~），显示：
+
+- 今日：周期数、总工作分钟数
+- 本周：周期数、总工作分钟数
+- 总计：周期数、总工作分钟数、小时数
+- 最近 10 条记录
+
+* 倒计时器（Timer）
+
+** 使用
+
+1. ~SPC r t t~ → 提示输入分钟数 → 提示输入消息
+2. 开始倒计时，modeline 显示 ~⏱ MM:SS~
+3. 时间到 → cnotify 发送系统通知（显示自定义消息）
+4. 或 ~SPC r t T~ → 提前停止
+
+** 示例
+
+#+BEGIN_SRC emacs-lisp
+M-x my/timer-start  →  Minutes: 5  →  Message: 泡茶时间到
+#+END_SRC
+
+* 随机密码
+
+** 使用
+
+~SPC r t p~ → 生成 24 字符随机密码 → 自动复制到剪贴板
+
+支持前缀参数：
+- ~C-u SPC r t p~ → 交互式输入长度
+
+#+BEGIN_SRC emacs-lisp
+(defun my/random-password (&optional length)
+  (interactive "P")
+  (my/random--ensure)
+  (let* ((len (if (numberp length) length 24))
+         (pw (random-password len)))
+    (kill-new pw)
+    (message "🔑 密码（%d 字符）已复制到剪贴板" len)))
+#+END_SRC
+
+** 密码特性
+
+- 使用 Linux 内核的 ~getrandom(2)~ 系统调用（熵池真随机）
+- 默认 24 字符，包含大小写字母 + 数字 + 特殊符号
+- 不调用 ~/dev/urandom~，直接使用内核 syscall
+- 异步不阻塞（无熵耗尽风险）
+
+* C 模块架构
+
+** cnotify-module（番茄钟 + 定时器）
+
+| 方面 | 说明 |
+|------+------|
+| 源文件 | ~c-modules/cnotify-module.c~ |
+| 依赖 | ~pkg-config libnotify glib-2.0~ |
+| 加载 | ~my/cnotify--ensure~ → ~module-load~ |
+| 接口 | ~cnotify-pomodoro-start/stop~、~cnotify-timer-start/stop~、~cnotify-poll-action~、~cnotify-status~ |
+| 通知 | 通过 libnotify 发送桌面通知 |
+
+** random（随机密码）
+
+| 方面 | 说明 |
+|------+------|
+| 源文件 | ~c-modules/random.c~ |
+| 依赖 | 无（使用 ~getrandom(2)~ 系统调用） |
+| 加载 | ~my/random--ensure~ → ~module-load~ |
+| 接口 | ~random-password~（C 函数） |
+
+* Modeline 指示器
+
+番茄钟和计时器的倒计时在 modeline 上显示：
+
+| 阶段 | 图标 | 格式 |
+|------+------+------|
+| 工作 | 🍅 | ~🍅 15:30~ |
+| 休息 | ☕ | ~☕ 03:45~ |
+| 自定义计时 | ⏱ | ~⏱ 10:00~ |
+
+实现原理：~cnotify-status~ 返回 ~(remaining . phase)~ → ~mode-line-misc-info~
+中插入 ~my/cnotify-indicator~ → 每秒刷新一次（~run-with-timer 1 1~）。
+
+* 日志与持久化
+
+番茄钟完成的工作阶段自动写入 ~$DOOMDIR/pomodoro.eld~：
+
+#+BEGIN_SRC emacs-lisp
+(defun my/pomodoro-log-entry (task minutes)
+  (my/pomodoro-log-write
+   `(:time ,(format-time-string "%Y-%m-%d %H:%M")
+     :task ,task :work ,minutes :break 5)))
+#+END_SRC
+
+自动触发时机：工作阶段结束（phase 从 1 变为 2）时调用 ~my/pomodoro-log-entry~。

@@ -33,7 +33,7 @@
        doom              ; 让 DOOM 呈现其样貌的配置
        ;;dashboard         ; Emacs 的漂亮启动画面
        ;;doom-quit         ; 退出 Emacs 时的 DOOM 退出提示
-       (emoji +unicode)  ; 🙂
+       emoji             ; 🙂
        hl-todo           ; 高亮 TODO/FIXME/NOTE/DEPRECATED/HACK/REVIEW
        indent-guides     ; 高亮缩进列
        ;;ligatures         ; 连字和符号，让代码重新变漂亮
@@ -51,7 +51,7 @@
        ;;vi-tilde-fringe   ; 在缓冲区末尾外显示波浪线
        (window-select +numbers)     ; 可视化切换窗口
        workspaces        ; 标签模拟、持久化及独立工作区
-       zen               ; 无干扰编码或写作
+       ;;zen               ; 无干扰编码或写作
 
        :editor
        (evil +everywhere); 加入黑暗面，我们有好吃的饼干

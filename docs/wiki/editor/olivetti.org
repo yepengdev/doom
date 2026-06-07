@@ -1,33 +1,75 @@
 #+TITLE: Olivetti 写作专注
+#+STARTUP: overview
 
 * 用途
 
-写作时居中正文、减少视觉宽度、隐藏 mode-line 噪音。
+在 Org 缓冲区中提供专注的写作环境：居中正文、限制行宽、隐藏 mode-line、在 writeroom 中启用 ~mixed-pitch-mode~。
 
 * 配置
 
 #+BEGIN_SRC emacs-lisp
 (use-package! olivetti
-  :hook (org-mode . olivetti-mode)
+  :hook ((org-mode . olivetti-mode))
   :custom
   (olivetti-body-width 100)
   (olivetti-hide-mode-line t)
   :config
   (define-key olivetti-mode-map (kbd "C-c |") nil)
-  (defun +olivetti-toggle-line-numbers-h ()
-    (display-line-numbers-mode (if olivetti-mode -1 1)))
-  (add-hook 'olivetti-mode-hook #'+olivetti-toggle-line-numbers-h))
+
+  (defvar-local my/olivetti--line-numbers-p nil
+    "若 olivetti 开启前行号已启用，则为非 nil。")
+
+  (defun my/olivetti-toggle-line-numbers-h ()
+    "olivetti 启用时关闭行号；退出时恢复原始状态。"
+    (if olivetti-mode
+        (progn
+          (setq my/olivetti--line-numbers-p
+                (and (bound-and-true-p display-line-numbers-mode) t))
+          (display-line-numbers-mode -1))
+      (when my/olivetti--line-numbers-p
+        (display-line-numbers-mode 1))))
+
+  (add-hook 'olivetti-mode-hook #'my/olivetti-toggle-line-numbers-h))
 #+END_SRC
+
+* 行号切换（~my/olivetti-toggle-line-numbers-h~）
+
+与简单调用 ~(display-line-numbers-mode (if olivetti-mode -1 1))~ 不同，当前实现使用状态保存/恢复：
+
+1. olivetti 激活时：检查 ~display-line-numbers-mode~ 当前是否为真。若是，保存状态到 buffer-local 变量 ~my/olivetti--line-numbers-p~，然后关闭行号。
+2. olivetti 退出时：若 ~my/olivetti--line-numbers-p~ 为真，恢复行号。
+
+这样做的原因：
+- 配置中 ~display-line-numbers-type~ = ~'relative~（见 config.el），但某些用户可能手动切换行号（~M-x display-line-numbers-mode~）。保存/恢复模式尊重用户的手动选择。
+- 如果 Org 缓冲区在 ~doom-first-file-hook~ 启动时行号尚未激活（例如在某个 major-mode 中行号被禁用），olivetti 退出后不会错误地打开行号。
 
 * 细节说明
 
 | 项目 | 值 | 理由 |
 |------+-----+------|
-| ~olivetti-body-width~ | 100 | 宽屏显示器上≈舒适阅读宽度（类似 60-80 的 1.5 倍，中文需要更宽） |
-| ~olivetti-hide-mode-line~ | t | 写作时不需要 mode-line 信息 |
-| ~C-c |~ 取消 | 默认绑定到 ~olivetti-expand~，容易误触 |
-| 行号切换 | olivetti 启用时关闭 | 减少视觉干扰，退出时恢复 |
+| ~olivetti-body-width~ | 100 | 宽屏显示器上 ≈ 舒适阅读宽度。中文每字符宽度约为英文两倍，宽幅读者通常需要 80-100，而非英文的 60-72。 |
+| ~olivetti-hide-mode-line~ | t | 写作时 mode-line 的 buffer 名称/编码/行号信息是视觉噪音。且 ~spacious-padding-mode~（见 [[file:../ui/spacious-padding.org][ui/spacious-padding]]）会让 mode-line 更高，隐藏后可获得全屏净空。 |
+| ~C-c |~ 取消 | 默认绑定 ~olivetti-expand~ 容易误触。写作过程中不需要动态调整宽度。 |
+| 行号切换 | 保存/恢复模式 | 如上所述。 |
 
 * Hook 链
 
-~org-mode→olivetti-mode→行号关闭→writing~
+#+BEGIN_SRC text
+org-mode
+  → olivetti-mode (via :hook)
+    → olivetti-mode-hook
+      → my/olivetti-toggle-line-numbers-h (disable line numbers)
+  → writeroom-mode (optional, manual)
+    → writeroom-mode-hook
+      → mixed-pitch-mode (prose → proportional, code → monospace)
+#+END_SRC
+
+~mixed-pitch-mode~ 在 [[file:../ui/fonts.org][ui/fonts.org]] 的 ~writeroom-mode-hook~ 中注册。当 ~writeroom-mode~ 激活时，Org 文件中的文本使用 LXGW WenKai（比例），代码块使用 Maple Mono NF（等宽）。
+
+* 相关文件
+
+- [[file:../ui/fonts.org][ui/fonts.org]] — ~mixed-pitch-mode~ 和字体栈。
+- [[file:../ui/spacious-padding.org][ui/spacious-padding.org]] — 与 olivetti 互补的垂直间距。
+- [[file:evil-insert-hybrid.org][evil-insert-hybrid.org]] — 插入状态下 Emacs 键位，配合写作流程。
+- [[file:super-save.org][super-save.org]] — 后台自动保存，不打断写作流。
+- [[file:palimpsest.org][palimpsest.org]] — 搬移而非删除文本，保留草稿上下文。

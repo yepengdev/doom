@@ -1,24 +1,150 @@
-#+TITLE: 阅读研究流
+#+TITLE: 阅读与研究工作流
+
+* 概述
+
+三场景阅读工作流，覆盖学术论文（PDF）、电子书（EPUB）、快速资料查找。
+所有笔记最终归入 Denote 系统，实现阅读-笔记-写作的无缝衔接。
 
 * 场景 1：PDF 学术论文
 
-1. 打开 PDF → ~pdf-tools~ 自动加载
-2. ~i~ 进入 Emacs state → 连续滚动浏览
-3. 遇到关键段落 → ~SPC m n t~（org-noter）插入批注
-4. 批注自动关联页面位置
-5. 需要引用时 → ~SPC r d h~（~denote-org-link-to-heading~）链接到批注
-6. pdf-tools 渲染不佳时 → ~g z~ 用 Zathura 打开
+** 环境配置
+
+| 组件 | 角色 | 键绑定 |
+|------+------+--------|
+| ~pdf-tools~ | PDF 渲染（内联） | ~find-file~ 自动加载 |
+| ~pdf-view-roll-minor-mode~ | 连续平滑滚动 | ~pdf-view-mode-hook~ 自动开启 |
+| ~org-noter~ | 页面关联笔记 | ~SPC m n t~ 插入批注 |
+| ~org-pdftools~ | PDF → Org 链接 | ~org-load-hook~ 自动设置 |
+| Zathura | 外部 PDF 查看器 | ~g z~ 在 pdf-view-mode-map 中 |
+
+** 工作流
+
+1. 打开 PDF（~C-x C-f something.pdf~）→ ~pdf-tools~ 自动加载
+2. ~i~ 进入 Emacs state → 可用滚动模式（~j~ / ~k~）连续浏览
+3. 遇到关键段落 → ~SPC m n t~（~org-noter-insert-note~）：
+   - 自动关联当前页面位置
+   - 批注笔记存入 ~~/org/deft/annotations/~（~org-noter-notes-search-path~）
+4. 阅读批注时 → ~SPC r d h~（~denote-org-link-to-heading~）：
+   - 在 ~annotations~ 目录中选一个批注
+   - 选择具体标题 → 创建链接
+5. 需要引用 → ~SPC r d i~（~denote-org-link~）：
+   - 搜索笔记标题 → 创建链接
+6. 渲染不佳时 → ~g z~：用 Zathura 外部打开
+
+** PDF 配置详情
+
+#+BEGIN_SRC emacs-lisp
+;; 整页视图 + 连续滚动
+(add-hook! 'pdf-view-mode-hook
+  #'pdf-view-roll-minor-mode
+  #'evil-emacs-state)
+
+(after! pdf-tools
+  (setq pdf-view-display-size 'fit-page  ; 整页
+        pdf-view-resize-factor 1.1       ; 缩放步长（更精细）
+        pdf-view-selection-style 'glyph  ; 按字形选择文本
+        pdf-annot-activate-created-annotations t))
+#+END_SRC
+
+** org-noter 箭头 Bug Workaround
+
+已知问题：~pdf-view-roll-minor-mode~ 与 ~org-noter-pdf--show-arrow~ 在页面
+滚动时产生冲突，导致非致命错误。Workaround 为 advice 静默捕获错误：
+
+#+BEGIN_SRC emacs-lisp
+(after! org-noter-pdf
+  (defadvice! +org-noter-pdf--show-arrow-a (orig-fn)
+    :around #'org-noter-pdf--show-arrow
+    (condition-case nil (funcall orig-fn) (error nil))))
+#+END_SRC
 
 * 场景 2：EPUB 外文书籍
 
-1. 打开 EPUB → ~nov-mode~ 自动加载
-2. ~visual-line-mode~ + ~variable-pitch-mode~ + ~olivetti-mode~ 自动启用
-3. 阅读进度自动保存
-5. 想做笔记 → ~SPC r d n~ 走 Denote
+** 环境配置
+
+| 组件 | 角色 |
+|------+------|
+| ~nov.el~ | EPUB 渲染 |
+| ~visual-line-mode~ | 自动换行 |
+| ~variable-pitch-mode~ | 比例字体 |
+| ~olivetti-mode~ | 居中文本 |
+| ~nov-save-place-file~ | 跨会话阅读位置保存 |
+
+** 工作流
+
+1. 打开 ~.epub~ 文件 → ~nov-mode~ 自动加载
+2. 自动启用阅读环境：
+   - ~visual-line-mode~：段落换行
+   - ~variable-pitch-mode~：像纸质书一样的等宽字体
+   - ~olivetti-mode~：居中对齐
+   - ~hl-line-mode~ 被禁用（避免阅读时分心）
+3. 阅读进度自动保存（~nov-save-place-file~）
+4. 想做笔记 → ~SPC r d n~ 走 Denote 新建笔记
+
+** 配置详情
+
+#+BEGIN_SRC emacs-lisp
+(use-package! nov
+  :mode ("\\.epub\\'" . nov-mode)
+  :init
+  (add-hook 'nov-mode-hook #'visual-line-mode)
+  (add-hook 'nov-mode-hook #'variable-pitch-mode)
+  (add-hook 'nov-mode-hook (lambda () (hl-line-mode -1)))
+  :custom
+  (nov-text-width t)
+  (nov-variable-pitch-mode t)
+  (nov-save-place-file (concat doom-cache-dir "nov-places"))
+  :config
+  (add-hook 'nov-mode-hook #'olivetti-mode))
+#+END_SRC
 
 * 场景 3：快速查找资料
 
-1. ~SPC n s~（~+default/org-notes-search~）→ 搜索 ~/org/~ 目录
-2. ~SPC n f~（~+default/find-in-notes~）→ 按文件名搜索
-3. ~SPC r d f~（~consult-notes~）→ 搜索 Denote 笔记标题
-4. ~SPC r d g~（~denote-grep~）→ 搜索 Denote 笔记内容
+** 搜索方法对比
+
+| 方法 | 命令 | 键绑定 | 搜索范围 | 特点 |
+|------+------+--------+----------+------|
+| 笔记全文搜索 | ~+default/org-notes-search~ | ~SPC n s~ | ~~/org/~ 全部文件 | ripgrep 后端，支持正则 |
+| 笔记文件名搜索 | ~+default/find-in-notes~ | ~SPC n f~ | ~~/org/~ 全部文件 | 模糊匹配文件名 |
+| Denote 标题搜索 | ~consult-notes~ | ~SPC r d f~ | Denote 笔记（~~/org/denote/~） | 标题匹配 + preview |
+| Denote 全文搜索 | ~denote-grep~ | ~SPC r d g~ | Denote 笔记目录 | ripgrep + consult 预览 |
+| 在线搜索 | ~+lookup/online~ | ~SPC s o~ | 浏览器搜索 | 多后端（见下方） |
+| 词典查询 | ~+lookup/dictionary-definition~ | ~SPC o d~ / ~K~ | 萌典 + mapull 离线 | 中文单字/词语/成语 |
+
+** 在线搜索引擎扩展
+
+~SPC s o~ 触发后，可以通过 ~+lookup-provider-url-alist~ 切换引擎：
+
+| 引擎 | URL 模式 | 用途 |
+|------+----------+------|
+| Bing | ~https://www.bing.com/search?q=%s~ | 通用搜索（墙内可用） |
+| Bilibili | ~https://search.bilibili.com/all?keyword=%s~ | 视频/教程搜索 |
+| Douyin | ~https://www.douyin.com/search/%s~ | 社交媒体内容 |
+| Emacs China | ~https://emacs-china.org/search?q=%s~ | Emacs 中文社区 |
+| Emacs Wiki | ~https://emacswiki.org/emacs?search=%s~ | Emacs Wiki |
+| 知乎 | ~https://www.zhihu.com/search?type=content&q=%s~ | 高质量问答 |
+| 术语在线 | ~https://www.termonline.cn/search?k=%s~ | 科技术语查询 |
+| 求闻百科 | ~https://www.qiuwenbaike.cn/index.php?search=%s~ | 自由百科（墙内） |
+
+** niri 焦点自动切换
+
+在 Wayland 的 niri 合成器下，~xdg-open~ 打开浏览器后窗口不会自动
+获得焦点。~my/open-url-and-focus~ 通过 niri IPC 解决：
+
+#+BEGIN_SRC emacs-lisp
+;; 用 niri msg --json windows 查窗口 ID → focus-window
+(setq +lookup-open-url-fn #'my/open-url-and-focus)
+#+END_SRC
+
+延迟 0.4s 等待浏览器窗口出现，然后按 ~app_id~（~brave-browser~）聚焦。
+
+* 笔记与阅读的衔接
+
+所有阅读笔记通过 Denote 统一管理：
+
+- PDF 批注（org-noter）→ 存入 ~~/org/deft/annotations/~
+- EPUB 阅读笔记 → 手动 Denote 创建（~SPC r d n~）
+- 资料搜索 → 直接创建 Denote 笔记并引用来源
+
+最终在写作时，通过 ~denote-org-link~（~SPC r d i~）或
+~denote-org-link-to-heading~（~SPC r d h~）引用阅读笔记。

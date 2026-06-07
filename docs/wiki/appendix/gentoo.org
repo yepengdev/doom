@@ -1,43 +1,148 @@
-#+TITLE: Gentoo 注意事项
+#+TITLE: Gentoo 专属配置
 
 * Emacs 安装
 
-#+BEGIN_SRC shell
-emerge -a app-editors/emacs-30.2-r3
-#+END_SRC
-
-USE flags（当前）：
+当前使用 Gentoo 上的 ~app-editors/emacs-30.2-r3~（及后续版本）。
 
 #+BEGIN_SRC shell
-cairo dbus gif gmp gpm gtk gui gzip-el inotify jpeg lcms libxml2 mailutils png sound sqlite ssl svg systemd threads tiff tree-sitter webp wide-int xattr xft xpm zlib
-
-# 以下未启用
-# -X -Xaw3d -athena -games -gfile -gsettings -harfbuzz -imagemagick -jit -kerberos -livecd -m17n-lib -motif -source -toolkit-scroll-bars -valgrind
+emerge -a app-editors/emacs
 #+END_SRC
 
-- gtk 启用 → 原生 GTK 支持，更好的 font rendering
-- cairo + xft + xpm → 图形渲染
-- tree-sitter → 语法解析（未来切换 +tree-sitter 时需要）
-- dbus → Emacs 作为 daemon 运行需要
+* USE Flags
 
-* Portage 安装的包
+** 当前启用的 USE
 
-某些 Emacs 包通过 Portage 安装，而不是 straight.el：
+#+BEGIN_SRC shell
+cairo dbus gif gmp gpm gtk gui gzip-el inotify jpeg lcms libxml2 mailutils
+png sound sqlite ssl svg systemd threads tiff tree-sitter webp wide-int
+xattr xft xpm zlib
+#+END_SRC
 
-| 包 | Portage 名称 |
-|-----+--------------|
-| nov-el | ~app-emacs/nov-el~ |
-| olivetti | ~app-emacs/olivetti~ |
-| org-mode | ~app-emacs/org-mode~（如果覆盖 Doom 内置的 Org） |
+** 重要性说明
 
-安装后，在 ~packages.el~ 中声明 ~(package! <name>)~，Doom 会自动从 site-lisp 目录加载。
+| USE Flag | 必要性 | 理由 |
+|----------+--------+------|
+| ~gtk~ | 必需 | 原生 GTK 支持，更好的 font rendering、剪贴板、拖放 |
+| ~cairo~ | 必需 | 抗锯齿字体渲染，PDF 工具依赖 |
+| ~xft~ | 必需 | X 字体渲染 |
+| ~xpm~ | 必需 | X Pixmap 支持（图标） |
+| ~dbus~ | 必需 | Emacs 作为 daemon 运行需要（~emacs --fg-daemon~） |
+| ~tree-sitter~ | 推荐 | 语法树解析，为未来 ~+tree-sitter~ 做好准备 |
+| ~svg~ | 推荐 | SVG 支持（Org 渲染、图标） |
+| ~webp~ | 推荐 | WebP 图片支持 |
+| ~gpm~ | 可选 | 终端鼠标支持 |
+| ~wide-int~ | 可选 | 大整数支持（~most-positive-fixnum~ 更大） |
+| ~lcms~ | 可选 | 色彩管理 |
+| ~threads~ | 可选 | 多线程 JSON 解析 |
+| ~systemd~ | 可选 | systemd 集成（~systemd--daemon~ 等） |
+| ~mailutils~ | 可选 | 邮件工具（Emacs 内置 ~message~ 等不需要） |
+| ~sqlite~ | 可选 | SQLite 支持（mapull 词典数据库，强烈推荐） |
+
+** 未启用的 USE（说明）
+
+| USE Flag | 不启用原因 |
+|----------+------------|
+| ~X~ (-X) | 不需要纯 X 支持（通过 GTK 使用 X/Wayland） |
+| ~Xaw3d~ | 不需要 Athena 控件 |
+| ~athena~ | 不同时使用多个 toolkit |
+| ~gfile~ | GLib 文件监视；~inotify~ 更高效 |
+| ~gsettings~ | GTK 设置；当前用自定义配置 |
+| ~harfbuzz~ | Emacs 30 默认启用；后续版本会自动处理 |
+| ~imagemagick~ | ~svg~ 足以处理常见图片；ImageMagick 过大 |
+| ~jit~ | 实验性；native-comp 已覆盖 JIT 需求 |
+| ~kerberos~ | 不需要 Kerberos 认证 |
+| ~m17n-lib~ | fcitx5 已处理输入法 |
+| ~motif~ | 不需要 Motif toolkit |
+| ~source~ | 不安装源文件（节省空间） |
+| ~toolkit-scroll-bars~ | GTK 滚动条已足够 |
+| ~valgrind~ | 仅开发需要 |
+
+** 更新 USE 后
+
+#+BEGIN_SRC shell
+# 修改 /etc/portage/package.use/emacs 后
+emerge -1 app-editors/emacs
+#+END_SRC
+
+* Portage 安装的 Emacs 包
+
+某些 Emacs 包通过 Portage 安装而非 straight.el：
+
+| 包 | Portage 名称 | 说明 |
+|----+--------------+------|
+| nov.el | ~app-emacs/nov-el~ | EPUB 阅读器 |
+| olivetti | ~app-emacs/olivetti~ | 书写聚焦模式 |
+| org-mode | ~app-emacs/org-mode~ | 仅在需要覆盖 Doom 内置 Org 时安装 |
+
+在 ~packages.el~ 中声明系统包：
+
+#+BEGIN_SRC emacs-lisp
+(package! nov)
+(package! olivetti)
+#+END_SRC
+
+Doom 会自动从 Portage 的 site-lisp 目录（~/usr/share/emacs/site-lisp/~）加载。
 
 * LaTeX 依赖
 
-| 依赖 | Portage 包 |
-|------+-----------|
-| TeX Live | ~app-text/texlive~ |
-| XeLaTeX | ~dev-texlive/texlive-xetex~ |
-| CTeX 中文支持 | ~dev-texlive/texlive-langchinese~ |
-| minted | ~dev-python/pygments~ |
-| latexmk | ~dev-tex/latexmk~ |
+| 依赖 | Portage 包 | 用途 |
+|------+-----------+------|
+| TeX Live 基础 | ~app-text/texlive~ | LaTeX 发行版基础 |
+| XeLaTeX | ~dev-texlive/texlive-xetex~ | XeTeX 引擎（支持 OpenType + 中文） |
+| 中文支持 | ~dev-texlive/texlive-langchinese~ | CJK 宏包、ctex |
+| minted | ~dev-python/pygments~ | 源代码语法高亮（~org-latex-src-block-backend 'minted~） |
+| latexmk | ~dev-tex/latexmk~ | 自动多次编译 Perl 脚本 |
+| CTeX 文档类 | ~dev-texlive/texlive-latexextra~ | ~ctexbook~ 等文档类 |
+
+安装命令：
+
+#+BEGIN_SRC shell
+emerge -a app-text/texlive dev-texlive/texlive-xetex \
+  dev-texlive/texlive-langchinese dev-texlive/texlive-latexextra \
+  dev-python/pygments dev-tex/latexmk
+#+END_SRC
+
+* Python 依赖
+
+| 包 | 用途 |
+|----+------|
+| Python 3（~dev-lang/python~） | Org 实时预览服务器 |
+| Pygments（~dev-python/pygments~） | LaTeX minted 代码高亮 |
+
+* 其他系统工具
+
+| 工具 | Portage 包 | 用途 |
+|------+-----------+------|
+| fcitx5 | ~app-i18n/fcitx5~ | 中文输入法 |
+| fcitx5-rime | ~app-i18n/fcitx5-rime~ | Rime 输入引擎 |
+| niri | ~gui-wm/niri~ | Wayland 滚动窗口管理器 |
+| xdg-utils | ~x11-misc/xdg-utils~ | ~xdg-open~ 等桌面集成 |
+| ripgrep | ~sys-apps/ripgrep~ | Doom 默认搜索后端 |
+| fd | ~sys-apps/fd~ | Doom 默认文件查找后端 |
+| zathura | ~app-text/zathura~ | 外部 PDF 查看器（~g z~） |
+| Zathura-pdf-poppler | ~app-text/zathura-pdf-poppler~ | PDF 后端 |
+
+* Emacs 外挂模块编译依赖
+
+C 动态模块需要在编译时具备以下依赖：
+
+| 模块 | 依赖 | Portage 包 |
+|------+------+-----------|
+| ~count-cjk.so~ | 无 | 无 |
+| ~random.so~ | 无（~getrandom~ syscall） | 无 |
+| ~cnotify-module.so~ | libnotify + glib-2.0 | ~dev-libs/libnotify~ ~dev-libs/glib~ |
+| ~jieba-module.so~ | g++ (C++11) + libjieba.a | ~sys-devel/gcc~ |
+| ~dyncall.so~ | libffi | ~dev-libs/libffi~ |
+
+* 查 USE 状态命令
+
+#+BEGIN_SRC shell
+# 查看已安装的 USE
+eix -I app-editors/emacs
+
+# 查看可用 USE
+equery uses app-editors/emacs
+
+# 查看 USE 描述
+euse -i gtk dbus
+#+END_SRC

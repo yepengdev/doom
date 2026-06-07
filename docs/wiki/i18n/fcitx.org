@@ -1,15 +1,23 @@
 #+TITLE: fcitx5 + Evil 集成
+#+STARTUP: overview
 
 * 用途
 
-在 Evil 模式切换时自动管理 fcitx5 输入法状态。
+在 Evil 模式（Normal / Emacs / Insert）切换时自动管理 fcitx5 输入法状态。
+确保进入 Normal 模式时自动关闭中文输入法，进入 Insert/Emacs 模式时恢复之前的状态。
 
-* 原理
+* 问题背景
 
-标准的 Vim Insert state 切换会触发 IME 状态错乱（进入 Normal 时还开着中文，
-进入 Insert 时却关着中文）。Evil 没有原生的 fcitx 集成。
+标准的 Vim/Evil Insert ↔ Normal 模式切换与中文输入法（fcitx5/fcitx4）交互时，会出现输入法状态错乱：
 
-方案：用 ~add-transient-hook!~ 延迟加载 ~fcitx~ 包 + 配合 Emacs state。
+1. 在 Insert 模式输入中文
+2. 按 ~Esc~ 回到 Normal → 输入法未自动关闭
+3. 按 ~j~ / ~k~ 移动光标 → 触发中文输入法的按键拦截
+4. 再次按 ~i~ 进入 Insert → 输入法已关闭（状态丢失）
+
+Evil 没有原生的 fcitx 集成。第三方的 ~fcitx.el~ 包提供此功能，但需要配置。
+
+* 配置
 
 #+BEGIN_SRC emacs-lisp
 (add-transient-hook! 'doom-first-input-hook
@@ -20,23 +28,77 @@
     (fcitx-evil-turn-on)))
 #+END_SRC
 
-* 流程
+* 延迟加载策略
 
-1. 用户第一次输入（~doom-first-input-hook~）
-2. 检测 ~fcitx5-remote~ 或 ~fcitx-remote~ 是否存在
-3. 设置 ~fcitx-remote-command~ 为检测到的命令
-4. ~require 'fcitx~ 加载 ~fcitx.el~ 包
-5. ~fcitx-evil-turn-on~ 注册 Evil 状态转换钩子
+使用 ~add-transient-hook! 'doom-first-input-hook~（而非直接加载）的原因：
 
-* 配合 Emacs state
+| 方案                         | 问题                                            |
+|------------------------------+-------------------------------------------------|
+| 直接 ~(require 'fcitx)~     | 启动时启动 fcitx5-remote 进程，拖慢 Emacs 启动   |
+| ~(use-package! fcitx ...)~  | fcitx.el 无 use-package 集成，需要手动 ~:init~  |
+| ~add-transient-hook! ...~   | 用户第一次键盘输入时才触发，零启动开销           |
 
-见 [[file:../adr/02-emacs-state-vs-insert.org][ADR-02]]。Emacs state 替代 Insert state 后，
-~fcitx-evil-turn-on~ 只管理 Normal → Emacs state 的转换，减少了约一半的 IME 切换事件。
+~doom-first-input-hook~ 是 Doom 提供的 hook，在用户首次按键时触发。
+~add-transient-hook!~ 是 Doom 宏，执行完后自动从 hook 中移除（一次性执行）。
 
-* 诊断
+* fcitx-remote 检测
 
-| 命令 | 用途 |
-|------+------|
-| ~fcitx5-remote~ | 无参数：返回当前状态（0=关闭,1=开启,2=未知） |
-| ~fcitx5-remote -o~ | 开启输入法 |
-| ~fcitx5-remote -c~ | 关闭输入法 |
+#+BEGIN_SRC emacs-lisp
+(when-let ((cmd (or (executable-find "fcitx5-remote")
+                    (executable-find "fcitx-remote"))))
+  (setq fcitx-remote-command cmd))
+#+END_SRC
+
+| 优先级 | 命令             | 对应输入法            |
+|--------+------------------+-----------------------|
+| 1      | ~fcitx5-remote~  | fcitx5（推荐）        |
+| 2      | ~fcitx-remote~   | fcitx4（旧版）        |
+
+检测逻辑：
+
+1. 先用 ~executable-find~ 查找 ~fcitx5-remote~（fcitx5 的命令行工具）
+2. 如果不存在则查找 ~fcitx-remote~（fcitx4 兼容）
+3. 两个都不存在 → 跳过（不启用 fcitx-evil 集成，避免错误）
+4. 设置 ~fcitx-remote-command~ 让 ~fcitx.el~ 使用正确的命令
+
+* 与 Emacs state 的交互
+
+此配置使用 [[file:../../adr/02-emacs-state-vs-insert.org][Emacs state 替代 Insert state]]方案。
+
+- ~fcitx-evil-turn-on~ 注册 Evil 状态转换钩子：
+  - Normal → Emacs/Insert：自动开启中文输入法（如果之前在输入法开启状态）
+  - Emacs/Insert → Normal：自动关闭中文输入法
+- Emacs state 下的所有 Emacs 原生键位（~C-w~、~C-a~、~C-e~ 等）不受输入法影响
+- 传统 Insert state 被稀疏化仅保留 ~<escape>~，其余回退到 Emacs 全局键绑定
+
+* 诊断命令
+
+| 命令                 | 用途                             |
+|----------------------+----------------------------------|
+| ~fcitx5-remote~     | 无参数返回当前状态（0=关闭,1=开启,2=未知） |
+| ~fcitx5-remote -o~  | 强制开启中文输入法                |
+| ~fcitx5-remote -c~  | 强制关闭中文输入法                |
+| ~fcitx5-remote -n~  | 切换下一个输入法                  |
+| ~fcitx5-remote -t~  | 切换当前输入法的激活/非激活状态   |
+| ~fcitx5-diagnosis~  | fcitx5 诊断工具（shell 命令）     |
+
+Emacs 内快速诊断：
+
+#+BEGIN_SRC emacs-lisp
+;; 检查 fcitx-remote-command 设置
+(shell-command-to-string (concat (symbol-value 'fcitx-remote-command) " -v"))
+
+;; 直接检测当前状态
+M-! fcitx5-remote RET
+;; 输出 0 → 关闭，1 → 开启，2 → 未知（如 fcitx5 未运行）
+#+END_SRC
+
+* 故障排除
+
+| 症状                                    | 可能原因                                | 解决方案                               |
+|-----------------------------------------+-----------------------------------------+----------------------------------------|
+| 在 Normal 时仍卡在中文输入法            | ~fcitx-evil-turn-on~ 未成功注册         | ~M-x fcitx-evil-turn-on~ 手动启用      |
+| Ins/Emacs 时无法激活中文输入法          | ~fcitx-remote-command~ 设置错误         | 检查 ~M-: fcitx-remote-command~        |
+| ~fcitx5-remote~ 不返回状态             | fcitx5 未运行                           | 运行 ~fcitx5 -d~ 或在桌面环境启动      |
+| Emacs 启动后第一次输入时卡顿           | ~add-transient-hook!~ 正在启动 fcitx5  | 正常，一次性开销，后续输入即时响应      |
+| fcitx5-remote 存在但仍无法工作          | 环境变量问题（~DBUS_SESSION_BUS_ADDRESS~） | Emacs 守护进程模式下需检查 D-Bus 环境 |

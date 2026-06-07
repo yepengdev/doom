@@ -1,36 +1,84 @@
 #+TITLE: ADR-01: Denote 而非 Org-roam
-#+DATE: 2024
+#+DATE: 2024-01-01
+#+UPDATED: 2026-06-07
 #+STATUS: accepted
 
 * Context
 
 Doom Emacs 环境下需要一个笔记系统。两个主流选择：
+
 - **Org-roam** — 基于 SQLite 数据库的 Roam Research 克隆，双向链接、反向链接浏览器、graph 视图
-- **Denote** — 基于文件命名的 Zettelkasten 系统，纯文本，无数据库
+- **Denote** — 基于文件命名的 Zettelkasten 系统，纯文本，无数据库。由 Emacs 核心贡献者 Protesilaos Stavrou 开发
 
 * Decision
 
-选择 Denote 全家族（denote + denote-org + denote-sequence + denote-explore + denote-journal + denote-menu + consult-notes）。
+选择 Denote 全家族：~denote~ + ~denote-org~ + ~denote-sequence~ + ~denote-explore~ + ~denote-journal~ + ~denote-menu~ + ~consult-notes~。
+
+关键配置（位于 =modules/tools/notes/config.el=）：
+
+**笔记根目录**
+
+#+BEGIN_SRC emacs-lisp
+(setq denote-directory "~/org/denote")
+#+END_SRC
+
+**元数据增强**：~denote-infer-keywords~ 从文件内容自动推断关键词；~denote-sort-keywords~ 按字母排序关键词；~denote-date-prompt-use-org-read-date~ 使用 Org 日期选择器。
+
+#+BEGIN_SRC emacs-lisp
+(setq denote-infer-keywords t)
+(setq denote-sort-keywords t)
+(setq denote-date-prompt-use-org-read-date t)
+#+END_SRC
+
+**中文字典关键词**：配置 ~denote-known-keywords~ 为中文标签（"创作" "学习" "工作" "生活" "技术" "思考" "索引"），并集成 jieba TF-IDF 分词自动提取关键词：
+
+#+BEGIN_SRC emacs-lisp
+(denote-known-keywords '("创作" "学习" "工作" "生活" "技术" "思考" "索引"))
+#+END_SRC
+
+jieba 关键词推断通过 ~denote-after-new-note-hook~ 实现：新建笔记后调用 ~my/denote-jieba-infer-keywords~，用 jieba 模块提取前 5 个关键词，与 ~denote-known-keywords~ 匹配后自动更新 front-matter。
+
+**日记系统**：日记使用英文关键词，确保文件名可读性和跨语言兼容性。
+
+#+BEGIN_SRC emacs-lisp
+(setq denote-journal-keyword '("journal"))
+#+END_SRC
+
+**搜索集成**：~consult-notes-denote-mode~ 提供 ~consult-notes~ 命令，支持通过 ~denote-menu~ 展示文件类型和签名。
+
+#+BEGIN_SRC emacs-lisp
+(consult-notes-denote-mode)
+#+END_SRC
+
+**Git 自动提交**：每次新建笔记自动 ~git add && git commit~，确保笔记历史可追溯。
 
 * Consequences
 
 **正面**
 
 - **纯文本可移植性**：笔记是普通文件，任何编辑器/工具都能读取。不依赖 SQLite 数据库——数据库损坏意味着丢失所有链接元数据
-- **Git 原生友好**：文件命名包含 timestamp+title+keywords，Git diff 可读。Org-roam 的 SQLite 数据库无法合理 diff
-- **备份简单**：`rsync` / `tar` 整个目录即可，无需额外 dump 数据库
-- **无外部依赖**：不需要 SQLite C 库、不需要 `ripgrep` 之外的搜索工具
-- **文件名即元数据**：`20240322T131856--some-title__topic1_topic2.org` 一眼可知创建时间、标题、关键词
+- **Git 原生友好**：文件命名包含 ~timestamp+title+keywords~（例如 ~20240322T131856--some-title__topic1_topic2.org~），Git diff 可读；Org-roam 的 SQLite 数据库无法合理 diff
+- **备份简单**：~rsync~ / ~tar~ 整个目录即可，无需额外 dump 数据库
+- **无外部依赖**：不需要 SQLite C 库，不需要 ~ripgrep~ 之外的搜索工具
+- **文件名即元数据**：一眼可知创建时间、标题、关键词
 - **序列笔记 (Folgezettel)**：Org-roam 的纯层级 vs Denote-sequence 的父子兄弟签名方案，更适合写作而非知识图谱狂热
+- **中文关键词自动标注**：结合 jieba 分词实现中文 NLP 自动标签，无需手动输入
+- **日记得力**：~denote-journal~ 专为日记场景设计，支持日历集成（~denote-journal-calendar-mode~）
 
 **负面**
 
-- 无内建 graph 视图（denote-explore 的 d3.js 网络图是独立的，不如 Org-roam 原生）
-- 无内建 daily notes（denote-journal 补足）
-- 无自动 backlinks（denote-org-backlinks-for-heading 需要手动触发）
-- 社区规模小（但 Protesilaos Stavrou 是 Emacs 核心贡献者，质量有保障）
+- 无内建 graph 视图（~denote-explore~ 的 d3.js 网络图是独立的，不如 Org-roam 原生）
+- 无内建 daily notes（~denote-journal~ 补足）
+- 无自动 backlinks（~denote-org-backlinks-for-heading~ 需要手动触发）
+- 社区规模比 Org-roam 小
+
+**后续考虑**
+
+- 如果 ~org-roam~ 未来支持纯文件后端（无 SQLite），可重新评估
+- ~denote-sequence~ 的签名编号方式需要适应，初期可能觉得约束性强
 
 * 参考
 
-- ~/.config/doom/config.el 第 507-627 行
+- =modules/tools/notes/config.el=（完整 Denote 配置）
+- ~$DOOMDIR/config.el~ 第 658 行（注释说明笔记模块已移至 :tools notes）
 - https://protesilaos.com/emacs/denote

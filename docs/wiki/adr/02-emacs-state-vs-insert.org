@@ -1,17 +1,14 @@
-#+TITLE: ADR-02: Emacs state 替换 Insert state
-#+DATE: 2024
+#+TITLE: ADR-02: 清空 Insert state map 而非重定向到 Emacs state
+#+DATE: 2024-01-01
+#+UPDATED: 2026-06-07
 #+STATUS: accepted
+#+SUPERSEDES: ADR-02 (2024 original: defalias approach)
 
 * Context
 
 中文用户使用 Evil (Vim 模拟) 时遇到核心冲突：Vim 的 Insert state 和 Normal state 切换时，fcitx5 输入法状态会错乱。
-- 进入 Insert state → fcitx5 应切换到中文模式（不一定）
-- 离开 Insert state → fcitx5 应切换到英文模式（不一定）
-- 用 fcitx5-remote 监控状态切换，但 Evil 的 Insert state 钩子时机不准确（在 state 进入前/后触发不可控）
 
-* Decision
-
-通过 `defalias` 将 `evil-insert-state` 永久重定向到 `evil-emacs-state`：
+原先采用 ~defalias~ 将 ~evil-insert-state~ 永久重定向到 ~evil-emacs-state~：
 
 #+BEGIN_SRC emacs-lisp
 (defalias 'evil-insert-state 'evil-emacs-state)
@@ -19,32 +16,58 @@
 (define-key evil-emacs-state-map (kbd "<escape>") 'evil-normal-state)
 #+END_SRC
 
-Emacs state 的行为：
-- 光标为竖线（~bar~），与 GUI 编辑器一致
-- ~<escape>~ 返回 Normal state
-- 没有挂载 fcitx5-remote 监控钩子 → IME 状态完全由用户手动控制
-- 配合 `fcitx-evil-turn-on` 做基准同步
+但此方案有两个问题：
+1. **身份混淆**：~evil-insert-state-p~ 对所有 ~evil-emacs-state~ 返回 nil（因为 ~evil-insert-state~ 只是一个 alias），导致基于 ~evil-insert-state-p~ 检测的第三方包失效
+2. **兼容性**：~evil-emacs-state-map~ 是一个全局宽松的键映射，会将 Emacs 的 ~C-x~ 等键绑定暴露给其他 state 的按键冲突
+
+* Decision
+
+改为清空 ~evil-insert-state-map~ 内容，保留 ~evil-insert-state~ 身份不变：
+
+#+BEGIN_SRC emacs-lisp
+(after! evil
+  (setq evil-insert-state-cursor 'bar)
+  (setcdr evil-insert-state-map nil)
+  (define-key evil-insert-state-map (kbd "<escape>") 'evil-normal-state))
+#+END_SRC
+
+**机制**：
+- ~setcdr evil-insert-state-map nil~ 清空该 keymap 的所有绑定，使其退化为空 keymap
+- 空 keymap 在 Emacs 的 key lookup 中会 fall through 到全局 map（~global-map~），因此 ~C-w~、~C-a~、~C-e~ 等 Emacs 原生绑定自然可用
+- 仅保留一个键绑定：~<escape>~ → ~evil-normal-state~（退出插入模式）
+- 光标设置为竖线（~bar~），与 GUI 编辑器一致
+
+**与 defalias 方案的区别**：
+
+| 方面 | defalias (废弃) | setcdr nil (当前) |
+|------|-----------------|-------------------|
+| state 身份 | ~evil-insert-state~ 是 ~evil-emacs-state~ 的别名 | ~evil-insert-state~ 保持原样 |
+| ~evil-insert-state-p~ | 失效 | 正常 |
+| 键解析 | ~evil-emacs-state-map~（含 Emacs ~C-x~ 前缀） | ~global-map~ + 仅 ~<escape>~ 覆盖 |
+| 第三方包兼容 | evil-surround 等需 ~evil-insert-state-map~ 的包需要额外适配 | 正常工作（只清了 map，state 仍在） |
 
 * Consequences
 
 **正面**
 
-- 中文输入稳定：不再因模式切换意外关闭/开启 IME
-- 光标视觉一致：bar 光标在 Insert 和 Emacs state 下相同
-- 简单：不需要复杂的 `evil-insert-state-entry-hook` + fcitx5-remote 脚本
+- **中文输入稳定**：不再因模式切换意外关闭/开启 IME。~fcitx-evil-turn-on~ 提供基准同步，用户通过 fcitx5 手动切换
+- **光标视觉一致**：bar 光标在 Insert 和 Emacs state 下相同
+- **第三方包兼容**：~evil-surround~、~evil-commentary~ 等依赖 ~evil-insert-state-map~ 的包不需要额外适配
+- **简单**：不需要复杂的 ~evil-insert-state-entry-hook~ + fcitx5-remote 脚本
+- **~evil-insert-state-p~ 正常**：基于此检测的包（如某些模式自动退出插入模式）行为正确
+- **~C-w~ / ~C-a~ / ~C-e~ 可用**：这些 Emacs 编辑键在全局 map 中定义，空 keymap 自然 fall through
 
 **负面**
 
-- 失去 Vim Insert state 的 C-w/C-h/C-u 等插入模式快捷键
-- 失去 `evil-insert-state-map` 的自定义能力（可通过 `define-key evil-emacs-state-map` 恢复部分）
+- 失去 Vim Insert state 特有的 ~C-r~（寄存器插入）、~C-o~（临时 Normal 命令）等绑定
 - 不标准——不符合 Doom/Evil 用户预期，需要适应
+- ~evil-insert-state-map~ 不能再用于注册插入模式快捷键（但可用 ~evil-emacs-state-map~ 替代）
 
-* 权衡
+**后续考虑**
 
-接受负面因素，因为中文输入稳定性是刚需。如果将来 fcitx5-evil 集成成熟（如 libfcitx 直接监听 Evil state），
-可以考虑恢复标准 Insert state。
+如果将来 fcitx5 与 Evil 深度集成（如 libfcitx 直接监听 Evil state 变化），可以考虑恢复标准 ~evil-insert-state~ 行为。当前方案保留 ~evil-insert-state~ 身份，只需重新填充 ~evil-insert-state-map~ 即可回退。
 
 * 参考
 
-- ~/.config/doom/config.el 第 187-202 行
-- ~/.config/doom/config.el 第 740-745 行（fcitx 集成）
+- ~$DOOMDIR/config.el~ 第 262-265 行（核心：~setcdr evil-insert-state-map nil~）
+- ~$DOOMDIR/config.el~ 第 772-777 行（fcitx 集成：~fcitx-evil-turn-on~）

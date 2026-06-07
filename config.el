@@ -1,4 +1,4 @@
-;;; $DOOMDIR/config.el -*- lexical-binding: t; -*-
+;;; $DOOMDIR/config.el -*- lexical-binding: t; no-byte-compile: t; -*-
 ;;;
 ;;; Doom Emacs 个人配置 — 在模块（自动加载及包）就绪后加载。
 ;;; 此处所有更改只需 `M-x doom/reload`（或 `M-x my/doom-full-reload`，
@@ -36,14 +36,16 @@
 (after! doom-ui
   ;; 1. 等宽主体字体：拉丁部分用 Maple Mono NF
   (setq doom-font (font-spec :family "Maple Mono NF" :size 16))
+  ;; (setq doom-font (font-spec :family "Patrick Hand" :size 16))
 
   ;; 2. 变宽字体（用于写作、阅读）：比例版霞鹜文楷
   (setq doom-variable-pitch-font (font-spec :family "LXGW WenKai" :size 16))
 
-  ;; 3. 为默认等宽字体集添加 CJK 回退 → 只影响 fixed-pitch 面
-  (set-fontset-font t 'han (font-spec :family "LXGW WenKai Mono Screen" :size 16))
-  (set-fontset-font t 'kana (font-spec :family "LXGW WenKai Mono Screen" :size 16))
-  (set-fontset-font t 'cjk-misc (font-spec :family "LXGW WenKai Mono Screen" :size 16)))
+  ;; 3. 为默认等宽字体集添加 CJK 回退（不指定 :size，继承当前面字号，
+  ;;    使 C-+/- 缩放 CJK 字体）
+  (set-fontset-font t 'han (font-spec :family "LXGW WenKai Mono Screen"))
+  (set-fontset-font t 'kana (font-spec :family "LXGW WenKai Mono Screen"))
+  (set-fontset-font t 'cjk-misc (font-spec :family "LXGW WenKai Mono Screen")))
 
 (add-hook 'writeroom-mode-hook #'mixed-pitch-mode)
 
@@ -240,7 +242,7 @@
   :config
   (map! :localleader
         :map org-mode-map
-        :prefix ("P" . "Palimpsest")
+        :prefix "P"
         :desc "Move to top"    "t" #'palimpsest-move-region-to-top
         :desc "Move to bottom" "b" #'palimpsest-move-region-to-bottom
         :desc "Move to trash"  "T" #'palimpsest-move-region-to-trash))
@@ -626,17 +628,13 @@ Delays 0.4s for browser window to appear."
         (let ((tag-text (mapconcat #'org-latex--protect-text tags ":")))
           (format "\\texorpdfstring{\\hfill{}{\\color{gray!50!black}\\small %s}}{}" tag-text)))))
 
-(use-package! ox-latex
-  :defer t
-  :after ox
-  :custom
-  (org-latex-format-headline-function #'my/org-latex-format-headline)
+(after! ox-latex
+  (setq org-latex-format-headline-function #'my/org-latex-format-headline
+        org-latex-logfiles-extensions
+        '("lof" "lot" "tex~" "aux" "idx" "log" "out" "toc" "nav" "snm"
+          "vrb" "dvi" "fdb_latexmk" "blg" "brf" "fls" "entoc" "ps" "spl" "bbl" "tex" "bcf")
+        org-latex-src-block-backend 'minted)
 
-  (org-latex-logfiles-extensions
-   '("lof" "lot" "tex~" "aux" "idx" "log" "out" "toc" "nav" "snm"
-     "vrb" "dvi" "fdb_latexmk" "blg" "brf" "fls" "entoc" "ps" "spl" "bbl" "tex" "bcf"))
-
-  :config
   ;; 使用 TEXINPUTS 查找 modules/ 目录中的 ctexbook-org.cls
   ;; 的 LaTeX 编译命令。
   (let* ((modules-dir (expand-file-name "modules" doom-user-dir))
@@ -696,9 +694,10 @@ Delays 0.4s for browser window to appear."
 ;;
 (use-package! nov
   :mode ("\\.epub\\'" . nov-mode)
-  :hook ((nov-mode . visual-line-mode)
-         (nov-mode . variable-pitch-mode)
-         (nov-mode . (lambda () (hl-line-mode -1))))
+  :init
+  (add-hook 'nov-mode-hook #'visual-line-mode)
+  (add-hook 'nov-mode-hook #'variable-pitch-mode)
+  (add-hook 'nov-mode-hook (lambda () (hl-line-mode -1)))
   :custom
   (nov-text-width t)
   (nov-variable-pitch-mode t)
@@ -749,7 +748,8 @@ Delays 0.4s for browser window to appear."
 (use-package! org-pdftools
   :defer t
   :commands org-pdftools-setup-link
-  :hook (org-load . org-pdftools-setup-link))
+  :init
+  (add-hook 'org-load-hook #'org-pdftools-setup-link))
 
 ;; 通过 `g z` 在 Zathura（外部查看器）中打开当前 PDF。
 ;; 当 pdf-tools 无法渲染某些内容或你需要注释器时有用。
@@ -871,6 +871,7 @@ Delays 0.4s for browser window to appear."
       :desc "Full reload" "h r R" #'my/doom-full-reload)
 
 ;; ─── M-x my/byte-compile-config 手动编译配置 ───────────────────
+;;;###autoload
 (defun my/byte-compile-config ()
   "编译 config.el + cli.el + 所有自定义模块 config.el
 当前会话继续用 source，下次启动自动加载 .elc"
@@ -887,11 +888,14 @@ Delays 0.4s for browser window to appear."
                        (not (file-newer-than-file-p file elc)))
             (byte-compile-file file)))))))
 
-(add-hook 'doom-after-sync-hook #'my/byte-compile-configs)
+
 
 ;;（cnotify/random 模块路径已移至 :tools pomodoro）
 
 ;;（番茄钟/计时器/密码工具已移至 :tools pomodoro 模块）
+
+;; ─── ispell: 强制 en_US 字典（LC_CTYPE=zh_CN 时默认会找 zh_CN）──
+(setq ispell-dictionary "en_US")
 
 ;; ─── 禁止 ispell 补全（未启用 :checkers spell 模块）─────────────
 ;; Emacs 29+ 自动在 text-mode 缓冲区启用 `ispell-completion-at-point`，

@@ -1,17 +1,22 @@
 #+TITLE: Pinyin 模糊搜索 (evil-pinyin)
+#+STARTUP: overview
 
 * 用途
 
-在 Vertico/Consult/Orderless 搜索中输入拼音（如 ~zhongwen~）即可匹配中文
-文件名和内容（~中文~ ~重要文件~ 等）。
+在 Vertico/Consult/Orderless 搜索中输入拼音（如 ~zhongwen~）即可匹配中文文件名
+和内容（~中文~、~重要文件~ 等）。支持所有使用 orderless 的完成 UI。
 
 * 原理
 
-~evil-pinyin~ 的核心机制是：
+~evil-pinyin~ 的核心机制是拼音 → 正则转换：
 
-1. ~evil-pinyin--build-regexp-string~ 接收输入字符串
-2. 将每个拼音音节（~zhong~ ~wen~）转换为正则 ~[^一-魕]*中[^一-魕]*文~
-3. 转换为正则后交给 ~orderless-regexp~ 进行匹配
+1. 输入 ~zhongwen~
+2. ~evil-pinyin--build-regexp-string~ 将每个拼音音节转换为 "汉字字符类" 正则：
+   ~[^一-魕]*中[^一-魕]*文~
+3. 正则内容交给 ~orderless-regexp~ 进行匹配
+
+所以 ~zhong~ 命中所有拼音为 zhong 的汉字（中、种、重、终...），~wen~ 同理，
+组合后匹配 ~中文~。
 
 * 配置
 
@@ -21,24 +26,82 @@
   :commands (evil-pinyin--build-regexp-string)
   :init
   (after! orderless
-    (advice-add #'orderless-regexp :filter-return #'evil-pinyin--build-regexp-string))
+    (defun my/orderless-regexp-pinyin (regex)
+      (if (and (bound-and-true-p evil-pinyin-mode)
+               (stringp regex)
+               (not (string-empty-p regex))
+               (string-match-p "\\`[a-zA-Z]+\\'" regex)
+               (< (length regex) 10))
+          (evil-pinyin--build-regexp-string regex)
+        regex))
+    (advice-remove #'orderless-regexp #'evil-pinyin--build-regexp-string)
+    (advice-add #'orderless-regexp :filter-return #'my/orderless-regexp-pinyin))
   :config (evil-pinyin-mode 1))
 #+END_SRC
 
-* Orderless 集成
+* Guard 函数：my/orderless-regexp-pinyin
 
-~advice-add :filter-return~ 在 ~orderless-regexp~ 返回的正则结果上再次过滤——
+与旧版直接 advice ~orderless-regexp~ 不同，此配置使用带 guard 条件的
+~:filter-return~ advice：
 
-输入 ~xie zhu~：
-1. ~orderless-regexp~ → 拆分为两个 pattern 分别匹配
-2. ~evil-pinyin--build-regexp-string~ 覆盖每个 pattern → 同时匹配拼音和字面
+| 条件                                   | 目的                                               |
+|----------------------------------------+----------------------------------------------------|
+| ~evil-pinyin-mode~ 已开启              | 仅在用户启用 evil-pinyin-mode 时生效               |
+| ~regex~ 是字符串且非空                 | 避免 nil 或空字符串导致 ~evil-pinyin--build-regexp-string~ 错误 |
+| 纯 ASCII 字母（~[a-zA-Z]+~）           | 仅对纯拼音输入做扩展；数字、符号、混合输入保留原样    |
+| 长度 < 10                              | 防止超长输入生成巨大的字符类正则                     |
 
-所以 ~xie~ 匹配 ~写~ ~些~ ~谢~ 等。
+** 为何需要长度 guard
+
+~evil-pinyin--build-regexp-string~ 将输入转换为类似 ~[^一-魕]*中[^一-魕]*文~ 的正则。
+输入越长，正则越长。超过一定长度后：
+
+1. Emacs 的 regexp 引擎报错 ~"Regular expression too big"~
+2. 长的纯英文在 orderless 中应做普通子串匹配（效率高于拼音扩展）
+3. 长度为 9（如 ~zhongwen~ 是 8 字符），10 字符以上的基本不会是拼音
+
+** ~advice-remove~ 清理
+
+#+BEGIN_SRC emacs-lisp
+(advice-remove #'orderless-regexp #'evil-pinyin--build-regexp-string)
+#+END_SRC
+
+Doom 的 evil-pinyin 模块默认直接 advice ~orderless-regexp~
+（~evil-pinyin--build-regexp-string~ 作为 ~:filter-return~）。
+我们的自定义 advice 需要先移除 Doom 默认的 advice，然后添加带 guard 的版本。
+
+* Orderless 集成方式
+
+| 组件               | 角色                                   |
+|--------------------+----------------------------------------|
+| ~orderless-regexp~ | 将用户输入的模式片段转译为正则表达式    |
+| ~:filter-return~   | advice 类型：修改 ~orderless-regexp~ 的返回值 |
+| ~my/orderless-regexp-pinyin~ | 在返回前做拼音→正则的转换   |
+
+输入 ~xie zhu~ 时：
+
+1. Orderless 按空格分割为两个 pattern：~xie~ 和 ~zhu~
+2. 对每个 pattern 调用 ~orderless-regexp~ → 返回 ~[^一-魕]*写[^一-魕]*~ 类正则
+3. ~:filter-return~ advice 返回修改后的正则
+4. 最终匹配所有同时满足 ~xie~ 和 ~zhu~ 拼音映射的候选
 
 * 影响范围
 
-- ~M-x~ / ~SPC :~（命令搜索）——中文描述的命令可搜
-- ~SPC f f~（文件搜索）——中文文件名可搜
-- ~SPC n f~（笔记搜索）——中文标题可搜
-- ~consult-notes~ / ~denote-grep~ ——同上
-- 所有使用 orderless 的完成 UI
+| 入口             | 功能                 | 拼音搜索效果                     |
+|------------------+----------------------+----------------------------------|
+| ~SPC :~          | M-x 命令搜索         | "xie zhu" 匹配"写作模式"的命令   |
+| ~SPC f f~        | 文件搜索             | "shu ru" 匹配"输入法.md"          |
+| ~SPC n f~        | 笔记搜索             | "bi ji" 匹配"笔记.org"            |
+| ~consult-notes~  | Deft/Denote 笔记搜索 | 同上                             |
+| ~denote-grep~    | 笔记内容 Grep        | "guan jian" 匹配含"关键"的笔记   |
+| ~SPC n o~        | 打开 Denote 笔记     | 同上                             |
+| ~SPC s l~        | 行搜索（consult-line） | 缓冲区内容行                  |
+| ~SPC s b~        | 缓冲区搜索           | 同上                             |
+| ~SPC s d~        | 目录搜索（consult-grep） | 同上                          |
+
+* 限制
+
+- 仅支持拼音首字母和全拼，不支持注音符号或双拼
+- 输入 ~zh~ 不会自动展开为 ~zhi~ ~zhe~ ~zha~（需完整音节）
+- 对于 10 字符以上的输入自动降级为普通子串匹配（guard 限制）
+- 不会改变候选排序（拼音匹配和字面匹配的优先级相同）

@@ -1,19 +1,34 @@
-#+TITLE: 大文件处理 (≥1 MiB)
+#+TITLE: 大文件处理（≥1 MiB）
 #+STARTUP: overview
 
 * 问题
 
-Org 文件超过 ~1 MiB 后，org-modern、org-appear、org-indent、fontification、prettify-symbols、variable-pitch 等美化的叠加成本导致明显的 UI 卡顿（滚动延迟、输入延迟）。
+Org 文件超过 ~1 MiB 后，叠加的装饰功能导致明显的 UI 卡顿：
 
-* 方案
+| 功能 | 性能成本 |
+|------+----------|
+| ~org-modern-mode~ | 表格/标题/列表的覆盖层重绘 |
+| ~org-appear-mode~ | 悬停时 emphasis 的即时字体化 |
+| ~org-indent-mode~ | 动态缩进计算（行数正比于复杂度） |
+| ~font-lock~ 字体化 | TODO 面、优先级面、标签面（多正则匹配） |
+| ~prettify-symbols-mode~ | 每个插入操作的组成正则扫描 |
+| ~variable-pitch-mode~ | 混合字体的行高计算 |
+| ~olivetti-mode~ | 左右边距的动态调整 |
 
-文件打开时检测大小，超过阈值则关闭所有装饰。
+参考数据：~600 KiB、约 5000 行、~50 个标题的 Org 文件在 2022 年笔记本 CPU 上已可能出现
+数秒的 font-lock 暂停。
+
+* 解决方案
+
+文件打开时检测大小，超过阈值则关闭所有装饰，用美观换取响应速度。
 
 #+BEGIN_SRC emacs-lisp
-(defvar my/org-large-file-size-threshold (* 1024 1024))
+(defvar my/org-large-file-size-threshold (* 1024 1024)
+  "文件 >= 1 MiB 触发 `my/org-maybe-disable-prettification' 移除装饰。")
 
 (defun my/org-maybe-disable-prettification ()
   (when-let ((attrs (and buffer-file-name
+                         (not (file-remote-p buffer-file-name))
                          (file-attributes buffer-file-name))))
     (when (> (file-attribute-size attrs) my/org-large-file-size-threshold)
       (when (bound-and-true-p org-modern-mode) (org-modern-mode -1))
@@ -31,30 +46,39 @@ Org 文件超过 ~1 MiB 后，org-modern、org-appear、org-indent、fontificati
       (when (bound-and-true-p prettify-symbols-mode) (prettify-symbols-mode -1))
       (setq-local prettify-symbols-alist nil)
       (when (bound-and-true-p variable-pitch-mode) (variable-pitch-mode -1))
+      (when (bound-and-true-p olivetti-mode) (olivetti-mode -1))
       (font-lock-flush))))
 
 (add-hook 'org-mode-hook #'my/org-maybe-disable-prettification)
 #+END_SRC
 
-* 具体关闭了什么
+* 关闭的功能清单
 
-| 功能 | 关闭方式 | 影响 |
+| 功能 | 关闭方式 | 效果 |
 |------+----------+------|
-| ~org-modern-mode~ | ~-1~ | 不再美化表格/标题/列表 |
-| ~org-appear-mode~ | ~-1~ | 不再悬停展示 emphasis |
-| ~org-indent-mode~ | ~-1~ | 标题不再动态缩进 |
-| ~org-hide-leading-stars~ | nil | 显示全文的星号 → ~* 标题~ |
-| ~org-fontify-done-headline~ | nil | DONE 标题不再变灰 |
-| ~org-fontify-whole-heading-line~ | nil | 标题颜色只应用于文本区域 |
-| ~org-priority-faces~ | nil | ~[#A]~ 不再高亮 |
-| ~org-todo-keyword-faces~ | nil | TODO/DONE 不染色 |
-| ~org-pretty-entities~ | nil | ~\alpha~ 不渲染为 α |
-| ~org-hide-emphasis-markers~ | nil | ~*bold*~ 显示原始标记 |
-| ~prettify-symbols-mode~ | -1 | ~lambda~ 不显示为 λ |
-| ~variable-pitch-mode~ | -1 | 使用等宽字体（vs 比例字体） |
-| ~font-lock-flush~ | 调用 | 刷新字体化，移除上述更改的效果 |
+| ~org-modern-mode~ | ~(mode -1)~ | 表格/标题/列表不再美化 |
+| ~org-appear-mode~ | ~(mode -1)~ | 不再悬停展示 emphasis |
+| ~org-indent-mode~ | ~(mode -1)~ | 标题不再动态缩进 |
+| ~org-hide-leading-stars~ | ~nil~ | 显示全文星号 ~*** 标题~ |
+| ~org-fontify-done-headline~ | ~nil~ | DONE 标题不再变灰 |
+| ~org-fontify-quote-and-verse-blocks~ | ~nil~ | 引用/诗歌块不染色 |
+| ~org-fontify-whole-heading-line~ | ~nil~ | 标题颜色只应用于文本区域 |
+| ~org-priority-faces~ | ~nil~ | ~[#A]~ 不再高亮 |
+| ~org-todo-keyword-faces~ | ~nil~ | TODO/DONE 不染色 |
+| ~org-pretty-entities~ | ~nil~ | ~\alpha~ 不渲染为 α |
+| ~org-hide-emphasis-markers~ | ~nil~ | ~*bold*~ 显示原始标记 |
+| ~prettify-symbols-mode~ | ~(mode -1)~ | ~lambda~ 不显示为 λ |
+| ~variable-pitch-mode~ | ~(mode -1)~ | 使用等宽字体 |
+| ~olivetti-mode~ | ~(mode -1)~ | 不再居中文本、不隐藏模式行 |
+| ~font-lock-flush~ | 调用 | 刷新字体化，移除上述（已改的）效果 |
 
-* so-long 冲突处理
+注意：~~org-ellipsis~~ 设为 ~"..."~（而不是默认的 ~…~ 或 org-modern 的折叠三角），
+减少字符渲染开销。
+
+* so-long 冲突
+
+~so-long~ 是 Emacs 内置的大文件优化（检测长行后关闭 font-lock）。但 ~my/org-maybe-disable-prettification~
+已做更精细的逐项控制，因此禁止 ~so-long~ 在 org-mode 中触发，避免策略冲突。
 
 #+BEGIN_SRC emacs-lisp
 (after! so-long
@@ -62,6 +86,3 @@ Org 文件超过 ~1 MiB 后，org-modern、org-appear、org-indent、fontificati
         (lambda () (and (not (derived-mode-p 'org-mode))
                         (doom-so-long-p)))))
 #+END_SRC
-
-~so-long~ 是 Emacs 内置的大文件优化（关闭 font-lock）。但已经有自定义 ~my/org-maybe-disable-prettification~
-做更精细的控制，所以禁止 ~so-long~ 在 org-mode 中触发，避免两者打架。

@@ -7,4 +7,5 @@
 (package! denote-explore)
 (package! denote-journal)
 (package! denote-menu)
-(package! consult-notes)
+(package! consult-notes
+  :recipe (:host codeberg :repo "mclear-tools/consult-notes"))

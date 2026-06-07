@@ -1,0 +1,69 @@
+#+TITLE: Evil Insert Hybrid — Emacs 键位 + 竖线光标
+#+STARTUP: overview
+
+* 设计目标
+
+在 Evil（Vim 模拟层）的插入状态中获得 Emacs 原生的键绑定体验，同时保持与第三方 Evil 包的兼容。
+
+| 目标 | 优先级 |
+|------+--------|
+| ~i~ 进入插入状态（而非 ~evil-emacs-state~） | 必须 |
+| 竖线光标（~bar~）而非 block | 必须 |
+| ~C-a~ ~C-e~ ~C-w~ ~M-<~ ~M->~ 等 Emacs 键位开箱即用 | 必须 |
+| ~evil-surround~ ~evil-commentary~ 等在插入状态下注册的绑定仍然有效 | 必须 |
+| ~<escape>~ 返回 ~normal-state~ | 必须 |
+
+* 实现
+
+#+BEGIN_SRC emacs-lisp
+(after! evil
+  (setq evil-insert-state-cursor 'bar)
+  (setcdr evil-insert-state-map nil)
+  (define-key evil-insert-state-map (kbd "<escape>") 'evil-normal-state))
+#+END_SRC
+
+** 分解
+
+1. ~setq evil-insert-state-cursor 'bar~ — 将插入状态的 cursor 形状设为竖线（Emacs 惯例），而非 Vim 风格的 block。
+2. ~setcdr evil-insert-state-map nil~ — 清空 evil-insert-state-map 的绑定表（保留 keymap 对象，仅移除其所有条目）。这使得所有未被 ~define-key~ 显式覆盖的按键回退到 Emacs 的全局和局部 keymap 层。
+3. ~define-key evil-insert-state-map (kbd "<escape>") 'evil-normal-state~ — 唯一的例外：~<escape>~ 退出到 normal state。
+
+* 为何选择此方案而非 ~evil-emacs-state~
+
+~evil-emacs-state~ 是另一个 Evil state，有独立的 keymap（~evil-emacs-state-map~）。虽然其默认行为也是回退到 Emacs keybinding，但：
+
+| 方面 | ~evil-emacs-state~ | 混合插入状态（当前） |
+|------+--------------------+------------------------|
+| State 名称 | ~emacs~ | ~insert~（标准） |
+| ~i~ / ~a~ 绑定 | 需要额外映射 | 默认 |
+| 第三方包支持 | 需要显式适配 ~emacs-state~ | 自动继承 ~insert-state~ 相关的 keymap |
+| ~evil-surround~ | ~evil-surround~ 的插入绑定可能不激活 | 仍注册在 ~evil-insert-state-map~ 上 |
+| 心智模型 | "Emacs 模式" | "带 Emacs 键位的插入模式" |
+
+~setcdr evil-insert-state-map nil~ 的核心洞察：~evil-insert-state-map~ 本身仍然存在，只是它不 shadow 任何 Emacs 键位（除了 ~<escape>~）。所有在 ~evil-insert-state-map~ 上注册绑定的包仍然能按预期工作。
+
+* 对第三方包的影响
+
+** 兼容的包
+
+这些包在 ~evil-insert-state-map~ 上注册绑定，在该方案下完全不受影响：
+
+- ~evil-surround~ — ~evil-surround~ 的插入模式快捷键（如 ~C-s~ 添加包围）仍在。
+- ~evil-commentary~ — 插入模式下的注释键位仍在。
+- ~evil-escape~ — 如果使用 ~~ 替代 ~<escape>~，绑定在 ~evil-insert-state-map~ 上。
+- ~evil-snipe~ / ~evil-easymotion~ — 这些主要工作在 normal/visual state，不受影响。
+
+** 不兼容的情况
+
+- 依赖 ~evil-insert-state-map~ 中默认 Vim 键位（~C-w~ = 删除上一个词）的包或习惯 —— ~C-w~ 现在会回退到 Emacs 的 ~kill-region~。这是有意为之 —— 如果需要 Vim 风格的 ~C-w~，可以在 ~setcdr~ 后重新定义。
+- ~evil-insert-state-map~ 被其他包直接 ~setq~ 替换而非修改的情况（极端罕见）。
+
+* 与其他文件和框架的交互
+
+- ~display-line-numbers-type~ = ~'relative~（在 config.el 中设置）：相对行号在插入状态下保持 —— Evil 在多窗口编辑时仍能以相对行号导航。这与其他配置不同，有些人在插入状态下切换为绝对行号。
+- ~evil-escape~：本配置未启用，但如果启用，~evil-escape-key-sequence~ 绑定在 ~evil-insert-state-map~ 上仍有效（因为我们只 ~setcdr~ 了 cdr，但 keymap 对象仍然存在）。
+- ~spacious-padding-mode~（见 [[file:../ui/spacious-padding.org][ui/spacious-padding.org]]）：与插入状态光标不冲突 —— ~bar~ 光标在宽松行间距下仍然清晰可见。
+
+* 相关 ADR
+
+见 [[file:../adr/02-emacs-state-vs-insert.org][ADR: 为什么用 evil-insert-state 而非 evil-emacs-state]] 了解决策过程的详细讨论。

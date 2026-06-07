@@ -1,54 +1,261 @@
-#+TITLE: 字数统计 (my/count-words / my/count-chinese-chars)
+#+TITLE: 中英文统计 (C 模块)
+#+STARTUP: overview
 
 * 用途
 
-中英双语统一统计。C 动态模块（~c-modules/count-cjk.so~）一次扫描完成所有计数。
+中英双语统一统计。C 动态模块（~c-modules/count-cjk.so~）单次 UTF-8 扫描
+完成所有计数。支持选中区域统计，输出带有中文数量级格式化（万/亿）。
 
-| 功能 | 快捷键 | 输出示例 |
-|------|--------|----------|
-| 综合统计（中/英/标点/总） | ~M-=~ | ~中:12  英:2  标点:2  总:28~ |
-| CJK 字数（旧接口） | ~SPC r n c~ | ~字:12  含标点:14  总:28  50.0%~ |
+* 快捷键
 
-* 架构
+| 功能                           | 快捷键      | 输出示例                            |
+|--------------------------------+-------------+-------------------------------------|
+| 综合统计（中/英/标点/总）       | ~M-=~       | ~中:12  英:2  标点:2  总:28~        |
+| CJK 字数（含百分比）            | ~SPC r n c~ | ~字:12  含标点:14  总:28  50.0%~    |
+| 详细统计（CJK/标点/英文词/总） | ~SPC r n w~ | ~Region: 12 CJK, 2 punct, ...~      |
+| 重建 C 模块                    | ~SPC r n b~ | 在 ~*cjk-build*~ buffer 中显示结果   |
+| 开关 modeline 实时统计          | ~SPC r n s~ | modeline 显示 ~[中:12 英:2 标:2]~   |
 
-C 模块导出两个函数：
+默认只统计整个 buffer；如果激活了 region（选中区域），则只统计选中区域。
 
-- ~my/count-cjk (STRING)~ → ~(CHARS . PUNCT)~（CJK 字和标点）
-- ~my/count-text (STRING)~ → ~[cjk punct en-words en-chars total-cp]~（全量统计）
+* C 模块架构
 
-Elisp 层只做 message 格式化，计算由 C 完成。
+** 导出的 C 函数
 
-* 英文词界定
+| 函数                             | 签名                        | 返回值                           |
+|----------------------------------+-----------------------------+----------------------------------|
+| ~my/count-cjk (STRING)~          | ~(char* s) → cons~         | ~(CJK-CHARS . PUNCT)~          |
+| ~my/count-text (STRING)~         | ~(char* s) → vector~       | ~[cjk punct en-words en-chars total-cp]~ |
+
+Elisp 层只做消息格式化和绑定，所有计算由 C 完成。
+
+** English 词界定
 
 ~[a-zA-Z0-9']~ 连续序列为一个英文词：
 
-- ~Hello~ → 1 词
-- ~don't~ → 1 词（~'~ 视为词内字符）
-- ~well-known~ → 2 词（~-~ 是词边界）
-- ~42~ → 1 词（数字参与）
+| 输入           | 英文词数 | 解释              |
+|----------------+----------+-------------------|
+| ~Hello~        | 1        | 普通词            |
+| ~don't~        | 1        | 撇号为词内字符    |
+| ~well-known~   | 2        | 连字符是词边界    |
+| ~42~           | 1        | 数字参与词计数    |
+| ~file.txt~     | 2        | 点号是词边界      |
+| ~C++~          | 2        | 加号是词边界      |
 
-* 性能
+* my/count-chinese-chars
 
-| 规模 | 原 Elisp 版 | C 模块 | 加速比 |
-|------+------------+--------+--------|
-| 1 KB   | 28 ms      | 0.7 ms | 42×    |
-| 10 KB  | 211 ms     | 21 ms  | 10×    |
-| 100 KB | 1926 ms    | 162 ms | 12×    |
-| 500 KB | 9376 ms    | 613 ms | 15×    |
+#+BEGIN_SRC emacs-lisp
+(defun my/count-chinese-chars (&optional beg end)
+  (interactive)
+  (my/ensure-cjk-module)
+  (let* ((beg (or beg (if (use-region-p) (region-beginning) (point-min))))
+         (end (or end (if (use-region-p) (region-end) (point-max))))
+         (result (my/count-cjk (buffer-substring-no-properties beg end)))
+         (cn-chars (car result))
+         (cn-punct (cdr result))
+         (total (- end beg))
+         (pct (if (> total 0) (/ (* (+ cn-chars cn-punct) 100.0) total) 0.0)))
+    (message (concat "字:%s  含标点:%s  总:%d  %.1f%%"
+                     (if (use-region-p) " (选中)" ""))
+             (my/--fmt-num cn-chars)
+             (my/--fmt-num (+ cn-chars cn-punct))
+             total pct)))
+#+END_SRC
 
-* C 模块构建
+输出：~字:1.23万  含标点:1.28万  总:30345  42.2%~
 
-C 模块使用惰性加载策略：启动时不编译不加载，首次调用命令时按需编译并加载。
-也可手动触发构建：
+- 仅统计 CJK 汉字（~my/count-cjk~），不包含英文
+- 百分比 = (汉字 + 中文标点) / 总字符数（含空格、换行、英文等）
+- 数值自动格式化（万/亿）
 
-#+BEGIN_SRC sh
+* my/count-words（M-=）
+
+#+BEGIN_SRC emacs-lisp
+(defun my/count-words (&optional beg end)
+  (interactive)
+  (my/ensure-cjk-module)
+  (let* ((beg (or beg (if (use-region-p) (region-beginning) (point-min))))
+         (end (or end (if (use-region-p) (region-end) (point-max))))
+         (v (my/count-text (buffer-substring-no-properties beg end)))
+         (cjk (aref v 0))
+         (punct (aref v 1))
+         (en-words (aref v 2))
+         (total (aref v 4)))
+    (message "中:%s  英:%s  标点:%s  总:%s"
+             (my/--fmt-num cjk)
+             (my/--fmt-num en-words)
+             (my/--fmt-num punct)
+             (my/--fmt-num total))))
+#+END_SRC
+
+输出：~中:1,234  英:567  标点:89  总:12,345~
+
+替换默认的 ~count-words-region~ 绑定（~M-=~）。
+
+* my/word-count（SPC r n w）
+
+#+BEGIN_SRC emacs-lisp
+(defun my/word-count (&optional beg end)
+  (interactive "r")
+  (my/ensure-cjk-module)
+  (let* ((text (if (use-region-p)
+                   (buffer-substring-no-properties beg end)
+                 (buffer-substring-no-properties (point-min) (point-max))))
+         (label (if (use-region-p) "Region" "Buffer"))
+         (v (my/count-text text)))
+    (message "%s: %s CJK, %s punct, %s EN words (%s EN chars), %s total cp"
+             label (my/--fmt-num (aref v 0)) (my/--fmt-num (aref v 1))
+             (my/--fmt-num (aref v 2)) (my/--fmt-num (aref v 3))
+             (my/--fmt-num (aref v 4)))))
+#+END_SRC
+
+输出：~Buffer: 12,345 CJK, 678 punct, 234 EN words (1,456 EN chars), 15,678 total cp~
+
+与 ~my/count-words~ 的区别：
+
+| 方面       | ~my/count-words~ (M-=) | ~my/word-count~ (SPC r n w) |
+|------------+------------------------+-----------------------------|
+| ~interactive~ | 无 ~"r"~，手动计算 BEG/END | 有 ~"r"~，Emacs 自动传入 BEG/END |
+| 英文细节   | 仅英文词数               | 英文词数 + 英文字符数             |
+| 输出格式   | 简洁单行                 | 详细（含 Region/Buffer 标签）     |
+| 英文词     | ~aref v 2~               | ~aref v 2~（英文词数）            |
+| 英文字符   | 不输出                   | ~aref v 3~                        |
+
+* my/writing-stats-mode（SPC r n s）
+
+Modeline 实时写作统计，使用 count-cjk C 模块驱动。
+
+** 核心机制
+
+#+BEGIN_SRC emacs-lisp
+(define-minor-mode my/writing-stats-mode
+  "切换 Org 缓冲区的 modeline 实时写作统计。"
+  :lighter ""
+  :keymap nil
+  (if my/writing-stats-mode
+      (progn
+        (my/writing-stats--refresh)
+        (unless my/writing-stats--timer
+          (setq my/writing-stats--timer
+                (run-with-idle-timer 1.0 t #'my/writing-stats--refresh))))
+    (setq my/writing-stats--str nil)
+    (force-mode-line-update)))
+#+END_SRC
+
+| 组件                             | 说明                             |
+|----------------------------------+----------------------------------|
+| ~my/writing-stats--str~          | Buffer-local 的缓存统计字符串     |
+| ~my/writing-stats--timer~        | 全局 idle timer，每 1 秒刷新     |
+| ~my/writing-stats--refresh~      | 调用 ~my/count-text~ 并更新字符串 |
+| ~my/writing-stats--seg-added~    | 防止 modeline segment 重复添加    |
+
+** Modeline 集成
+
+#+BEGIN_SRC emacs-lisp
+(after! doom-modeline
+  (doom-modeline-def-segment writing-stats
+    (when (bound-and-true-p my/writing-stats--str)
+      (propertize my/writing-stats--str 'face 'font-lock-comment-face)))
+  (unless my/writing-stats--seg-added
+    (doom-modeline-add-segment 'writing-stats 'word-count :after)
+    (setq my/writing-stats--seg-added t)))
+#+END_SRC
+
+- 定义 ~writing-stats~ segment，显示在 modeline 的 ~word-count~ 之后
+- 使用 ~font-lock-comment-face~ 面（灰色）降低视觉干扰
+- 默认在 ~org-mode-hook~ 中启用
+
+** 大文件跳过
+
+~my/writing-stats--refresh~ 检查缓冲区大小：
+
+#+BEGIN_SRC emacs-lisp
+(if (> (buffer-size) my/org-large-file-size-threshold)
+    (setq my/writing-stats--str nil)
+  ...)
+#+END_SRC
+
+大于 ~my/org-large-file-size-threshold~（1 MiB）的文件跳过统计，不影响 modeline 性能。
+
+* 自动构建和加载
+
+** 惰性加载
+
+#+BEGIN_SRC emacs-lisp
+(defun my/ensure-cjk-module ()
+  (unless (fboundp 'my/count-text)
+    (when (my/cjk-module-outdated-p)
+      (my/build-cjk-module))
+    (when (file-exists-p my/cjk-so)
+      (module-load my/cjk-so))
+    (unless (fboundp 'my/count-text)
+      (error "count-cjk.so 重建后仍不可用"))))
+#+END_SRC
+
+C 模块不随 Emacs 启动加载，而是在首次调用统计命令时加载：
+
+1. 检查 ~my/count-text~ 是否已定义（已加载则跳过）
+2. 如果 ~.so~ 比 ~.c~ 旧 → 自动运行 ~make~ 重新编译
+3. ~module-load~ 加载 ~.so~
+
+** 过期检测
+
+#+BEGIN_SRC emacs-lisp
+(defun my/cjk-module-outdated-p ()
+  (let ((c-attrs (file-attributes my/cjk-src)))
+    (and c-attrs
+         (or (not (file-exists-p my/cjk-so))
+             (time-less-p (file-attribute-modification-time
+                           (file-attributes my/cjk-so))
+                          (file-attribute-modification-time c-attrs))))))
+#+END_SRC
+
+比较 ~.c~ 和 ~.so~ 的修改时间，自动检测是否需要重新编译。
+
+** 手动构建
+
+#+BEGIN_SRC bash
 cd ~/.config/doom && make -C c-modules/
 #+END_SRC
 
-或 Emacs 内 ~M-x my/build-cjk-module~（~SPC r n b~）。
+或 Emacs 内 ~SPC r n b~（~M-x my/build-cjk-module~）。
 
-需 ~emacs-module.h~（Emacs 30 开发头文件）。
+* 中文数量级格式化（my/--fmt-num）
+
+#+BEGIN_SRC emacs-lisp
+(defun my/--fmt-num (n)
+  (let ((abs-n (abs n)))
+    (cond
+     ((>= abs-n 100000000)
+      (format "%.2f亿（%d）" (/ n 100000000.0) n))
+     ((>= abs-n 10000)
+      (format "%.2f万（%d）" (/ n 10000.0) n))
+     (t
+      (format "%d" n)))))
+#+END_SRC
+
+| 输入    | 输出            | 说明                          |
+|---------+-----------------+-------------------------------|
+| 42      | ~42~            | 万以下直接显示                |
+| 12345   | ~1.23万（12345）~ | 万单位 + 括号内的精确值       |
+| 123456789 | ~1.23亿（123456789）~ | 亿单位 + 括号内的精确值 |
+
+* 性能
+
+| 规模    | 原 Elisp 版 | C 模块 | 加速比 |
+|---------+-------------+--------+--------|
+| 1 KB    | 28 ms       | 0.7 ms | 42×    |
+| 10 KB   | 211 ms      | 21 ms  | 10×    |
+| 100 KB  | 1926 ms     | 162 ms | 12×    |
+| 500 KB  | 9376 ms     | 613 ms | 15×    |
+
+C 模块在 ~500 KB 规模的 Org 文件上从 ~9.4 秒~ 降至 ~0.6 秒~，使实时 modeline 统计成为可能。
 
 * Unicode 覆盖
 
-CJK 统一表意文字及其扩展区块（A–F），合计约 ~97,000 字。UTF-8 解码带边界检查，拒绝 overlong / surrogate / 截断序列。
+- CJK 统一表意文字（U+4E00–U+9FFF）
+- 扩展 A（U+3400–U+4DBF）
+- 扩展 B（U+20000–U+2A6DF）
+- 扩展 C–F
+- 兼容表意文字（U+F900–U+FAFF）
+- UTF-8 解码带边界检查，拒绝 overlong / surrogate / 截断序列

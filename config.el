@@ -810,25 +810,29 @@ Delays 0.4s for browser window to appear."
 ;;     因此你可以用拼音进行 `avy-goto-char-timer`。
 ;;
 (use-package! evil-pinyin
-  :after-call doom-first-input-hook
-  :init
-  (after! orderless
-    (defun my/orderless-regexp-pinyin (regex)
-      (if (and (stringp regex)
-               (not (string-empty-p regex))
-               (string-match-p "\\`[a-zA-Z]+\\'" regex)
-               (< (length regex) 10))
-          (evil-pinyin--build-regexp-string regex)
-        regex))
-    (advice-remove #'orderless-regexp #'evil-pinyin--build-regexp-string)
-    (advice-add #'orderless-regexp :filter-return #'my/orderless-regexp-pinyin))
-  :config (evil-pinyin-mode 1))
+  ;; 官方 input/chinese 模块方式 + 修复 snipe advice 丢失问题
+  :after evil
+  :config
+  (setq-default evil-pinyin-with-search-rule 'always)
+  (global-evil-pinyin-mode 1)
+  ;; global-evil-pinyin-mode 运行时 snipe 还没加载，
+  ;; (featurep 'evil-snipe) 为 nil，snipe advice 不会被添加。
+  ;; snipe 实际加载后补加上。
+  (after! evil-snipe
+    (advice-add #'evil-snipe--process-key :around
+                #'evil-snipe--process-key-advice)))
 
 (use-package! ace-pinyin
-  :commands ace-pinyin-global-mode
-  :after-call avy-goto-char-timer
+  ;; 官方 input/chinese 模块方式
+  :after avy
   :init (setq ace-pinyin-use-avy t)
   :config (ace-pinyin-global-mode t))
+
+;; orderless 拼音 — 官方 input/chinese 模块方式
+(after! orderless
+  (advice-remove #'orderless-regexp #'evil-pinyin--build-regexp-string)
+  (advice-add #'orderless-regexp :filter-return
+              #'evil-pinyin--build-regexp-string))
 
 ;; 中英文混排自动间距（display only，不修改 buffer）
 (use-package! pangu-spacing

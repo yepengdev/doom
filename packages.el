@@ -20,4 +20,10 @@
 (package! ace-pinyin)
 (package! evil-pinyin)
 
+;; 中英文混排间距
+(package! pangu-spacing)
+
+;; 行/区域移动（MELPA 原版，比 evil 分支更新更活跃）
+(package! move-text)
+
 ;; 萌典使用 Emacs 内置 sqlite，无外部包依赖。

@@ -34,18 +34,20 @@
 ;;   (set-fontset-font t 'han (font-spec :family "LXGW WenKai Mono Screen" :size 15)))
 
 (after! doom-ui
-  ;; 1. 等宽主体字体：拉丁部分用 Maple Mono NF
   (setq doom-font (font-spec :family "Maple Mono NF" :size 16))
-  ;; (setq doom-font (font-spec :family "Patrick Hand" :size 16))
+  (setq doom-variable-pitch-font (font-spec :family "Sarasa Gothic SC" :size 16)))
 
-  ;; 2. 变宽字体（用于写作、阅读）：比例版霞鹜文楷
-  (setq doom-variable-pitch-font (font-spec :family "LXGW WenKai" :size 16))
+;; CJK 回退：守护进程模式下等图形帧出现再设（否则 font backend 未初始化）
+(defvar my--cjk-fontset-done nil)
+(defun my/init-cjk-fontset--fn (&optional _frame)
+  (when (and (display-graphic-p) (not my--cjk-fontset-done))
+    (setq my--cjk-fontset-done t)
+    (remove-hook 'doom-switch-frame-hook #'my/init-cjk-fontset--fn)
+    (set-fontset-font t 'han (font-spec :family "Sarasa Gothic SC"))
+    (set-fontset-font t 'kana (font-spec :family "Sarasa Gothic SC"))
+    (set-fontset-font t 'cjk-misc (font-spec :family "Sarasa Gothic SC"))))
+(add-hook 'doom-switch-frame-hook #'my/init-cjk-fontset--fn)
 
-  ;; 3. 为默认等宽字体集添加 CJK 回退（不指定 :size，继承当前面字号，
-  ;;    使 C-+/- 缩放 CJK 字体）
-  (set-fontset-font t 'han (font-spec :family "LXGW WenKai Mono Screen"))
-  (set-fontset-font t 'kana (font-spec :family "LXGW WenKai Mono Screen"))
-  (set-fontset-font t 'cjk-misc (font-spec :family "LXGW WenKai Mono Screen")))
 
 (add-hook 'writeroom-mode-hook #'mixed-pitch-mode)
 
@@ -70,13 +72,10 @@
 (defconst my/theme-day-start 7
   "日间主题开始的小时（0–23）。按典型办公时间调整。")
 
-(defconst my/theme-night-start 19
-  "夜间主题开始的小时（0–23）。7–19 覆盖普通工作日。")
-
+(defconst my/theme-night-start 18
+  "夜间主题开始的小时（0–23）。7–18 覆盖普通工作日。")
 (defun my/theme-for-hour (&optional hour)
-  "返回指定 HOUR（0–23，默认为当前本地时间）对应的主题常量。
-
-纯函数 — 无状态、无副作用。从 `my/theme-switch-maybe' 抽取，
+  "纯函数 — 无状态、无副作用。从 `my/theme-switch-maybe' 抽取，
 供调用者在不应用主题的情况下预览。"
   (let ((h (or hour (string-to-number (format-time-string "%H")))))
     (if (and (>= h my/theme-day-start) (< h my/theme-night-start))
@@ -283,6 +282,10 @@
 (setq org-noter-notes-search-path '("~/org/deft/annotations"))
 
 (after! org
+
+  (setq org-return-follows-link t
+        org-startup-folded 'content)
+
   ;; 自定义 TODO 工作流：DRAFT（写作）→ REVIEW（编辑）→ DONE / CANCELLED。
   (when (boundp 'org-todo-keywords)
     (add-to-list 'org-todo-keywords
@@ -303,7 +306,13 @@
   (setq org-hide-emphasis-markers t)
   ;; 通过 OS 外部程序打开 `.html` / `.xhtml` 文件，而非 Emacs
   ;;（shr/eww）。HTML 内容应在浏览器中查看以获得正确的 CSS/JS。
-  (add-to-list 'org-file-apps '("\\.x?html?\\'" . "xdg-open %s")))
+  (add-to-list 'org-file-apps '("\\.x?html?\\'" . "xdg-open %s"))
+  ;; MS Office 文件 — 通过 xdg-open 使用 WPS Flatpak 打开。
+  ;; 需先运行 xdg-mime default 设置默认应用（见下方注释）。
+  (add-to-list 'org-file-apps '("\\.docx?\\'" . "xdg-open %s"))
+  (add-to-list 'org-file-apps '("\\.xlsx?\\'" . "xdg-open %s"))
+  (add-to-list 'org-file-apps '("\\.pptx?\\'" . "xdg-open %s"))
+  (add-to-list 'org-file-apps '("\\.rtf\\'" . "xdg-open %s")))
 
 ;; ─── Org 捕获辅助 ───────────────────────────────────────────────────
 (defun org-capture-goto-target (&optional template-key)
@@ -324,11 +333,19 @@
 ;; 导出选项（LaTeX class、LANGUAGE、OPTIONS），减少各文件头部杂音。
 ;; SETUPFILE 包含 `#+EXCLUDE_TAGS: noexport'，因此标记 `:noexport:'
 ;; 的子树在导出中完全不可见，可在写作文件中保留注释/草稿而不污染输出。
-(defvar my/pandoc-dir (expand-file-name "pandoc" doom-user-dir)
+(defvar my/pandoc-dir (expand-file-name "org/pandoc" doom-user-dir)
   "Pandoc 参考 docx 和 Lua 过滤器所在的目录。")
+
+;; ─── ox-extra: 启用忽略标题功能（配合 #+EXCLUDE_TAGS: noexport）─
+(use-package! ox-extra
+  :after ox
+  :defer-incrementally t
+  :config
+  (ox-extras-activate '(ignore-headlines)))
 
 (after! ox-pandoc
   ;; 设置 docx 导出的 Pandoc 选项 — 使用自定义模板。
+  ;; from ~/pandoc_docx_template/
   (setq org-pandoc-options-for-docx
         `((reference-doc . ,(expand-file-name
                              "templates/template-default.docx"
@@ -350,16 +367,22 @@
   (expand-file-name "org/export/minimal" doom-user-dir)
   "包含 Org HTML 导出资源（CSS，无 JS）的目录。
 由下方的 `ox-html' 配置引用。结构：
-  org/export/minimal/css/org.css
-  org/export/minimal/css/htmlize.css")
+org/export/minimal/css/org.css
+org/export/minimal/css/htmlize.css")
 
 (after! ox-html
   (setq org-html-head-include-default-style nil)
   (let ((css-dir (expand-file-name "css" my/org-export-assets-dir)))
     (setq org-html-head
-          (concat
-           "<link rel=\"stylesheet\" type=\"text/css\" href=\"" css-dir "/org.css\"/>\n"
-           "<link rel=\"stylesheet\" type=\"text/css\" href=\"" css-dir "/htmlize.css\"/>"))
+          (concat "<style>\n"
+                  (with-temp-buffer
+                    (insert-file-contents (expand-file-name "org.css" css-dir))
+                    (buffer-string))
+                  "\n"
+                  (with-temp-buffer
+                    (insert-file-contents (expand-file-name "htmlize.css" css-dir))
+                    (buffer-string))
+                  "\n</style>"))
     (setq org-html-head-extra "")))
 
 ;; ─── 外部链接打开 ────────────────────────────────────────────
@@ -430,10 +453,10 @@ Delays 0.4s for browser window to appear."
 
 从 `org-mode-hook' 调用。用美观换取滚动和输入的响应速度。
 当超过阈值时无条件禁用以下功能：
-  - org-modern、org-appear、org-indent（结构性覆盖层）
-  - prettify-symbols（每次插入时的组成正则）
-  - variable-pitch（混合字体拖慢重绘）
-  - 额外字体化（TODO 面、优先级面、强调标记）"
+- org-modern、org-appear、org-indent（结构性覆盖层）
+- prettify-symbols（每次插入时的组成正则）
+- variable-pitch（混合字体拖慢重绘）
+- 额外字体化（TODO 面、优先级面、强调标记）"
   (when-let ((attrs (and buffer-file-name
                          (not (file-remote-p buffer-file-name))
                          (file-attributes buffer-file-name))))
@@ -702,6 +725,7 @@ Delays 0.4s for browser window to appear."
   (nov-text-width t)
   (nov-variable-pitch-mode t)
   (nov-save-place-file (concat doom-cache-dir "nov-places"))
+  (olivetti-body-width 80)
   :config
   (add-hook 'nov-mode-hook #'olivetti-mode)
   (defun my/nov-disable-adaptive-fill ()
@@ -786,16 +810,11 @@ Delays 0.4s for browser window to appear."
 ;;     因此你可以用拼音进行 `avy-goto-char-timer`。
 ;;
 (use-package! evil-pinyin
-  :defer t
-  :commands (evil-pinyin--build-regexp-string)
+  :after-call doom-first-input-hook
   :init
   (after! orderless
-    ;; Guarded filter-return: only expand pure-ASCII-letter components,
-    ;; preventing "Regular expression too big" from huge char classes
-    ;; on empty, numeric, mixed, or very long input.
     (defun my/orderless-regexp-pinyin (regex)
-      (if (and (bound-and-true-p evil-pinyin-mode)
-               (stringp regex)
+      (if (and (stringp regex)
                (not (string-empty-p regex))
                (string-match-p "\\`[a-zA-Z]+\\'" regex)
                (< (length regex) 10))
@@ -810,6 +829,12 @@ Delays 0.4s for browser window to appear."
   :after-call avy-goto-char-timer
   :init (setq ace-pinyin-use-avy t)
   :config (ace-pinyin-global-mode t))
+
+;; 中英文混排自动间距（display only，不修改 buffer）
+(use-package! pangu-spacing
+  :hook (doom-first-buffer-hook . global-pangu-spacing-mode)
+  :config
+  (setq pangu-spacing-real-insert-p nil))
 
 ;; （CJK 字符统计已移至 :tools cjk 模块）
 
@@ -854,7 +879,7 @@ Delays 0.4s for browser window to appear."
 2. `doom/reload-packages` — 重新求值 `packages.el'（无需 `doom sync`）。
 3. `doom/reload` — 重新求值 `config.el'（核心）。
 4. `doom-after-reload-hook' 自动触发，通过 `my/doom-full-reload--apply'
-   （在顶层注册）重新应用主题和字体。
+（在顶层注册）重新应用主题和字体。
 
 每一步都检查 fboundp（在 Doom 的重载机制完全初始化前调用时安全）。
 
@@ -893,6 +918,24 @@ Delays 0.4s for browser window to appear."
 ;;（cnotify/random 模块路径已移至 :tools pomodoro）
 
 ;;（番茄钟/计时器/密码工具已移至 :tools pomodoro 模块）
+
+;; ─── move-text: M-up/M-down 移动行或区域 ──────────────────────
+(use-package! move-text
+  :config
+  (move-text-default-bindings)
+  (map! :n "M-j" #'move-text-down :n "M-k" #'move-text-up
+        :v "M-j" #'move-text-down :v "M-k" #'move-text-up)
+
+  ;; 原版在 move-text-up/down 末尾用 fboundp 检查并调用 evil-visual-select，
+  ;; 但那只覆盖单行移动场景。这里在 move-text-region 上追加 advice，
+  ;; 确保 region 移动后 evil 的 visual selection 也正确恢复。
+  ;; 两个处理路径并存，不冲突（line-move → 原版，region-move → 此 advice）。
+  (advice-add #'move-text-region :after
+              (defun my/move-text-region--preserve-evil-visual (&rest _)
+                (when (and (bound-and-true-p evil-mode)
+                           (evil-visual-state-p))
+                  (evil-visual-make-selection
+                   (mark) (point) (evil-visual-type))))))
 
 ;; ─── ispell: 强制 en_US 字典（LC_CTYPE=zh_CN 时默认会找 zh_CN）──
 (setq ispell-dictionary "en_US")

@@ -7,6 +7,7 @@
 
 ;;;###autoload
 (defun +dyncall-libc ()
+  (+dyncall--ensure)
   (unless +dyncall--libc
     (setq +dyncall--libc (dyncall-load nil)))
   +dyncall--libc)

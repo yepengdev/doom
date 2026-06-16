@@ -47,8 +47,6 @@
       (message "count-cjk.so 缺失 — 首次使用时会自动编译"))
      (t nil))))
 
-(my/load-cjk-module)
-
 (defun my/ensure-cjk-module ()
   (unless (fboundp 'my/count-text)
     (when (my/cjk-module-outdated-p)

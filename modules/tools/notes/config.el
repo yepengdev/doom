@@ -146,3 +146,7 @@
   (consult-notes-denote-display-keywords-indicator "_")
   :config
   (consult-notes-denote-mode))
+
+;; ─── 观影日记（+film 标记）────────────────────────────────────────
+(when (modulep! +film)
+  (load! "contrib/film" nil t))

@@ -22,7 +22,7 @@
 
        :completion
        ;;company           ; 终极代码补全后端
-       (corfu +orderless +dabbrev)  ; 使用 cap(f)、cape 补全，如羽毛般轻盈！
+       (corfu +orderless)  ; 使用 cap(f)、cape 补全，如羽毛般轻盈！
        ;;helm              ; *另一个*寻找爱与生活的搜索引擎
        ;;ido               ; 另一个*另一个*搜索引擎……
        ;;ivy               ; 一个寻找爱与生活的搜索引擎
@@ -103,7 +103,7 @@
        (lsp +eglot)      ; 把 Emacs 变成 VS Code
        magit             ; Emacs 的 Git 前端
        ;;make              ; 从 Emacs 运行 make 任务
-       notes             ; Denote + Deft 笔记系统
+        (notes +film)     ; Denote + Deft 笔记系统（+film: 观影日记）
        ;;pass              ; 给极客用的密码管理器
        pdf               ; PDF 增强
        pomodoro          ; 番茄钟 + 计时器 + 桌面通知

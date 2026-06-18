@@ -89,5 +89,32 @@ Set the following variables in your =config.el= *before* enabling this module:
 (setq denote-journal-directory "~/org/denote/journal")
 #+end_src
 
+* Film diary (~+film~ flag)
+When the ~+film~ flag is enabled ( =:tools (notes +film)= ), a film diary
+workflow is added on top of the Denote core.
+
+Film notes live in =~/org/denote/film/= (a Denote silo with ~.dir-locals.el~).
+
+** Keybindings (~SPC r d v~ prefix, "v" for 观影)
+
+| Key | Command                          | Description              |
+|-----+----------------------------------+--------------------------|
+| ~n~ | ~my/denote-new-film~              | New film note (template) |
+| ~s~ | ~my/denote-find-film~             | Search film notes (grep) |
+| ~i~ | ~my/open-film-index~              | Open film index (org table) |
+| ~a~ | ~my/film-add-to-index~            | Add current note to index |
+| ~c~ | ~my/film-stats~                   | Show film count          |
+
+** Org-capture template (~M-x org-capture~ ~f~)
+Quick lightweight entry in =~/org/film-diary.org=, organised by date tree.
+Prompts for title, director, year, rating (no note file created).
+
+** Template fields
+New film notes via ~SPC r d v n~ prompt for: title, director, year,
+country, rating (1-10), and "why watching". The template includes
+structured sections for impressions, notable scenes, music/
+cinematography/acting, and a one-line summary.
+
 ** Known keywords
+
 Default keywords: ~'("创作" "学习" "工作" "生活" "技术" "思考" "索引")~

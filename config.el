@@ -34,8 +34,8 @@
 ;;   (set-fontset-font t 'han (font-spec :family "LXGW WenKai Mono Screen" :size 15)))
 
 (after! doom-ui
-  (setq doom-font (font-spec :family "Maple Mono NF" :size 16))
-  (setq doom-variable-pitch-font (font-spec :family "Sarasa Gothic SC" :size 16)))
+  (setq doom-font (font-spec :family "JetBrains Mono" :size 15))
+  (setq doom-variable-pitch-font (font-spec :family "EB Garamond" :size 16)))
 
 ;; CJK 回退：守护进程模式下等图形帧出现再设（否则 font backend 未初始化）
 (defvar my--cjk-fontset-done nil)
@@ -43,9 +43,9 @@
   (when (and (display-graphic-p) (not my--cjk-fontset-done))
     (setq my--cjk-fontset-done t)
     (remove-hook 'doom-switch-frame-hook #'my/init-cjk-fontset--fn)
-    (set-fontset-font t 'han (font-spec :family "Sarasa Gothic SC"))
-    (set-fontset-font t 'kana (font-spec :family "Sarasa Gothic SC"))
-    (set-fontset-font t 'cjk-misc (font-spec :family "Sarasa Gothic SC"))))
+    (set-fontset-font t 'han (font-spec :family "LXGW WenKai Mono"))
+    (set-fontset-font t 'kana (font-spec :family "LXGW WenKai Mono"))
+    (set-fontset-font t 'cjk-misc (font-spec :family "LXGW WenKai Mono"))))
 (add-hook 'doom-switch-frame-hook #'my/init-cjk-fontset--fn)
 
 

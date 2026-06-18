@@ -164,13 +164,16 @@
          (scenes   (my/film-section-body "印象深刻的场景"))
          (tech     (my/film-section-body "配乐/摄影/表演"))
          (summary  (my/film-section-body "一句话总结"))
-         ;; 灵感触发 = 为什么看 + 一句话总结
-         (inspire  (string-join
-                    (delq nil
-                          (list (unless (string-empty-p reason) reason)
-                                (unless (string-empty-p summary)
-                                  (format "** 一句话总结\n%s" summary))))
-                    "\n\n")))
+          ;; 灵感触发 = 为什么看 + 一句话总结
+          ;; 注意：section-body 可能返回 nil（章节不存在），
+          ;; 不能直接传 string-empty-p，必须加 nil 守卫。
+          (inspire  (string-join
+                     (delq nil
+                           (list (when (and reason (not (string-empty-p reason)))
+                                   reason)
+                                 (when (and summary (not (string-empty-p summary)))
+                                   (format "** 一句话总结\n%s" summary))))
+                     "\n\n")))
     ;; 重建整个 buffer（避免 template 占位符与点位置跟踪的麻烦）
     (erase-buffer)
     (insert (format "#+title:      %s\n" title))
@@ -187,15 +190,15 @@
     (insert "* 叙事结构分析\n\n")
     (insert "* 人物弧光\n\n")
     (insert "* 可借鉴的写作手法\n")
-    (unless (string-empty-p tech)
+    (when (and tech (not (string-empty-p tech)))
       (insert "(以下内容源自旧版「配乐/摄影/表演」)\n\n" tech "\n"))
     (insert "\n* 场景与氛围\n")
-    (unless (string-empty-p scenes)
+    (when (and scenes (not (string-empty-p scenes)))
       (insert scenes "\n"))
     (insert "\n* 对白分析\n\n")
     (insert "\n* 主题与隐喻\n\n")
     (insert "* 灵感触发 / 写作素材\n")
-    (unless (string-empty-p inspire)
+    (when (and inspire (not (string-empty-p inspire)))
       (insert inspire "\n"))
     (save-buffer)
     (message "迁移完成！")))

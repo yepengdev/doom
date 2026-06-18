@@ -89,31 +89,59 @@ Set the following variables in your =config.el= *before* enabling this module:
 (setq denote-journal-directory "~/org/denote/journal")
 #+end_src
 
-* Film diary (~+film~ flag)
-When the ~+film~ flag is enabled ( =:tools (notes +film)= ), a film diary
-workflow is added on top of the Denote core.
+* Film→Writing (~+film~ flag)
+When the ~+film~ flag is enabled ( =:tools (notes +film)= ), a film-for-writing
+workflow is added on top of the Denote core.  Every film viewed is treated as
+a source of craft lessons for novel writing.
 
-Film notes live in =~/org/denote/film/= (a Denote silo with ~.dir-locals.el~).
+Film notes live in =~/org/denote/film/= (a Denote silo).
 
 ** Keybindings (~SPC r d v~ prefix, "v" for 观影)
 
-| Key | Command                          | Description              |
-|-----+----------------------------------+--------------------------|
-| ~n~ | ~my/denote-new-film~              | New film note (template) |
-| ~s~ | ~my/denote-find-film~             | Search film notes (grep) |
-| ~i~ | ~my/open-film-index~              | Open film index (org table) |
-| ~a~ | ~my/film-add-to-index~            | Add current note to index |
-| ~c~ | ~my/film-stats~                   | Show film count          |
+| Key | Command                          | Description                      |
+|-----+----------------------------------+----------------------------------|
+| ~n~ | ~my/denote-new-film~              | New film note (writing template) |
+| ~s~ | ~my/denote-find-film~             | Search film notes (grep)         |
+| ~i~ | ~my/open-film-index~              | Open film index (org table)      |
+| ~a~ | ~my/film-add-to-index~            | Add current note to index        |
+| ~c~ | ~my/film-stats~                   | Show film count                  |
+| ~m~ | ~my/film-migrate-note~            | Migrate this note to new format  |
+| ~M~ | ~my/film-migrate-all~             | Migrate all notes to new format  |
+| ~e~ | ~my/film-export-writing-notes~    | Export writing snippets to file  |
+
+** Template sections
+New film notes via ~SPC r d v n~ prompt for title (required), director and year
+(optional).  The template provides six writing-analysis sections:
+
+- 叙事结构分析
+- 人物弧光
+- 可借鉴的写作手法
+- 场景与氛围
+- 对白分析
+- 主题与隐喻
+- 灵感触发 / 写作素材
+
+** Migration from old format
+Run ~SPC r d v m~ (current note) or ~M~ (batch) to upgrade old film diary
+notes to the new writing template.  Old sections are mapped as follows:
+
+| Old                         | New                            |
+|-----------------------------+--------------------------------|
+| 为什么看这部片子            | 灵感触发 / 写作素材            |
+| 印象深刻的场景              | 场景与氛围                     |
+| 配乐/摄影/表演              | 可借鉴的写作手法（附来源说明）|
+| 一句话总结                  | 灵感触发（子标题** 一句话总结）|
+| RATING /10                  | RATING（去掉 /10 后缀）        |
+
+** Writing-snippet export
+~SPC r d v e~ collects all "可借鉴的写作手法" and "灵感触发 / 写作素材"
+sections across every film note and writes them into
+=~/org/film-writing-snippets.org=, each entry linked back to the original note
+via =denote:=.  Useful as a reference while drafting.
 
 ** Org-capture template (~M-x org-capture~ ~f~)
-Quick lightweight entry in =~/org/film-diary.org=, organised by date tree.
-Prompts for title, director, year, rating (no note file created).
-
-** Template fields
-New film notes via ~SPC r d v n~ prompt for: title, director, year,
-country, rating (1-10), and "why watching". The template includes
-structured sections for impressions, notable scenes, music/
-cinematography/acting, and a one-line summary.
+Minimal: title, director, year — enough for a quick log entry in
+=~/org/film-diary.org=.  Detailed analysis goes into the full Denote note.
 
 ** Known keywords
 

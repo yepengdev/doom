@@ -37,12 +37,10 @@
         (error nil)))))
 
 (defun my/pomodoro-log-write (entry)
-  "将 ENTRY（plist）追加写入 pomodoro 日志文件。"
-  (with-temp-file my/pomodoro-log-file
-    (when (file-exists-p my/pomodoro-log-file)
-      (insert-file-contents my/pomodoro-log-file))
-    (goto-char (point-max))
-    (insert (prin1-to-string entry) "\n")))
+  "将 ENTRY（plist）追加写入 pomodoro 日志文件。
+使用 `write-region' 追加而非读-改-写整个文件，避免大日志时的 O(N) 拷贝。"
+  (let ((line (concat (prin1-to-string entry) "\n")))
+    (write-region line nil my/pomodoro-log-file t 'silent)))
 
 (defun my/pomodoro-log-entry (task minutes)
   "记录一个完成的番茄钟：TASK 名称和 WORK-MINUTES 时长。"
@@ -59,37 +57,41 @@
                   (dow (nth 6 decoded))
                   (mon-day (if (= dow 0) 7 dow)))
              (format-time-string "%Y-%m-%d"
-                                (encode-time (nth 0 decoded) (nth 1 decoded) (nth 2 decoded)
-                                             (- (nth 3 decoded) (1- mon-day))
-                                             (nth 4 decoded) (nth 5 decoded)
-                                             (nth 8 decoded)))))
-         (today-entries (seq-filter
-                         (lambda (e) (string-prefix-p today (plist-get e :time)))
-                         entries))
-         (week-entries (seq-filter
-                        (lambda (e) (not (string< (substring (plist-get e :time) 0 10) week-start)))
-                        entries))
-         (today-cycles (length today-entries))
-         (today-minutes (apply #'+ (mapcar (lambda (e) (plist-get e :work)) today-entries)))
-         (week-cycles (length week-entries))
-         (week-minutes (apply #'+ (mapcar (lambda (e) (plist-get e :work)) week-entries)))
+                                 (encode-time (nth 0 decoded) (nth 1 decoded) (nth 2 decoded)
+                                              (- (nth 3 decoded) (1- mon-day))
+                                              (nth 4 decoded) (nth 5 decoded)
+                                              (nth 8 decoded)))))
+         ;; 单次遍历完成今日/本周/总计的统计，避免三次 seq-filter + 三次 mapcar
+         (today-cycles 0) (today-minutes 0)
+         (week-cycles 0) (week-minutes 0)
          (total-cycles (length entries))
-         (total-minutes (apply #'+ (mapcar (lambda (e) (plist-get e :work)) entries)))
-         (buf (get-buffer-create "*Pomodoro Stats*")))
-    (with-current-buffer buf
-      (erase-buffer)
-      (insert (format "🍅 Pomodoro Statistics\n\n"))
-      (insert (format "Today:  %d cycles, %d min\n" today-cycles today-minutes))
-      (insert (format "Week:   %d cycles, %d min\n" week-cycles week-minutes))
-      (insert (format "Total:  %d cycles, %d min (%.1f hours)\n\n"
-                      total-cycles total-minutes (/ total-minutes 60.0)))
-      (insert "Recent:\n")
-      (dolist (e (reverse (seq-take (reverse entries) 10)))
-        (insert (format "  %s  %s  %dmin\n"
-                        (plist-get e :time) (plist-get e :task) (plist-get e :work))))
-      (special-mode)
-      (goto-char (point-min)))
-    (switch-to-buffer buf)))
+         (total-minutes 0))
+    (dolist (e entries)
+      (let ((time (plist-get e :time))
+            (work (plist-get e :work)))
+        (cl-incf total-minutes work)
+        (when (string-prefix-p today time)
+          (cl-incf today-cycles)
+          (cl-incf today-minutes work))
+        (when (not (string< (substring time 0 10) week-start))
+          (cl-incf week-cycles)
+          (cl-incf week-minutes work))))
+    (let ((buf (get-buffer-create "*Pomodoro Stats*")))
+      (with-current-buffer buf
+        (erase-buffer)
+        (insert (format "🍅 Pomodoro Statistics\n\n"))
+        (insert (format "Today:  %d cycles, %d min\n" today-cycles today-minutes))
+        (insert (format "Week:   %d cycles, %d min\n" week-cycles week-minutes))
+        (insert (format "Total:  %d cycles, %d min (%.1f hours)\n\n"
+                        total-cycles total-minutes (/ total-minutes 60.0)))
+        (insert "Recent:\n")
+        ;; 取最后 10 条：last 返回列表末尾 N 个元素，无需反转
+        (dolist (e (last entries 10))
+          (insert (format "  %s  %s  %dmin\n"
+                          (plist-get e :time) (plist-get e :task) (plist-get e :work))))
+        (special-mode)
+        (goto-char (point-min)))
+      (switch-to-buffer buf))))
 
 ;; ─── 番茄钟追踪（阶段转换）────────────────────────────────
 (defvar my/pomodoro--prev-phase 0)

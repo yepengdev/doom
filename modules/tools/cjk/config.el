@@ -183,7 +183,9 @@
     (doom-modeline-add-segment 'writing-stats 'word-count :after)
     (setq my/writing-stats--seg-added t)))
 
-(add-hook 'org-mode-hook #'my/writing-stats-mode)
+;; writing-stats-mode 默认不自动启用（避免每个 Org buffer 都加载 C 模块和 idle timer）。
+;; 需要时通过 SPC r n s 手动切换，或按需添加钩子：
+;;   (add-hook 'org-mode-hook #'my/writing-stats-mode)
 
 ;; ─── 中文词典（萌典 + mapull 离线数据）────────────────
 ;;
@@ -236,13 +238,12 @@
 (defun my/mapull--read-ndjson (file)
   (with-temp-buffer
     (insert-file-contents file)
-    (save-excursion
-      (goto-char (point-min))
-      (when (not (= (char-after) ?\[))
-        (insert "[")
-        (goto-char (point-max))
-        (skip-chars-backward ",\n\r\t ")
-        (insert "]")))
+    (goto-char (point-min))
+    (unless (= (char-after) ?\[)
+      (insert "[")
+      (goto-char (point-max))
+      (skip-chars-backward ",\n\r\t ")
+      (insert "]"))
     (json-parse-buffer :object-type 'alist :array-type 'list)))
 
 ;; ── 自动下载 ───────────────────────────────────────────
@@ -415,19 +416,15 @@
   "判断 STRING 是否包含中文字符（使用 Emacs 的 chinese category）。"
   (string-match (rx (category chinese)) string))
 
-(defun my/mapull--fmt (n)
-  (let ((abs-n (abs n)))
-    (cond ((>= abs-n 100000000)
-           (format "%.2f亿（%d）" (/ n 100000000.0) n))
-          ((>= abs-n 10000)
-           (format "%.2f万（%d）" (/ n 10000.0) n))
-          (t (format "%d" n)))))
+(defalias 'my/mapull--fmt 'my/--fmt-num
+  "格式化数字，已合并到 my/--fmt-num（保留别名兼容旧调用）。")
 
-;; 萌典内部查询（写当前 buffer）
-(defun my/mapull--moedict-query (word)
-  (unless (file-exists-p my/moedict-db)
+;; 萌典内部查询（写当前 buffer；接受外部 db 句柄避免重复开库）
+(defun my/mapull--moedict-query (word &optional db)
+  (unless (or db (file-exists-p my/moedict-db))
     (error "dict.sqlite3 不存在于 %s" my/moedict-db))
-  (let ((db (sqlite-open my/moedict-db))
+  (let ((db (or db (sqlite-open my/moedict-db)))
+        (close-p (not db))
         (n 0))
     (unwind-protect
         (dolist (row (sqlite-select db "
@@ -442,7 +439,7 @@ WHERE e.title = ?
           (cl-incf n)
           (my/mapull--moedict-insert-row row)
           (insert "\n"))
-      (sqlite-close db))
+      (when close-p (sqlite-close db)))
     (when (= n 0)
       (error "未找到「%s」" word))))
 
@@ -541,64 +538,60 @@ WHERE e.title = ?
         (when (and defn (not (string= defn "")))
           (insert (propertize defn 'face (cdr (assq 'def my/dict--faces))) "\n"))))))
 
-(defun my/dict--render-word-results (db word)
-  (let ((rows (my/mapull--query-words db word)))
-    (when rows
-      (my/dict--render-section
-       (format "词语（%d 条）" (length rows)))
-      (dolist (r rows)
-        (insert (propertize (car r) 'face (cdr (assq 'title my/dict--faces))))
-        (let ((pinyin (nth 1 r))
-              (defn (nth 2 r)))
-          (when (and pinyin (not (string= pinyin "")))
-            (insert "  " (propertize pinyin 'face (cdr (assq 'pinyin my/dict--faces)))))
-          (when (and defn (not (string= defn "")))
-            (insert "\n" (propertize defn 'face (cdr (assq 'def my/dict--faces)))))
-          (insert "\n\n"))))))
+(defun my/dict--render-rows (rows label)
+  "通用渲染函数：将 ROWS（sqlite 行列表）格式化为词典条目，
+每组包含 (title pinyin definition) 三列。LABEL 为节标题。"
+  (when rows
+    (my/dict--render-section (format "%s（%d 条）" label (length rows)))
+    (dolist (r rows)
+      (insert (propertize (car r) 'face (cdr (assq 'title my/dict--faces))))
+      (let ((pinyin (nth 1 r))
+            (defn (nth 2 r)))
+        (unless (or (not pinyin) (string= pinyin ""))
+          (insert "  " (propertize pinyin 'face (cdr (assq 'pinyin my/dict--faces)))))
+        (unless (or (not defn) (string= defn ""))
+          (insert "\n" (propertize defn 'face (cdr (assq 'def my/dict--faces)))))
+        (insert "\n\n")))))
 
-(defun my/dict--render-idiom-results (db word)
-  (let ((rows (my/mapull--query-idioms db word)))
-    (when rows
-      (my/dict--render-section
-       (format "成语（%d 条）" (length rows)))
-      (dolist (r rows)
-        (insert (propertize (car r) 'face (cdr (assq 'title my/dict--faces))))
-        (let ((pinyin (nth 1 r))
-              (defn (nth 2 r)))
-          (when (and pinyin (not (string= pinyin "")))
-            (insert "  " (propertize pinyin 'face (cdr (assq 'pinyin my/dict--faces)))))
-          (when (and defn (not (string= defn "")))
-            (insert "\n" (propertize defn 'face (cdr (assq 'def my/dict--faces)))))
-          (insert "\n\n"))))))
+(defalias 'my/dict--render-word-results
+  (lambda (db word)
+    (my/dict--render-rows (my/mapull--query-words db word) "词语")))
+
+(defalias 'my/dict--render-idiom-results
+  (lambda (db word)
+    (my/dict--render-rows (my/mapull--query-idioms db word) "成语")))
 
 ;; ── 主入口 ────────────────────────────────────────────
 
 (defun my/dict--render (word)
-  "显示 WORD 的词典信息。单字合并萌典+mapull，多字仅 mapull。"
+  "显示 WORD 的词典信息。单字合并萌典+mapull，多字仅 mapull。
+将 mapull.db 和 dict.sqlite3 同时打开，避免子函数重复开库。"
   (let ((buf (get-buffer-create "*萌典*")))
     (with-current-buffer buf
-      (let ((inhibit-read-only t) db)
+      (let ((inhibit-read-only t)
+            mapull-db moedict-db)
         (erase-buffer)
-        (condition-case err
-            (progn
-              (setq db (condition-case nil
-                           (sqlite-open my/mapull-db)
-                         (error nil)))
-              (when (= (length word) 1)
-                (condition-case nil
-                    (my/mapull--moedict-query word)
-                  (error
-                   (my/dict--render-section "萌典释义")
-                   (insert (propertize (format "（萌典未收录「%s」）" word)
-                                       'face (cdr (assq 'def my/dict--faces))))))
-                (when db
-                  (my/dict--render-char-archive db word)))
-              (when db
-                (my/dict--render-word-results db word)
-                (my/dict--render-idiom-results db word)))
-          (error
-           (insert (format "错误: %s" (error-message-string err)))))
-        (when db (ignore-errors (sqlite-close db)))
+        ;; 一次性打开两个数据库，复用句柄
+        (setq mapull-db (ignore-errors (sqlite-open my/mapull-db))
+              moedict-db (ignore-errors (sqlite-open my/moedict-db)))
+        (unwind-protect
+            (condition-case err
+                (progn
+                  (when (= (length word) 1)
+                    (if moedict-db
+                        (my/mapull--moedict-query word moedict-db)
+                      (my/dict--render-section "萌典释义")
+                      (insert (propertize "（dict.sqlite3 未找到）"
+                                          'face (cdr (assq 'def my/dict--faces)))))
+                    (when mapull-db
+                      (my/dict--render-char-archive mapull-db word)))
+                  (when mapull-db
+                    (my/dict--render-word-results mapull-db word)
+                    (my/dict--render-idiom-results mapull-db word)))
+              (error
+               (insert (format "错误: %s" (error-message-string err)))))
+          (when mapull-db (ignore-errors (sqlite-close mapull-db)))
+          (when moedict-db (ignore-errors (sqlite-close moedict-db))))
         (when (= (buffer-size) 0)
           (insert (format "没有找到「%s」的相关结果" word)))
         (goto-char (point-min))

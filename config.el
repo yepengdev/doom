@@ -76,8 +76,8 @@
   "夜间主题开始的小时（0–23）。7–18 覆盖普通工作日。")
 (defun my/theme-for-hour (&optional hour)
   "纯函数 — 无状态、无副作用。从 `my/theme-switch-maybe' 抽取，
-供调用者在不应用主题的情况下预览。"
-  (let ((h (or hour (string-to-number (format-time-string "%H")))))
+ 供调用者在不应用主题的情况下预览。"
+  (let ((h (or hour (nth 2 (decode-time)))))      ;← decode-time 返回整数，无字符串分配
     (if (and (>= h my/theme-day-start) (< h my/theme-night-start))
         my/theme-day
       my/theme-night)))
@@ -333,7 +333,8 @@
 ;; 导出选项（LaTeX class、LANGUAGE、OPTIONS），减少各文件头部杂音。
 ;; SETUPFILE 包含 `#+EXCLUDE_TAGS: noexport'，因此标记 `:noexport:'
 ;; 的子树在导出中完全不可见，可在写作文件中保留注释/草稿而不污染输出。
-(defvar my/pandoc-dir (expand-file-name "org/pandoc" doom-user-dir)
+(defvar my/pandoc-dir
+  (expand-file-name "org/pandoc" doom-user-dir)
   "Pandoc 参考 docx 和 Lua 过滤器所在的目录。")
 
 ;; ─── ox-extra: 启用忽略标题功能（配合 #+EXCLUDE_TAGS: noexport）─
@@ -370,20 +371,26 @@
 org/export/minimal/css/org.css
 org/export/minimal/css/htmlize.css")
 
+(defvar my/ox-html--cached-css nil
+  "缓存合并后的 CSS 字符串，避免每次 ox-html 加载时读盘。")
+
 (after! ox-html
   (setq org-html-head-include-default-style nil)
-  (let ((css-dir (expand-file-name "css" my/org-export-assets-dir)))
-    (setq org-html-head
-          (concat "<style>\n"
-                  (with-temp-buffer
-                    (insert-file-contents (expand-file-name "org.css" css-dir))
-                    (buffer-string))
-                  "\n"
-                  (with-temp-buffer
-                    (insert-file-contents (expand-file-name "htmlize.css" css-dir))
-                    (buffer-string))
-                  "\n</style>"))
-    (setq org-html-head-extra "")))
+  (setq org-html-head-extra "")
+  ;; 内容不变时复用缓存，避免重复 insert-file-contents（磁盘 IO）
+  (or my/ox-html--cached-css
+      (let ((css-dir (expand-file-name "css" my/org-export-assets-dir)))
+        (setq my/ox-html--cached-css
+              (concat "<style>\n"
+                      (with-temp-buffer
+                        (insert-file-contents (expand-file-name "org.css" css-dir))
+                        (buffer-string))
+                      "\n"
+                      (with-temp-buffer
+                        (insert-file-contents (expand-file-name "htmlize.css" css-dir))
+                        (buffer-string))
+                      "\n</style>"))))
+  (setq org-html-head my/ox-html--cached-css))
 
 ;; ─── 外部链接打开 ────────────────────────────────────────────
 ;; browse-url: 通用链接（普通打开/org 链接）走 xdg-open 到默认浏览器。
@@ -457,27 +464,29 @@ Delays 0.4s for browser window to appear."
 - prettify-symbols（每次插入时的组成正则）
 - variable-pitch（混合字体拖慢重绘）
 - 额外字体化（TODO 面、优先级面、强调标记）"
-  (when-let ((attrs (and buffer-file-name
-                         (not (file-remote-p buffer-file-name))
-                         (file-attributes buffer-file-name))))
-    (when (> (file-attribute-size attrs) my/org-large-file-size-threshold)
-      (when (bound-and-true-p org-modern-mode) (org-modern-mode -1))
-      (when (bound-and-true-p org-appear-mode) (org-appear-mode -1))
-      (when (bound-and-true-p org-indent-mode) (org-indent-mode -1))
-      (setq-local org-hide-leading-stars nil
-                  org-fontify-done-headline nil
-                  org-fontify-quote-and-verse-blocks nil
-                  org-fontify-whole-heading-line nil
-                  org-priority-faces nil
-                  org-todo-keyword-faces nil
-                  org-pretty-entities nil
-                  org-hide-emphasis-markers nil
-                  org-ellipsis "...")
-      (when (bound-and-true-p prettify-symbols-mode) (prettify-symbols-mode -1))
-      (setq-local prettify-symbols-alist nil)
-      (when (bound-and-true-p variable-pitch-mode) (variable-pitch-mode -1))
-      (when (bound-and-true-p olivetti-mode) (olivetti-mode -1))
-      (font-lock-flush))))
+  (when (and buffer-file-name
+             (not (file-remote-p buffer-file-name))
+             ;; buffer-size 是 O(1) 的 C 调用，快速短路以避免 file-attributes 的 IO
+             (>= (buffer-size) my/org-large-file-size-threshold))
+    (let ((attrs (file-attributes buffer-file-name)))
+      (when (> (file-attribute-size attrs) my/org-large-file-size-threshold)
+        (when (bound-and-true-p org-modern-mode) (org-modern-mode -1))
+        (when (bound-and-true-p org-appear-mode) (org-appear-mode -1))
+        (when (bound-and-true-p org-indent-mode) (org-indent-mode -1))
+        (setq-local org-hide-leading-stars nil
+                    org-fontify-done-headline nil
+                    org-fontify-quote-and-verse-blocks nil
+                    org-fontify-whole-heading-line nil
+                    org-priority-faces nil
+                    org-todo-keyword-faces nil
+                    org-pretty-entities nil
+                    org-hide-emphasis-markers nil
+                    org-ellipsis "...")
+        (when (bound-and-true-p prettify-symbols-mode) (prettify-symbols-mode -1))
+        (setq-local prettify-symbols-alist nil)
+        (when (bound-and-true-p variable-pitch-mode) (variable-pitch-mode -1))
+        (when (bound-and-true-p olivetti-mode) (olivetti-mode -1))
+        (font-lock-flush)))))
 
 (add-hook 'org-mode-hook #'my/org-maybe-disable-prettification)
 
@@ -500,8 +509,8 @@ Delays 0.4s for browser window to appear."
 (defvar my/org-live--url  nil)
 (defvar my/org-live-server-py
   (expand-file-name "scripts/org-live-server.py" doom-user-dir))
-(defvar my/org-live-python
-  (or (executable-find "python3") (executable-find "python")))
+(defvar my/org-live-python nil
+  "Python 3 可执行路径。首次使用前惰性初始化（避免 config 加载时 `executable-find'）。")
 
 (define-minor-mode my/org-live-mode
   "Org HTML 实时预览 minor mode。开启 → 导出 → 启动服务器 → 打开浏览器。
@@ -519,9 +528,12 @@ Delays 0.4s for browser window to appear."
   (unless (file-exists-p my/org-live-server-py)
     (setq my/org-live-mode nil)
     (user-error "缺少 %s" my/org-live-server-py))
-  (unless my/org-live-python
-    (setq my/org-live-mode nil)
-    (user-error "Python 3 未找到"))
+  (or my/org-live-python
+      (setq my/org-live-python          ;← 惰性初始化：仅在首次预览时执行 executable-find
+            (or (executable-find "python3")
+                (executable-find "python")))
+      (progn (setq my/org-live-mode nil)
+             (user-error "Python 3 未找到")))
   (let* ((dir (make-temp-file "org-live-" t))
          (url (my/org-live--start-server dir)))
     (setq my/org-live--dir dir
@@ -569,17 +581,23 @@ Delays 0.4s for browser window to appear."
     (when (and (file-exists-p src) (not (file-exists-p dst)))
       (copy-directory src dst t t t))))
 
+(defvar my/org-live--css-href-regex nil
+  "缓存的正则，匹配 Org HTML 中的绝对 CSS 路径。")
+
 (defun my/org-live--fix-css-paths (file)
   (with-temp-buffer
     (insert-file-contents file)
     (goto-char (point-min))
-    (let ((abs-pat (concat "href=\""
-                           (regexp-quote
-                            (file-name-as-directory
-                             (expand-file-name "css" my/org-export-assets-dir))))))
-      (while (re-search-forward abs-pat nil t)
-        (replace-match "href=\"css/")))
-    (write-region (point-min) (point-max) file nil 'silent)))
+    ;; 缓存正则避免每次 export 时重复构建字符串
+    (or my/org-live--css-href-regex
+        (setq my/org-live--css-href-regex
+              (concat "href=\""
+                      (regexp-quote
+                       (file-name-as-directory
+                        (expand-file-name "css" my/org-export-assets-dir))))))
+    (while (re-search-forward my/org-live--css-href-regex nil t)
+      (replace-match "href=\"css/")))
+  (write-region (point-min) (point-max) file nil 'silent))
 
 (defun my/org-live--inject-script (file)
   (with-temp-buffer

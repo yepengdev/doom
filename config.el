@@ -35,7 +35,7 @@
 
 (after! doom-ui
   (setq doom-font (font-spec :family "JetBrains Mono" :size 15))
-  (setq doom-variable-pitch-font (font-spec :family "EB Garamond" :size 16)))
+  (setq doom-variable-pitch-font (font-spec :family "Maple Mono CN" :size 16)))
 
 ;; CJK 回退：守护进程模式下等图形帧出现再设（否则 font backend 未初始化）
 (defvar my--cjk-fontset-done nil)
@@ -188,7 +188,8 @@
 ;; 在宽屏显示器上适合舒适阅读。隐藏模式行以减少散文缓冲区中的视觉噪音。
 ;;
 (use-package! olivetti
-  :hook ((org-mode . olivetti-mode))
+  ;; :hook ((org-mode . olivetti-mode))
+  :defer t
   :custom
   (olivetti-body-width 100)
   (olivetti-hide-mode-line t)

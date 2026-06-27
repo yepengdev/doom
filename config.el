@@ -136,8 +136,16 @@ LATITUDE: 北正南负（度）。LONGITUDE: 东正西负（度）。
 
 (defun my/theme-apply (theme)
   (setq doom-theme theme)
-  (when (fboundp 'doom/reload-theme)
-    (doom/reload-theme)))
+  (let ((theme-name (if (eq theme my/theme-day)
+                        "Light" "Night")))
+    (cond ((fboundp 'doom/reload-theme)
+           (doom/reload-theme)
+           (message "Theme: %s (%s)" theme theme-name))
+          ((fboundp 'load-theme)
+           (load-theme theme t)
+           (message "Theme: %s (%s)" theme theme-name))
+          (t
+           (message "Theme set to %s (%s) — reload deferred" theme theme-name)))))
 
 (defun my/theme-switch-maybe ()
   (let ((theme (my/theme-for-hour)))
@@ -155,8 +163,24 @@ LATITUDE: 北正南负（度）。LONGITUDE: 东正西负（度）。
   (my/theme-apply (my/theme-for-hour))
   (message "主题已切换至 %s（日出日落）" name))
 
+;; ─── 定时器：每 2 分钟检查一次，确保 daemon 空闲时也能切换 ──────
+(defvar my/theme--timer nil)
+(defun my/theme--ensure-timer ()
+  (unless (and my/theme--timer (timerp my/theme--timer)
+               (memq my/theme--timer timer-idle-list))
+    (setq my/theme--timer (run-at-time 0 120 #'my/theme-switch-maybe))))
+(add-hook 'doom-after-reload-hook #'my/theme--ensure-timer)
+
+;; ─── 新 frame 创建：保证主题正确 ──────────────────────────────
+(defun my/theme--frame-hook (_frame)
+  (my/theme-switch-maybe))
+(add-hook 'after-make-frame-functions #'my/theme--frame-hook)
+
+;; ─── 初始化 ─────────────────────────────────────────────────────
 (setq doom-theme (my/theme-for-hour))
+(my/theme-apply (my/theme-for-hour))
 (add-hook 'doom-switch-frame-hook #'my/theme-switch-maybe 'append)
+(my/theme--ensure-timer)
 
 ;; ─── 行号与自动保存 ─────────────────────────────────────────────────
 ;; 相对行号是 Evil/Vim 的惯例 — `j`/`k` 移动距离一目了然。

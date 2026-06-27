@@ -6,6 +6,7 @@
 
 ;; 界面
 (package! spacious-padding)
+(package! circadian)
 
 ;; 阅读
 (package! nov)                   ;; EPUB 阅读器

@@ -50,138 +50,30 @@
 
 (add-hook 'writeroom-mode-hook #'mixed-pitch-mode)
 
-;; ─── 自动切换主题（日/夜，基于地理位置日出日落）────────────────────
+;; ─── 自动切换主题（circadian：基于经纬度日出日落）─────────────────
 ;;
-;; 根据经纬度计算日出日落时间，在 doom-one-light（日间）和
-;; doom-tokyo-night（夜间）之间切换。使用 NOAA 近似算法，
-;; 精度 ~2 分钟（中纬度），无网络/calendar/solar 依赖。
-;;
-;; 结果按天缓存，每天首次检查触发重算，之后为零开销。
-;;
-;; 实时更新：M-x my/theme-set-location — 修改位置，立即切换主题
-;; 无需重启，无需 doom sync，只需 M-x doom/reload。
+;; 使用 circadian 包根据经纬度计算日出日落，在日间/夜间主题间切换。
+;; 自带定时器（每 60s 检查），无需额外 hook 或 timer。
 
-(defvar my/theme-day 'doom-one-light
-  "日间主题符号。")
-(defvar my/theme-night 'doom-tokyo-night
-  "夜间主题符号。")
-(defvar my/theme-location '("Chengdu" 30.57 104.07)
-  "当前地理位置：(NAME LATITUDE LONGITUDE)
-LATITUDE: 北正南负（度）。LONGITUDE: 东正西负（度）。
-交互式修改：M-x my/theme-set-location")
+(use-package! circadian
+  :after doom-theme
+  :init
+  (setq calendar-latitude 30.57
+        calendar-longitude 104.07
+        circadian-themes '((:sunrise . doom-one-light)
+                           (:sunset  . doom-tokyo-night)))
+  :config
+  (circadian-setup))
 
-(defun my/theme--sun-times (&optional date)
-  "返回 DATE（默认为现在）的 (日出时 . 日落时)，本地浮点小时。
-极夜返回 (nil . nil)，极昼返回 (0 . 24)。"
-  (let* ((lat (nth 1 my/theme-location))
-         (lon (nth 2 my/theme-location))
-         (time (or date (current-time)))
-         (n (string-to-number (format-time-string "%j" time)))
-         (tz (/ (float (car (current-time-zone time))) 3600.0))
-         (decl (* 0.40928 (sin (* 2 float-pi (/ (- n 81.0) 365.0)))))
-         (lat-rad (* lat (/ float-pi 180.0)))
-         (cos-ha (/ (- (sin -0.01454)
-                       (* (sin lat-rad) (sin decl)))
-                    (* (cos lat-rad) (cos decl)))))
-    (cond ((> cos-ha 1.0) (cons nil nil))
-          ((< cos-ha -1.0) (cons 0.0 24.0))
-          (t
-           (let* ((ha (acos cos-ha))
-                  (ha-hrs (* ha (/ 12.0 float-pi)))
-                  (noon (- 12.0 (/ lon 15.0)))
-                  (rise (+ noon (- ha-hrs) tz))
-                  (set  (+ noon ha-hrs tz)))
-             (cons rise set))))))
-
-(defvar my/theme--cache nil
-  "缓存条目：(TIMESTAMP LAT LON RISE SET)，nil 表示未缓存。")
-
-(defun my/theme--same-day-p (a b)
-  (let ((da (decode-time a))
-        (db (decode-time b)))
-    (and (= (nth 3 da) (nth 3 db))
-         (= (nth 4 da) (nth 4 db))
-         (= (nth 5 da) (nth 5 db)))))
-
-(defun my/theme--refresh (&optional date)
-  (let* ((d (or date (current-time)))
-         (lat (nth 1 my/theme-location))
-         (lon (nth 2 my/theme-location)))
-    (if (and my/theme--cache
-             (my/theme--same-day-p (nth 0 my/theme--cache) d)
-             (equal (nth 1 my/theme--cache) lat)
-             (equal (nth 2 my/theme--cache) lon))
-        nil
-      (let ((st (my/theme--sun-times d)))
-        (setq my/theme--cache (list d lat lon (car st) (cdr st)))))))
-
-(defsubst my/theme--cached-rise () (nth 3 my/theme--cache))
-(defsubst my/theme--cached-set ()  (nth 4 my/theme--cache))
-
-(defun my/theme-for-hour (&optional hour)
-  "返回日间或夜间主题符号。HOUR 默认为当前时（0-23）。"
-  (my/theme--refresh)
-  (let* ((h (or hour (nth 2 (decode-time))))
-         (r (my/theme--cached-rise))
-         (s (my/theme--cached-set)))
-    (cond ((null r) my/theme-night)
-          ((= r 0.0) my/theme-day)
-          ((let ((r2 (mod r 24.0))
-                 (s2 (mod s 24.0)))
-             (if (< s2 r2)
-                 (or (>= h r2) (< h s2))
-               (and (>= h r2) (< h s2))))
-           my/theme-day)
-          (t my/theme-night))))
-
-(defun my/theme-apply (theme)
-  (setq doom-theme theme)
-  ;; 先 disable 所有已启用的主题，避免新旧冲突
-  (dolist (th (bound-and-true-p custom-enabled-themes))
-    (unless (eq th theme)
-      (ignore-errors (disable-theme th))))
-  ;; 再加载新主题
-  (load-theme theme t)
-  ;; solaire-mode 刷新
-  (when (and (fboundp 'solaire-mode)
-             (bound-and-true-p solaire-mode))
-    (solaire-mode-restore))
-  (message "Theme: %s" theme))
-
-(defun my/theme-switch-maybe ()
-  (let ((theme (my/theme-for-hour)))
-    (unless (eq doom-theme theme)
-      (my/theme-apply theme))))
-
-(defun my/theme-set-location (name lat lon)
-  "设置地理位置并立即刷新主题。"
+(defun my/theme-set-location (lat lon)
+  "设置经纬度并立即刷新 circadian 主题。"
   (interactive
-   (list (read-string "位置名称: " (nth 0 my/theme-location))
-         (read-number "纬度（北正南负）: " (nth 1 my/theme-location))
-         (read-number "经度（东正西负）: " (nth 2 my/theme-location))))
-  (setq my/theme-location (list name lat lon)
-        my/theme--cache nil)
-  (my/theme-apply (my/theme-for-hour))
-  (message "主题已切换至 %s（日出日落）" name))
-
-;; ─── 定时器：每 2 分钟检查一次，确保 daemon 空闲时也能切换 ──────
-(defvar my/theme--timer nil)
-(defun my/theme--ensure-timer ()
-  (unless (and my/theme--timer (timerp my/theme--timer)
-               (memq my/theme--timer timer-idle-list))
-    (setq my/theme--timer (run-at-time 0 120 #'my/theme-switch-maybe))))
-(add-hook 'doom-after-reload-hook #'my/theme--ensure-timer)
-
-;; ─── 新 frame 创建：保证主题正确 ──────────────────────────────
-(defun my/theme--frame-hook (_frame)
-  (my/theme-switch-maybe))
-(add-hook 'after-make-frame-functions #'my/theme--frame-hook)
-
-;; ─── 初始化 ─────────────────────────────────────────────────────
-(setq doom-theme (my/theme-for-hour))
-(my/theme-apply (my/theme-for-hour))
-(add-hook 'doom-switch-frame-hook #'my/theme-switch-maybe 'append)
-(my/theme--ensure-timer)
+   (list (read-number "纬度（北正南负）: " (or calendar-latitude 30.57))
+         (read-number "经度（东正西负）: " (or calendar-longitude 104.07))))
+  (setq calendar-latitude lat
+        calendar-longitude lon)
+  (circadian-setup)
+  (message "位置更新: lat=%.2f lon=%.2f" lat lon))
 
 ;; ─── 行号与自动保存 ─────────────────────────────────────────────────
 ;; 相对行号是 Evil/Vim 的惯例 — `j`/`k` 移动距离一目了然。

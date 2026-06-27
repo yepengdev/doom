@@ -1,8 +1,7 @@
 ;;; $DOOMDIR/config.el -*- lexical-binding: t; no-byte-compile: t; -*-
 ;;;
 ;;; Doom Emacs 个人配置 — 在模块（自动加载及包）就绪后加载。
-;;; 此处所有更改只需 `M-x doom/reload`（或 `M-x my/doom-full-reload`，
-;;; 后者还会重新加载自动加载/包/主题/字体）；无需 `doom sync`，
+;;; 此处所有更改只需 `M-x doom/reload`；无需 `doom sync`，
 ;;; 除非修改了 `packages.el` 或 `init.el`。
 ;;;
 ;;; 一些增加速度的变量
@@ -28,8 +27,8 @@
 ;; 字号 16 在现代高 DPI 显示器上平衡了舒适度（14pt 太挤）与屏幕空间
 ;;（18pt 浪费水平空间）。
 ;;
-(setq doom-font (font-spec :family "Monaspace Neon" :size 16)
-      doom-variable-pitch-font (font-spec :family "Monaspace Neon" :size 16))
+(setq doom-font (font-spec :family "Monaspace Neon" :size 17)
+      doom-variable-pitch-font (font-spec :family "Monaspace Neon" :size 17))
 ;;   (set-fontset-font t 'han (font-spec :family "LXGW WenKai Mono Screen" :size 15)))
 
 ;; (after! doom-ui
@@ -50,55 +49,6 @@
 
 
 (add-hook 'writeroom-mode-hook #'mixed-pitch-mode)
-
-;; ─── 自动切换主题（日/夜）─────────────────────────────────────────────
-;;
-;; 根据当前小时在 doom-one-light（日间）和 doom-tokyo-night（夜间）之间切换。
-;; 为何使用小时而非日出/日落：
-;;   - 日出 API 需要网络和地理位置配置；配置文件需要随处可用，这样做太脆弱。
-;;   - 开发者的日程以办公桌为中心；7–17 覆盖典型工作日。
-;;     可根据你的纬度/偏好调整这些常量。
-;;
-;; 切换在每次帧切换时执行，但 `unless (eq doom-theme ...)`
-;; guard 使其在非切换时间（7:00/19:00）近乎零开销。
-;; 持久挂在 hook 上确保即使在跨日夜边界的长时间会话中也能更新主题。
-;;
-(defconst my/theme-day 'doom-one-light
-  "日间主题（7:00–18:59，包含起始，排除结束）。")
-
-(defconst my/theme-night 'doom-tokyo-night
-  "夜间主题（19:00–6:59）。深色背景减轻低光环境下的眼疲劳。")
-
-(defconst my/theme-day-start 7
-  "日间主题开始的小时（0–23）。按典型办公时间调整。")
-
-(defconst my/theme-night-start 18
-  "夜间主题开始的小时（0–23）。7–18 覆盖普通工作日。")
-(defun my/theme-for-hour (&optional hour)
-  "纯函数 — 无状态、无副作用。从 `my/theme-switch-maybe' 抽取，
- 供调用者在不应用主题的情况下预览。"
-  (let ((h (or hour (nth 2 (decode-time)))))      ;← decode-time 返回整数，无字符串分配
-    (if (and (>= h my/theme-day-start) (< h my/theme-night-start))
-        my/theme-day
-      my/theme-night)))
-
-(defun my/theme-apply (theme)
-  "立即将 `doom-theme' 切换为 THEME，触发完整的 UI 重绘。
-副作用：修改全局 `doom-theme' 变量并调用 `doom/reload-theme'，
-会影响所有帧。"
-  (setq doom-theme theme)
-  (doom/reload-theme))
-
-(defun my/theme-switch-maybe ()
-  "检查当前小时，若与当前主题不同则切换日/夜主题。
-挂在 `doom-switch-frame-hook' 上，使过渡（7:00/19:00）
-即使在长时间运行的会话中也能被捕获。若主题已正确则为空操作。"
-  (let ((theme (my/theme-for-hour)))
-    (unless (eq doom-theme theme)
-      (my/theme-apply theme))))
-
-(setq doom-theme (my/theme-for-hour))
-(add-hook 'doom-switch-frame-hook #'my/theme-switch-maybe 'append)
 
 ;; ─── 行号与自动保存 ─────────────────────────────────────────────────
 ;; 相对行号是 Evil/Vim 的惯例 — `j`/`k` 移动距离一目了然。
@@ -878,57 +828,6 @@ Delays 0.4s for browser window to appear."
 ;; ═══════════════════════════════════════════════════════════════════════════
 ;; 工具
 ;; ═══════════════════════════════════════════════════════════════════════════
-
-;; ─── 完整重载（配置 + 自动加载 + 包 + 主题 + 字体 + 帧）───────────
-;;
-;; Doom 内置的 `doom/reload` 仅重新求值配置文件。此自定义命令
-;; 在更改主题、字体、包或自动加载文件时更彻底：
-;;   1. `doom/reload-autoloads` — 重新扫描自动加载（无需 `doom sync`）
-;;   2. `doom/reload-packages` — 重新求值 `packages.el`
-;;   3. `doom/reload` — 重新求值 `config.el`（核心）
-;;   4. 重载后：重新应用主题、字体并重新运行帧 hook
-;;     （因为 `doom/reload` 重置了它们但不会重新触发）。
-;;
-;; 绑定到 `SPC h r R`（大写 R = 完全重载 vs 小写 r = 重载）。
-;;
-(defun my/doom-full-reload--apply (&rest _)
-  "在 `doom/reload' 后重新应用主题和字体。
-
-仅重新应用主题 + 字体 — 不重新运行 `server-after-make-frame-hook'
-或其他非幂等帧 hook。通过 `doom-after-reload-hook' 运行。"
-  (my/theme-apply (my/theme-for-hour))
-  (when (fboundp 'doom/reload-font)
-    (doom/reload-font))
-  (message "Full reload complete (config + theme + font)"))
-
-;; 在顶层注册一次（不在 `my/doom-full-reload' 内部），以防止
-;; 重复调用时 hook 累积。
-(after! doom
-  (add-hook 'doom-after-reload-hook #'my/doom-full-reload--apply))
-
-(defun my/doom-full-reload ()
-  "重新加载自动加载、包和配置。
-
-步骤：
-1. `doom/reload-autoloads` — 获取新的自动加载命令/面。
-2. `doom/reload-packages` — 重新求值 `packages.el'（无需 `doom sync`）。
-3. `doom/reload` — 重新求值 `config.el'（核心）。
-4. `doom-after-reload-hook' 自动触发，通过 `my/doom-full-reload--apply'
-（在顶层注册）重新应用主题和字体。
-
-每一步都检查 fboundp（在 Doom 的重载机制完全初始化前调用时安全）。
-
-绑定到 `SPC h r R'。"
-  (interactive)
-  (when (fboundp 'doom/reload-autoloads)
-    (with-demoted-errors "Full reload: %S" (doom/reload-autoloads)))
-  (when (fboundp 'doom/reload-packages)
-    (with-demoted-errors "Full reload: %S" (doom/reload-packages)))
-  (when (fboundp 'doom/reload)
-    (with-demoted-errors "Full reload: %S" (doom/reload))))
-
-(map! :leader
-      :desc "Full reload" "h r R" #'my/doom-full-reload)
 
 ;; ─── M-x my/byte-compile-config 手动编译配置 ───────────────────
 ;;;###autoload

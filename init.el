@@ -49,9 +49,9 @@
        ;;unicode           ; 各种语言的扩展 Unicode 支持
        (vc-gutter +pretty) ; 边缘显示版本控制差异
        ;;vi-tilde-fringe   ; 在缓冲区末尾外显示波浪线
-        (window-select +numbers)     ; 可视化切换窗口
-        workspaces        ; 标签模拟、持久化及独立工作区
-        auto-theme         ; 日/夜主题自动切换
+       (window-select +numbers)     ; 可视化切换窗口
+       workspaces        ; 标签模拟、持久化及独立工作区
+
        zen               ; 无干扰编码或写作
 
        :editor

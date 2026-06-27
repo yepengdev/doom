@@ -136,16 +136,17 @@ LATITUDE: 北正南负（度）。LONGITUDE: 东正西负（度）。
 
 (defun my/theme-apply (theme)
   (setq doom-theme theme)
-  (let ((theme-name (if (eq theme my/theme-day)
-                        "Light" "Night")))
-    (cond ((fboundp 'doom/reload-theme)
-           (doom/reload-theme)
-           (message "Theme: %s (%s)" theme theme-name))
-          ((fboundp 'load-theme)
-           (load-theme theme t)
-           (message "Theme: %s (%s)" theme theme-name))
-          (t
-           (message "Theme set to %s (%s) — reload deferred" theme theme-name)))))
+  ;; 先 disable 所有已启用的主题，避免新旧冲突
+  (dolist (th (bound-and-true-p custom-enabled-themes))
+    (unless (eq th theme)
+      (ignore-errors (disable-theme th))))
+  ;; 再加载新主题
+  (load-theme theme t)
+  ;; solaire-mode 刷新
+  (when (and (fboundp 'solaire-mode)
+             (bound-and-true-p solaire-mode))
+    (solaire-mode-restore))
+  (message "Theme: %s" theme))
 
 (defun my/theme-switch-maybe ()
   (let ((theme (my/theme-for-hour)))

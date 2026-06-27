@@ -45,7 +45,7 @@
        (popup +defaults)   ; 驯服突然出现的临时窗口
        ;;smooth-scroll     ; 流畅丝滑，让你不相信这不是黄油
        ;;tabs              ; Emacs 标签栏
-       treemacs          ; 项目文件树，比 neotree 更酷
+       treemacs           ; 项目文件树，比 neotree 更酷
        ;;unicode           ; 各种语言的扩展 Unicode 支持
        (vc-gutter +pretty) ; 边缘显示版本控制差异
        ;;vi-tilde-fringe   ; 在缓冲区末尾外显示波浪线
@@ -100,10 +100,10 @@
        (eval +overlay)     ; 运行代码（还有 REPL）
        (lookup +dictionary +docsets)              ; 浏览代码及其文档
        ;;llm               ; 当我说你需要朋友时，我不是指……
-       (lsp +eglot)      ; 把 Emacs 变成 VS Code
+       ;;(lsp +eglot)      ; 把 Emacs 变成 VS Code
        magit             ; Emacs 的 Git 前端
        ;;make              ; 从 Emacs 运行 make 任务
-       (notes +film)     ; Denote + Deft 笔记系统（+film: 观影日记）
+       notes      ; Denote + Deft 笔记系统（+film: 观影日记）
        ;;pass              ; 给极客用的密码管理器
        pdf               ; PDF 增强
        pomodoro          ; 番茄钟 + 计时器 + 桌面通知
@@ -182,7 +182,7 @@
        ;;(rust +lsp)       ; Fe2O3.unwrap().unwrap().unwrap().unwrap()
        ;;scala             ; Java，但很好
        ;;(scheme +guile)   ; 一个完全狡黠的 lisp 家族
-       (sh +fish +lsp)                ; 她在 C xor 上叫卖 {ba,z,fi}sh 贝壳
+       (sh +fish)                ; 她在 C xor 上叫卖 {ba,z,fi}sh 贝壳
        ;;sml                ; 标准 ML 语言
        ;;solidity          ; 你需要区块链吗？不需要。
        ;;swift             ; 谁需要表情符号变量？

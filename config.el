@@ -6,11 +6,11 @@
 ;;; 除非修改了 `packages.el` 或 `init.el`。
 ;;;
 ;;; 一些增加速度的变量
-(setq native-comp-speed 2)   ; -O2 是甜点；-O3 膨胀 .eln 文件且差距极小
-(setq native-comp-async-jobs-number  ; 并行编译任务数
-      (min 4 (max 1 (/ (num-processors) 2))))
-(setq package-native-compile t)      ; 安装包时自动编译
-(setq native-comp-async-report-warnings-errors 'silent)
+;; (setq native-comp-speed 2)   ; -O2 是甜点；-O3 膨胀 .eln 文件且差距极小
+;; (setq native-comp-async-jobs-number  ; 并行编译任务数
+;;       (min 4 (max 1 (/ (num-processors) 2))))
+;; (setq package-native-compile t)      ; 安装包时自动编译
+;; (setq native-comp-async-report-warnings-errors 'silent)
 
 ;; ═══════════════════════════════════════════════════════════════════════════
 ;; UI
@@ -28,14 +28,14 @@
 ;; 字号 16 在现代高 DPI 显示器上平衡了舒适度（14pt 太挤）与屏幕空间
 ;;（18pt 浪费水平空间）。
 ;;
-;; (after! doom-ui
-;;   (setq doom-font (font-spec :family "Monaspace Neon" :size 15)
-;;         doom-variable-pitch-font (font-spec :family "Monaspace Neon" :size 15))
+(setq doom-font (font-spec :family "Monaspace Neon" :size 16)
+      doom-variable-pitch-font (font-spec :family "Monaspace Neon" :size 16))
 ;;   (set-fontset-font t 'han (font-spec :family "LXGW WenKai Mono Screen" :size 15)))
 
-(after! doom-ui
-  (setq doom-font (font-spec :family "JetBrains Mono" :size 15))
-  (setq doom-variable-pitch-font (font-spec :family "Maple Mono CN" :size 16)))
+;; (after! doom-ui
+;;   (setq doom-font (font-spec :family "Maple Mono CN" :size 17))
+;;   (setq doom-variable-pitch-font (font-spec :family "Maple Mono CN" :size 17))
+;;   )
 
 ;; CJK 回退：守护进程模式下等图形帧出现再设（否则 font backend 未初始化）
 (defvar my--cjk-fontset-done nil)
@@ -43,9 +43,9 @@
   (when (and (display-graphic-p) (not my--cjk-fontset-done))
     (setq my--cjk-fontset-done t)
     (remove-hook 'doom-switch-frame-hook #'my/init-cjk-fontset--fn)
-    (set-fontset-font t 'han (font-spec :family "LXGW WenKai Mono"))
-    (set-fontset-font t 'kana (font-spec :family "LXGW WenKai Mono"))
-    (set-fontset-font t 'cjk-misc (font-spec :family "LXGW WenKai Mono"))))
+    (set-fontset-font t 'han (font-spec :family "方正新书宋"))
+    (set-fontset-font t 'kana (font-spec :family "方正新书宋"))
+    (set-fontset-font t 'cjk-misc (font-spec :family "方正新书宋"))))
 (add-hook 'doom-switch-frame-hook #'my/init-cjk-fontset--fn)
 
 
@@ -56,7 +56,7 @@
 ;; 根据当前小时在 doom-one-light（日间）和 doom-tokyo-night（夜间）之间切换。
 ;; 为何使用小时而非日出/日落：
 ;;   - 日出 API 需要网络和地理位置配置；配置文件需要随处可用，这样做太脆弱。
-;;   - 开发者的日程以办公桌为中心；7–19 覆盖典型工作日。
+;;   - 开发者的日程以办公桌为中心；7–17 覆盖典型工作日。
 ;;     可根据你的纬度/偏好调整这些常量。
 ;;
 ;; 切换在每次帧切换时执行，但 `unless (eq doom-theme ...)`
@@ -282,8 +282,12 @@
 ;; 将注释放在专用子目录中避免主笔记池的混乱。
 (setq org-noter-notes-search-path '("~/org/deft/annotations"))
 
-(after! org
+;; config.el — 让 Deft 的初始扫描推迟到首次使用时
+(after! deft
+  (setq deft-auto-save-files nil)  ; 禁用自动保存检查
+  (setq deft-use-filter-string-for-filename t))
 
+(after! org
   (setq org-return-follows-link t
         org-startup-folded 'content)
 
@@ -301,7 +305,14 @@
                  :prepend t
                  :empty-lines 1))
 
-  ;; 隐藏 `=`、`*`、`~` 等标记 — 视觉上像渲染的标记，
+  (add-to-list 'org-capture-templates
+               '("s" "SQ3R Reading" entry
+                 (file+headline +org-capture-notes-file "Inbox")
+                 "* %^{Title} :SQ3R:reading:\n:PROPERTIES:\n:TIME_START: %U\n:END:\n\n** Survey (浏览)\n- [ ] 浏览目录、标题、图表\n- [ ] 阅读引言/摘要\n- [ ] 预测文章结构\n*总结：*\n\n** Question (提问)\n- [ ] 将标题转化为问题\n- [ ] 列出已有疑问\n*** 问题 1\n*** 问题 2\n*** 问题 3\n\n** Read (阅读)\n- [ ] 逐段阅读并寻找答案\n- [ ] 高亮/标注重点\n- [ ] 记录新疑问\n*重点摘录：*\n\n** Recite (复述)\n- [ ] 口头复述核心内容\n- [ ] 用自己的话写总结\n- [ ] 检查是否遗漏要点\n*复述/总结：*\n\n** Review (复习)\n- [ ] 回顾标记的问题\n- [ ] 绘制思维导图/大纲\n- [ ] 定期重温\n*复习笔记：*\n*下次复习：[%<%Y-%m-%d %a +7d>]*"
+                 :prepend t))
+
+
+  ;; 隐藏 `='、`*'、`~' 等标记 — 视觉上像渲染的标记，
   ;; 在写作时消除视觉噪音。字体化（斜体/粗体/等宽）仍然生效，
   ;; 因此格式仍然可见。
   (setq org-hide-emphasis-markers t)
@@ -313,7 +324,8 @@
   (add-to-list 'org-file-apps '("\\.docx?\\'" . "xdg-open %s"))
   (add-to-list 'org-file-apps '("\\.xlsx?\\'" . "xdg-open %s"))
   (add-to-list 'org-file-apps '("\\.pptx?\\'" . "xdg-open %s"))
-  (add-to-list 'org-file-apps '("\\.rtf\\'" . "xdg-open %s")))
+  (add-to-list 'org-file-apps '("\\.rtf\\'" . "xdg-open %s"))
+  )
 
 ;; ─── Org 捕获辅助 ───────────────────────────────────────────────────
 (defun org-capture-goto-target (&optional template-key)
@@ -938,6 +950,12 @@ Delays 0.4s for browser window to appear."
 
 
 
+;; ─── KDL ───────────────────────────────────────────────────
+(use-package! kdl-mode
+  :mode "\\.kdl\\'"
+  :config
+  (setq kdl-indent-level 2))
+
 ;;（cnotify/random 模块路径已移至 :tools pomodoro）
 
 ;;（番茄钟/计时器/密码工具已移至 :tools pomodoro 模块）
@@ -971,3 +989,40 @@ Delays 0.4s for browser window to appear."
 (after! text-mode
   (setq text-mode-ispell-word-completion nil)
   (remove-hook 'completion-at-point-functions #'ispell-completion-at-point))
+;; ── emskin ─────────────────────────────────
+
+;; 特效偏好（启动即生效）
+(setq emskin-cursor-trail t
+      emskin-jelly-cursor t)
+
+;; 键位：SPC r a e → emskin 命令
+(map! :leader
+      (:prefix ("r" . "remote")
+               (:prefix ("a" . "apps")
+                        (:prefix ("e" . "emskin")
+                         :desc "Open native app"      "o" #'emskin-open-native-app
+                         :desc "Screenshot"           "s" #'emskin-screenshot
+                         :desc "Toggle record"        "r" #'emskin-toggle-record
+                         :desc "Toggle measure"       "m" #'emskin-toggle-measure
+                         :desc "Toggle skeleton"      "k" #'emskin-toggle-skeleton
+                         :desc "Toggle cursor trail"  "t" #'emskin-toggle-cursor-trail
+                         :desc "Toggle jelly cursor"  "j" #'emskin-toggle-jelly-cursor
+                         :desc "Apply config"         "a" #'emskin-apply-config))))
+
+;; (use-package! eaf
+;;   :after-call doom-first-input-hook
+;;   :load-path "/home/peng/Dev/emacs-application-framework"
+;;   :custom
+;;                                         ; See https://github.com/emacs-eaf/emacs-application-framework/wiki/Customization
+;;   (eaf-browser-continue-where-left-off t)
+;;   (eaf-browser-enable-adblocker t)
+;;   (browse-url-browser-function 'eaf-open-browser)
+;;   :config
+;;   (require 'eaf-browser)
+;;   (require 'eaf-pdf-viewer)
+;;   (defalias 'browse-web #'eaf-open-browser)
+;;   (eaf-bind-key scroll_up "C-n" eaf-pdf-viewer-keybinding)
+;;   (eaf-bind-key scroll_down "C-p" eaf-pdf-viewer-keybinding)
+;;   ;; (eaf-bind-key take_photo "p" eaf-camera-keybinding)
+;;   (eaf-bind-key nil "M-q" eaf-browser-keybinding)
+;;   ) ;; unbind, see more in the Wiki

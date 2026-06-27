@@ -26,4 +26,9 @@
 ;; 行/区域移动（MELPA 原版，比 evil 分支更新更活跃）
 (package! move-text)
 
+;; KDL 配置语言
+(package! kdl-mode)
+
 ;; 萌典使用 Emacs 内置 sqlite，无外部包依赖。
+;;
+
